@@ -1,0 +1,34 @@
+# rust
+daemon/target/
+daemon/fuzz/target/
+daemon/fuzz/corpus/
+daemon/fuzz/artifacts/
+
+# android
+android/.gradle/
+android/build/
+android/**/build/
+android/local.properties
+android/.idea/
+android/.kotlin/
+*.apk
+*.aab
+
+# keys and secrets, never committed
+*.key
+*.pem
+!daemon/remoter-attest/testdata/**/*.pem
+*.p12
+*.jks
+*.keystore
+keystore.properties
+infra/**/secrets/
+infra/**/*.conf.rendered
+
+# editors
+.vscode/
+*.swp
+
+# local tooling
+.claude/
+__pycache__/
