@@ -1,0 +1,11 @@
+{
+  "code": "947349",
+  "device_name": "S25 Ultra",
+  "link": "remoter://pair?v=1&h=10.66.66.3&p=8443&pp=8444&fp=oaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaE&s=WlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlo&c=AAECAwQFBgcICQoLDA0ODw&exp=1790611406",
+  "mac": "gvAoCJzDGKK6js_yVUCQyWMkUxgsWHm0qbqzEhpl5rI",
+  "secret": "WlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlo",
+  "server_fp": "oaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaE",
+  "sig_spki": "MFlzaWc",
+  "tls_spki": "MFl0bHM",
+  "transcript_hex": "0000000f72656d6f7465722d706169722d763100000020a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1000000053059746c730000000530597369670000000953323520556c747261"
+}

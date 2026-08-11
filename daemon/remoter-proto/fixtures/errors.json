@@ -1,0 +1,246 @@
+[
+  {
+    "body": {
+      "code": "path_outside_home",
+      "message": "path_outside_home (fixture)",
+      "request_id": "01K6B7Y3M4N5P6Q7R8S9T0V1X1"
+    },
+    "status": 403
+  },
+  {
+    "body": {
+      "code": "path_denied",
+      "message": "path_denied (fixture)",
+      "request_id": "01K6B7Y3M4N5P6Q7R8S9T0V1X1"
+    },
+    "status": 403
+  },
+  {
+    "body": {
+      "code": "path_unsupported",
+      "message": "path_unsupported (fixture)",
+      "request_id": "01K6B7Y3M4N5P6Q7R8S9T0V1X1"
+    },
+    "status": 403
+  },
+  {
+    "body": {
+      "code": "not_found",
+      "message": "not_found (fixture)",
+      "request_id": "01K6B7Y3M4N5P6Q7R8S9T0V1X1"
+    },
+    "status": 404
+  },
+  {
+    "body": {
+      "code": "not_a_directory",
+      "message": "not_a_directory (fixture)",
+      "request_id": "01K6B7Y3M4N5P6Q7R8S9T0V1X1"
+    },
+    "status": 400
+  },
+  {
+    "body": {
+      "code": "name_invalid",
+      "message": "name_invalid (fixture)",
+      "request_id": "01K6B7Y3M4N5P6Q7R8S9T0V1X1"
+    },
+    "status": 400
+  },
+  {
+    "body": {
+      "code": "exists",
+      "message": "exists (fixture)",
+      "request_id": "01K6B7Y3M4N5P6Q7R8S9T0V1X1"
+    },
+    "status": 409
+  },
+  {
+    "body": {
+      "code": "untrusted_folder",
+      "message": "untrusted_folder (fixture)",
+      "request_id": "01K6B7Y3M4N5P6Q7R8S9T0V1X1"
+    },
+    "status": 403
+  },
+  {
+    "body": {
+      "code": "locked",
+      "message": "locked (fixture)",
+      "request_id": "01K6B7Y3M4N5P6Q7R8S9T0V1X1"
+    },
+    "status": 423
+  },
+  {
+    "body": {
+      "code": "device_unknown",
+      "message": "device_unknown (fixture)",
+      "request_id": "01K6B7Y3M4N5P6Q7R8S9T0V1X1"
+    },
+    "status": 401
+  },
+  {
+    "body": {
+      "code": "reattest_required",
+      "message": "reattest_required (fixture)",
+      "request_id": "01K6B7Y3M4N5P6Q7R8S9T0V1X1"
+    },
+    "status": 403
+  },
+  {
+    "body": {
+      "code": "sig_invalid",
+      "message": "sig_invalid (fixture)",
+      "request_id": "01K6B7Y3M4N5P6Q7R8S9T0V1X1"
+    },
+    "status": 401
+  },
+  {
+    "body": {
+      "code": "nonce_reused",
+      "message": "nonce_reused (fixture)",
+      "request_id": "01K6B7Y3M4N5P6Q7R8S9T0V1X1"
+    },
+    "status": 401
+  },
+  {
+    "body": {
+      "code": "clock_skew",
+      "message": "clock_skew (fixture)",
+      "request_id": "01K6B7Y3M4N5P6Q7R8S9T0V1X1",
+      "server_time": 1790611153000
+    },
+    "status": 400
+  },
+  {
+    "body": {
+      "code": "rate_limited",
+      "message": "rate_limited (fixture)",
+      "request_id": "01K6B7Y3M4N5P6Q7R8S9T0V1X1",
+      "retry_after_s": 17
+    },
+    "status": 429
+  },
+  {
+    "body": {
+      "code": "session_cap",
+      "message": "session_cap (fixture)",
+      "request_id": "01K6B7Y3M4N5P6Q7R8S9T0V1X1",
+      "sessions": [
+        {
+          "claude": {
+            "environment_url": "https://claude.ai/code?environment=env_01Kd3fPzQw8nVb2sLxRt6uYm",
+            "session_id": "session_01Hq7cXv2mTnR4bWkYe9pLsA",
+            "session_url": "https://claude.ai/code/session_01Hq7cXv2mTnR4bWkYe9pLsA"
+          },
+          "device": "01K6B7Y3M4N5P6Q7R8S9T0V1W2",
+          "exit_code": null,
+          "id": "rc-01k6b7y3m4n5p6q7r8s9t0v1w2",
+          "name": "remoter",
+          "path": "Projects/remoter",
+          "reason": null,
+          "started": 1790611106000,
+          "state": "ready"
+        }
+      ]
+    },
+    "status": 409
+  },
+  {
+    "body": {
+      "code": "folder_busy",
+      "message": "folder_busy (fixture)",
+      "request_id": "01K6B7Y3M4N5P6Q7R8S9T0V1X1",
+      "sessions": [
+        {
+          "claude": {
+            "environment_url": "https://claude.ai/code?environment=env_01Kd3fPzQw8nVb2sLxRt6uYm",
+            "session_id": "session_01Hq7cXv2mTnR4bWkYe9pLsA",
+            "session_url": "https://claude.ai/code/session_01Hq7cXv2mTnR4bWkYe9pLsA"
+          },
+          "device": "01K6B7Y3M4N5P6Q7R8S9T0V1W2",
+          "exit_code": null,
+          "id": "rc-01k6b7y3m4n5p6q7r8s9t0v1w2",
+          "name": "remoter",
+          "path": "Projects/remoter",
+          "reason": null,
+          "started": 1790611106000,
+          "state": "ready"
+        }
+      ]
+    },
+    "status": 409
+  },
+  {
+    "body": {
+      "code": "conversation_open",
+      "message": "conversation_open (fixture)",
+      "request_id": "01K6B7Y3M4N5P6Q7R8S9T0V1X1"
+    },
+    "status": 409
+  },
+  {
+    "body": {
+      "code": "view_token_required",
+      "message": "view_token_required (fixture)",
+      "request_id": "01K6B7Y3M4N5P6Q7R8S9T0V1X1"
+    },
+    "status": 403
+  },
+  {
+    "body": {
+      "code": "spawn_failed",
+      "message": "spawn_failed (fixture)",
+      "request_id": "01K6B7Y3M4N5P6Q7R8S9T0V1X1"
+    },
+    "status": 500
+  },
+  {
+    "body": {
+      "code": "desktop_down",
+      "message": "desktop_down (fixture)",
+      "request_id": "01K6B7Y3M4N5P6Q7R8S9T0V1X1"
+    },
+    "status": 503
+  },
+  {
+    "body": {
+      "code": "agent_down",
+      "message": "agent_down (fixture)",
+      "request_id": "01K6B7Y3M4N5P6Q7R8S9T0V1X1"
+    },
+    "status": 503
+  },
+  {
+    "body": {
+      "code": "pair_expired",
+      "message": "pair_expired (fixture)",
+      "request_id": "01K6B7Y3M4N5P6Q7R8S9T0V1X1"
+    },
+    "status": 403
+  },
+  {
+    "body": {
+      "code": "pair_rejected",
+      "message": "pair_rejected (fixture)",
+      "request_id": "01K6B7Y3M4N5P6Q7R8S9T0V1X1"
+    },
+    "status": 403
+  },
+  {
+    "body": {
+      "code": "bad_request",
+      "message": "bad_request (fixture)",
+      "request_id": "01K6B7Y3M4N5P6Q7R8S9T0V1X1"
+    },
+    "status": 400
+  },
+  {
+    "body": {
+      "code": "internal",
+      "message": "internal (fixture)",
+      "request_id": "01K6B7Y3M4N5P6Q7R8S9T0V1X1"
+    },
+    "status": 500
+  }
+]

@@ -1,0 +1,153 @@
+{
+  "cases": [
+    {
+      "body": "{\"parent\":\"Projects\",\"name\":\"new-thing\",\"git_init\":true}",
+      "body_sha256": "a789542de9f42e4d8525bdf35b02be4f35f83b2570878f24fde2a180b8b6d5c1",
+      "canonical": "remoter-sig-v1\nPOST\n/v1/fs/mkdir\n01K6B7Y3M4N5P6Q7R8S9T0V1W2\n1790611106000\nAAECAwQFBgcICQoLDA0ODw\na789542de9f42e4d8525bdf35b02be4f35f83b2570878f24fde2a180b8b6d5c1",
+      "device": "01K6B7Y3M4N5P6Q7R8S9T0V1W2",
+      "method": "POST",
+      "name": "mkdir",
+      "nonce": "AAECAwQFBgcICQoLDA0ODw",
+      "query": [],
+      "segments": [
+        "fs",
+        "mkdir"
+      ],
+      "signature_der": "MEQCIBDh3WEeBzJiqATjVE8Y6_lFdthD9aqLsMT_Ytyf20WlAiADSpUjf7RUo89Lpd8LD6frRAnc5lCzI_gK5Vtchtvvfg",
+      "target": "/v1/fs/mkdir",
+      "timestamp_ms": 1790611106000
+    },
+    {
+      "body": "{\"path\":\"Projects/remoter\",\"name\":\"remoter\",\"mode\":\"same-dir\"}",
+      "body_sha256": "36874277692ca6f4aad0cc6ab6cd4a6f6cb6438704a877569e22b259c9be84a5",
+      "canonical": "remoter-sig-v1\nPOST\n/v1/sessions\n01K6B7Y3M4N5P6Q7R8S9T0V1W2\n1790611107123\n_____________________w\n36874277692ca6f4aad0cc6ab6cd4a6f6cb6438704a877569e22b259c9be84a5",
+      "device": "01K6B7Y3M4N5P6Q7R8S9T0V1W2",
+      "method": "POST",
+      "name": "spawn",
+      "nonce": "_____________________w",
+      "query": [],
+      "segments": [
+        "sessions"
+      ],
+      "signature_der": "MEUCIQCVjZP9Tbqfi_YevC3HHB7K9itAiLx_Vc1vFaqwDpqEnwIgZaThDn7K-aR0ePrxQZOd8EXl3t_6T1SGQPGCq1Qgwy0",
+      "target": "/v1/sessions",
+      "timestamp_ms": 1790611107123
+    },
+    {
+      "body": "",
+      "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "canonical": "remoter-sig-v1\nDELETE\n/v1/sessions/rc-01k6b7y3m4n5p6q7r8s9t0v1w2\n01K6B7Y3M4N5P6Q7R8S9T0V1W2\n1790611108000\nBwcHBwcHBwcHBwcHBwcHBw\ne3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "device": "01K6B7Y3M4N5P6Q7R8S9T0V1W2",
+      "method": "DELETE",
+      "name": "kill_a",
+      "nonce": "BwcHBwcHBwcHBwcHBwcHBw",
+      "query": [],
+      "segments": [
+        "sessions",
+        "rc-01k6b7y3m4n5p6q7r8s9t0v1w2"
+      ],
+      "signature_der": "MEUCIHoKVlZLLwX4gaGi_1mGsLYXSqF9_PTG-kbylNcMXrhlAiEAojgezq7R5zdcI5JhMK_3c9R8oqXE3sXv5PJbhMvXdvQ",
+      "target": "/v1/sessions/rc-01k6b7y3m4n5p6q7r8s9t0v1w2",
+      "timestamp_ms": 1790611108000
+    },
+    {
+      "body": "",
+      "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "canonical": "remoter-sig-v1\nDELETE\n/v1/sessions/rc-01k6b7y3m4n5p6q7r8s9t0v1w3\n01K6B7Y3M4N5P6Q7R8S9T0V1W2\n1790611108000\nBwcHBwcHBwcHBwcHBwcHBw\ne3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "device": "01K6B7Y3M4N5P6Q7R8S9T0V1W2",
+      "method": "DELETE",
+      "name": "kill_b_same_nonce",
+      "nonce": "BwcHBwcHBwcHBwcHBwcHBw",
+      "query": [],
+      "segments": [
+        "sessions",
+        "rc-01k6b7y3m4n5p6q7r8s9t0v1w3"
+      ],
+      "signature_der": "MEQCIAr-97EF5w0cOy_p0WxgbNadrpZTff6bj2bmfxvwGnttAiBY7z7k4WDOJcODcgIddXrHTahwdRm-WzotZbhcWERdVw",
+      "target": "/v1/sessions/rc-01k6b7y3m4n5p6q7r8s9t0v1w3",
+      "timestamp_ms": 1790611108000
+    },
+    {
+      "body": "{}",
+      "body_sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "canonical": "remoter-sig-v1\nPOST\n/v1/view-token\n01K6B7Y3M4N5P6Q7R8S9T0V1W2\n1790611109000\nQkJCQkJCQkJCQkJCQkJCQg\n44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "device": "01K6B7Y3M4N5P6Q7R8S9T0V1W2",
+      "method": "POST",
+      "name": "view_token",
+      "nonce": "QkJCQkJCQkJCQkJCQkJCQg",
+      "query": [],
+      "segments": [
+        "view-token"
+      ],
+      "signature_der": "MEUCIQD5tX4cBv7d3CwJ-sDoXeM5PMNZ72UNStiQUPiyz5ef3QIgbx4mR_hcF6JN1llOO8b2IdfodH5rieRl_FKD-I_q9B0",
+      "target": "/v1/view-token",
+      "timestamp_ms": 1790611109000
+    },
+    {
+      "body": "",
+      "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "canonical": "remoter-sig-v1\nDELETE\n/v1/devices/self\n01K6B7Y3M4N5P6Q7R8S9T0V1W2\n1790611110000\nEBAQEBAQEBAQEBAQEBAQEA\ne3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "device": "01K6B7Y3M4N5P6Q7R8S9T0V1W2",
+      "method": "DELETE",
+      "name": "unpair",
+      "nonce": "EBAQEBAQEBAQEBAQEBAQEA",
+      "query": [],
+      "segments": [
+        "devices",
+        "self"
+      ],
+      "signature_der": "MEQCIGKXYWTb-sUFJUzizcBafNI9yijaKA27wLTET5TKbGgFAiASdJhu18BNyIRt7C1y2_w4dw7PYW5e08mHINwMoKxBoA",
+      "target": "/v1/devices/self",
+      "timestamp_ms": 1790611110000
+    },
+    {
+      "body": "{}",
+      "body_sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "canonical": "remoter-sig-v1\nPOST\n/v1/fs/mkdir?path=Projects%2Fx%20y%2Fcaf%C3%A9&q=a%2Bb%26c%3Dd%23e&hidden=true\n01K6B7Y3M4N5P6Q7R8S9T0V1W2\n1790611111000\nICAgICAgICAgICAgICAgIA\n44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "device": "01K6B7Y3M4N5P6Q7R8S9T0V1W2",
+      "method": "POST",
+      "name": "awkward_space_unicode_reserved",
+      "nonce": "ICAgICAgICAgICAgICAgIA",
+      "query": [
+        [
+          "path",
+          "Projects/x y/café"
+        ],
+        [
+          "q",
+          "a+b&c=d#e"
+        ],
+        [
+          "hidden",
+          "true"
+        ]
+      ],
+      "segments": [
+        "fs",
+        "mkdir"
+      ],
+      "signature_der": "MEQCICvByIMbL-bBzrpIExV4n57Vpg7ySNlp_7CYPqG75uBeAiAhugU4Cex8GHkGY_bRrtJM692JRLbkFUa-RMt36cgZpw",
+      "target": "/v1/fs/mkdir?path=Projects%2Fx%20y%2Fcaf%C3%A9&q=a%2Bb%26c%3Dd%23e&hidden=true",
+      "timestamp_ms": 1790611111000
+    },
+    {
+      "body": "{}",
+      "body_sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "canonical": "remoter-sig-v1\nPOST\n/v1/fs/we%20ird%3F%23seg%25\n01K6B7Y3M4N5P6Q7R8S9T0V1W2\n1790611112000\nMDAwMDAwMDAwMDAwMDAwMA\n44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "device": "01K6B7Y3M4N5P6Q7R8S9T0V1W2",
+      "method": "POST",
+      "name": "awkward_path_segment",
+      "nonce": "MDAwMDAwMDAwMDAwMDAwMA",
+      "query": [],
+      "segments": [
+        "fs",
+        "we ird?#seg%"
+      ],
+      "signature_der": "MEUCICWy6_CBTBujgMwinpEj5YkmfBlhUZ_1s7Pz-r_sT91pAiEAyilYaltiUecLcqYgxh04LJJc7DXPACzx2dNhaXYkEbY",
+      "target": "/v1/fs/we%20ird%3F%23seg%25",
+      "timestamp_ms": 1790611112000
+    }
+  ],
+  "note": "test_only_public_key belongs to a throwaway scalar used only here",
+  "test_only_public_key_spki": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEHMvpHAdfx_TwM7-iSNuPzNNWXelLv7EvPFn_RsJxv4POQBTGiBH5ohof2ywOYRPgbbfKk7dATnjcfM1cqJpMqQ"
+}

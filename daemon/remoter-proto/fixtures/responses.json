@@ -1,0 +1,336 @@
+{
+  "attest_challenge": {
+    "challenge": "AAECAwQFBgcICQoLDA0ODw",
+    "expires": 1790611406000
+  },
+  "attest_response": {
+    "fresh_until": 1790697506000
+  },
+  "audit": {
+    "entries": [
+      {
+        "action": "spawn",
+        "device": "01K6B7Y3M4N5P6Q7R8S9T0V1W2",
+        "path": "Projects/remoter",
+        "request_id": "01K6B7Y3M4N5P6Q7R8S9T0V1X0",
+        "result": "ok",
+        "ts": 1790611106000
+      }
+    ],
+    "next_before": 1790611106000
+  },
+  "events": [
+    {
+      "data": {
+        "at": 1,
+        "step": "accepted"
+      },
+      "event": "phase"
+    },
+    {
+      "data": {
+        "at": 1,
+        "step": "handoff"
+      },
+      "event": "phase"
+    },
+    {
+      "data": {
+        "exit_code": null,
+        "reason": "handoff_failed",
+        "state": "stuck"
+      },
+      "event": "state"
+    },
+    {
+      "data": {
+        "exit_code": null,
+        "reason": "folder_changed",
+        "state": "stuck"
+      },
+      "event": "state"
+    },
+    {
+      "data": {
+        "at": 2,
+        "lines": [
+          "line"
+        ]
+      },
+      "event": "tail"
+    }
+  ],
+  "handoff_request": {
+    "handoff": "c82d8b5c-edd4-453e-8d59-4748ff325c03",
+    "mode": "same-dir",
+    "name": "fix the banner",
+    "path": "Projects/remoter"
+  },
+  "health": {
+    "battery_pct": 12,
+    "fresh_until": 1790697506000,
+    "hostname": "r1v3r",
+    "locked": false,
+    "on_ac": false,
+    "server_time": 1790611106000,
+    "sessions": 1,
+    "version": "0.1.0"
+  },
+  "history": {
+    "conversations": [
+      {
+        "branch": "main",
+        "id": "c82d8b5c-edd4-453e-8d59-4748ff325c03",
+        "last_prompt": "the banner still overlaps the sheet, can you check",
+        "open": false,
+        "started": 1790524706000,
+        "title": "fix the banner",
+        "updated": 1790531906000
+      },
+      {
+        "branch": null,
+        "id": "1170e57c-4a8e-4fb2-9437-21f0fdc2cef3",
+        "last_prompt": null,
+        "open": true,
+        "started": 1790438306000,
+        "title": "remoter",
+        "updated": 1790611000000
+      }
+    ],
+    "path": "Projects/remoter",
+    "truncated": false
+  },
+  "list": {
+    "deny_reason": null,
+    "entries": [
+      {
+        "deny_reason": null,
+        "file_count": 3,
+        "has_claude_md": true,
+        "is_git": true,
+        "mtime": 1790611000000,
+        "name": "remoter",
+        "session_count": 1,
+        "spawn_allowed": true,
+        "symlink": "none",
+        "symlink_target": null,
+        "trusted": true,
+        "unsupported": false
+      },
+      {
+        "deny_reason": "denied",
+        "file_count": 0,
+        "has_claude_md": false,
+        "is_git": false,
+        "mtime": 1790611000000,
+        "name": ".ssh",
+        "session_count": 0,
+        "spawn_allowed": false,
+        "symlink": "none",
+        "symlink_target": null,
+        "trusted": true,
+        "unsupported": false
+      },
+      {
+        "deny_reason": "symlink_absolute",
+        "file_count": null,
+        "has_claude_md": true,
+        "is_git": true,
+        "mtime": 1790611000000,
+        "name": "work",
+        "session_count": 1,
+        "spawn_allowed": false,
+        "symlink": "absolute",
+        "symlink_target": "Projects/remoter",
+        "trusted": true,
+        "unsupported": false
+      },
+      {
+        "deny_reason": "unsupported",
+        "file_count": 3,
+        "has_claude_md": true,
+        "is_git": true,
+        "mtime": 1790611000000,
+        "name": "bad�",
+        "session_count": 1,
+        "spawn_allowed": false,
+        "symlink": "none",
+        "symlink_target": null,
+        "trusted": true,
+        "unsupported": true
+      }
+    ],
+    "is_git": false,
+    "partial": false,
+    "path": "Projects",
+    "spawn_allowed": true,
+    "truncated": false,
+    "trusted": true
+  },
+  "live_sessions": {
+    "sessions": [
+      {
+        "claude": {
+          "environment_url": "https://claude.ai/code?environment=env_01Kd3fPzQw8nVb2sLxRt6uYm",
+          "session_id": "session_01Hq7cXv2mTnR4bWkYe9pLsA",
+          "session_url": "https://claude.ai/code/session_01Hq7cXv2mTnR4bWkYe9pLsA"
+        },
+        "device": "01K6B7Y3M4N5P6Q7R8S9T0V1W2",
+        "exit_code": null,
+        "id": "rc-01k6b7y3m4n5p6q7r8s9t0v1w2",
+        "name": "remoter",
+        "path": "Projects/remoter",
+        "reason": null,
+        "started": 1790611106000,
+        "state": "ready",
+        "worktree": "bright-otter-3f2a"
+      },
+      {
+        "claude": null,
+        "device": "01K6B7Y3M4N5P6Q7R8S9T0V1W2",
+        "exit_code": null,
+        "id": "rc-01k6b7y3m4n5p6q7r8s9t0v1w3",
+        "name": "remoter",
+        "path": "Projects/remoter",
+        "reason": "untrusted",
+        "started": 1790611106000,
+        "state": "stuck"
+      },
+      {
+        "claude": null,
+        "device": "01K6B7Y3M4N5P6Q7R8S9T0V1W2",
+        "exit_code": 1,
+        "id": "rc-01k6b7y3m4n5p6q7r8s9t0v1w4",
+        "name": "remoter",
+        "path": "Projects/remoter",
+        "reason": null,
+        "started": 1790611106000,
+        "state": "exited"
+      }
+    ]
+  },
+  "lock": {
+    "locked": true
+  },
+  "mkdir": {
+    "path": "Projects/new-thing"
+  },
+  "mkdir_request": {
+    "git_init": true,
+    "name": "new-thing",
+    "parent": "Projects"
+  },
+  "pair": {
+    "device_id": "01K6B7Y3M4N5P6Q7R8S9T0V1W2",
+    "hostname": "r1v3r"
+  },
+  "recent": {
+    "entries": [
+      {
+        "is_git": true,
+        "last_spawn": 1790611106000,
+        "name": "remoter",
+        "path": "Projects/remoter"
+      }
+    ],
+    "typical_start_ms": 6100
+  },
+  "resume_request": {
+    "mode": "same-dir",
+    "name": "fix the banner",
+    "path": "Projects/remoter",
+    "resume": "c82d8b5c-edd4-453e-8d59-4748ff325c03"
+  },
+  "search": {
+    "capped": false,
+    "hits": [
+      {
+        "depth": 2,
+        "is_git": true,
+        "name": "remoter",
+        "path": "Projects/remoter"
+      }
+    ],
+    "query": "rem"
+  },
+  "session_detail": {
+    "session": {
+      "claude": {
+        "environment_url": "https://claude.ai/code?environment=env_01Kd3fPzQw8nVb2sLxRt6uYm",
+        "session_id": "session_01Hq7cXv2mTnR4bWkYe9pLsA",
+        "session_url": "https://claude.ai/code/session_01Hq7cXv2mTnR4bWkYe9pLsA"
+      },
+      "device": "01K6B7Y3M4N5P6Q7R8S9T0V1W2",
+      "exit_code": null,
+      "id": "rc-01k6b7y3m4n5p6q7r8s9t0v1w2",
+      "name": "remoter",
+      "path": "Projects/remoter",
+      "reason": null,
+      "started": 1790611106000,
+      "state": "ready",
+      "worktree": "bright-otter-3f2a"
+    },
+    "tail": [
+      "·✔︎· Connected · remoter · main",
+      "    Capacity: 1/32"
+    ],
+    "tail_at": 1790611110000
+  },
+  "sessions": {
+    "cap": 8,
+    "sessions": [
+      {
+        "claude": {
+          "environment_url": "https://claude.ai/code?environment=env_01Kd3fPzQw8nVb2sLxRt6uYm",
+          "session_id": "session_01Hq7cXv2mTnR4bWkYe9pLsA",
+          "session_url": "https://claude.ai/code/session_01Hq7cXv2mTnR4bWkYe9pLsA"
+        },
+        "device": "01K6B7Y3M4N5P6Q7R8S9T0V1W2",
+        "exit_code": null,
+        "id": "rc-01k6b7y3m4n5p6q7r8s9t0v1w2",
+        "name": "remoter",
+        "path": "Projects/remoter",
+        "reason": null,
+        "started": 1790611106000,
+        "state": "ready",
+        "worktree": "bright-otter-3f2a"
+      },
+      {
+        "claude": null,
+        "device": "01K6B7Y3M4N5P6Q7R8S9T0V1W2",
+        "exit_code": null,
+        "id": "rc-01k6b7y3m4n5p6q7r8s9t0v1w3",
+        "name": "remoter",
+        "path": "Projects/remoter",
+        "reason": "untrusted",
+        "started": 1790611106000,
+        "state": "stuck"
+      },
+      {
+        "claude": null,
+        "device": "01K6B7Y3M4N5P6Q7R8S9T0V1W2",
+        "exit_code": 1,
+        "id": "rc-01k6b7y3m4n5p6q7r8s9t0v1w4",
+        "name": "remoter",
+        "path": "Projects/remoter",
+        "reason": null,
+        "started": 1790611106000,
+        "state": "exited"
+      }
+    ]
+  },
+  "spawn": {
+    "id": "rc-01k6b7y3m4n5p6q7r8s9t0v1w2",
+    "view_token": "dmlldy10b2tlbi1maXh0dXJlLW9ubHktMzItYnl0ZXM",
+    "view_token_expires": 1790612006000
+  },
+  "spawn_request": {
+    "mode": "same-dir",
+    "name": "remoter",
+    "path": "Projects/remoter"
+  },
+  "view_token": {
+    "expires": 1790612006000,
+    "token": "dmlldy10b2tlbi1maXh0dXJlLW9ubHktMzItYnl0ZXM"
+  }
+}

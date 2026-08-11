@@ -1,0 +1,134 @@
+{
+  "folder": [
+    {
+      "name": "a",
+      "valid": true
+    },
+    {
+      "name": ".env",
+      "valid": true
+    },
+    {
+      "name": "v1.2-rc_3",
+      "valid": true
+    },
+    {
+      "name": "",
+      "valid": false
+    },
+    {
+      "name": ".",
+      "valid": false
+    },
+    {
+      "name": "..",
+      "valid": false
+    },
+    {
+      "name": "-rf",
+      "valid": false
+    },
+    {
+      "name": "a b",
+      "valid": false
+    },
+    {
+      "name": "a/b",
+      "valid": false
+    },
+    {
+      "name": "café",
+      "valid": false
+    },
+    {
+      "name": "a;",
+      "valid": false
+    }
+  ],
+  "session": [
+    {
+      "name": "remoter",
+      "valid": true
+    },
+    {
+      "name": "my proj",
+      "valid": true
+    },
+    {
+      "name": "  padded  ",
+      "valid": true
+    },
+    {
+      "name": "-x",
+      "valid": false
+    },
+    {
+      "name": "a;b",
+      "valid": false
+    },
+    {
+      "name": "a$b",
+      "valid": false
+    },
+    {
+      "name": "tab\tname",
+      "valid": false
+    }
+  ],
+  "session_from_folder": [
+    {
+      "folder": "remoter",
+      "name": "remoter"
+    },
+    {
+      "folder": "C#{x}",
+      "name": "C--x-"
+    },
+    {
+      "folder": "--rf",
+      "name": "rf"
+    },
+    {
+      "folder": "  ",
+      "name": "session"
+    },
+    {
+      "folder": "🚀 launch",
+      "name": "launch"
+    },
+    {
+      "folder": "a$HOME",
+      "name": "a-HOME"
+    },
+    {
+      "folder": "my folder ",
+      "name": "my folder"
+    }
+  ],
+  "unsupported": [
+    {
+      "hex": "6e6f726d616c",
+      "unsupported": false
+    },
+    {
+      "hex": "636166c3a9",
+      "unsupported": false
+    },
+    {
+      "hex": "626164ff",
+      "unsupported": true
+    },
+    {
+      "hex": "61e280ae62",
+      "unsupported": true
+    },
+    {
+      "hex": "61e2808b62",
+      "unsupported": true
+    },
+    {
+      "hex": "610a62",
+      "unsupported": true
+    }
+  ]
+}
