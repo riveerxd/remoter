@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["remoter-proto"]
+members = ["remoter-auth", "remoter-proto"]
 
 [workspace.package]
 edition = "2024"

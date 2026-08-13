@@ -1,0 +1,23 @@
+[package]
+name = "remoter-auth"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+publish.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+libc = "0.2.189"
+p256 = { version = "0.14.0", features = ["ecdsa", "pkcs8"] }
+remoter-proto = { version = "0.1.0", path = "../remoter-proto" }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.151"
+sha2 = "0.11.0"
+
+[features]
+# Software phone keys for other crates' tests. Pulled in only as a
+# dev-dependency feature, never by a daemon build.
+testkit = []
+
+[lints]
+workspace = true
