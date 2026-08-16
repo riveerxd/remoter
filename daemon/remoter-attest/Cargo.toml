@@ -1,0 +1,27 @@
+[package]
+name = "remoter-attest"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+publish.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+rcgen = { version = "0.14.10", optional = true, default-features = false, features = ["crypto", "aws_lc_rs"] }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.151"
+sha2 = "0.11.0"
+x509-parser = { version = "0.18.1", features = ["verify-aws"] }
+
+[features]
+# Test PKI and chain builder for other crates' tests. Dev only.
+testkit = ["dep:rcgen"]
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+# Its own test kit, so the policy tests run in every plain `cargo test`.
+remoter-attest = { version = "0.1.0", path = ".", features = ["testkit"] }
+p256 = { version = "0.14.0", features = ["ecdsa", "pkcs8"] }
+rcgen = { version = "0.14.10", default-features = false, features = ["crypto", "aws_lc_rs"] }
