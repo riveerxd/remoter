@@ -1,0 +1,3 @@
+Test vectors from https://github.com/android/keyattestation at 55c35040a1b5b72e6d63bfb150c5c68a175c1462,
+copied unchanged under the Apache License 2.0 in LICENSE. google-roots.json is
+that repo's roots.json, the same list https://android.googleapis.com/attestation/root serves.
