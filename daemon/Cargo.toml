@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["remoter-attest", "remoter-auth", "remoter-exec", "remoter-proto"]
+members = ["remoter-agent", "remoter-attest", "remoter-auth", "remoter-exec", "remoter-proto"]
 
 [workspace.package]
 edition = "2024"
