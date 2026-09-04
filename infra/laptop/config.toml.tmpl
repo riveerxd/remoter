@@ -1,0 +1,32 @@
+# /etc/remoter/config.toml, root 0644, rendered by install.sh.
+
+[net]
+listen_device   = "rmt0"
+listen_addr     = "10.66.66.3"
+port            = 8443
+pair_port       = 8444
+phone_addr      = "10.66.66.2"
+clock_window_s  = 30
+
+[agent]
+socket          = "/run/remoter/agent.sock"
+home            = "@HOME@"
+claude_bin      = "@HOME@/.local/bin/claude"
+kitty_bin       = "/usr/bin/kitty"
+hyprctl_bin     = "/usr/bin/hyprctl"
+exec_bin        = "/usr/local/bin/remoter-exec"
+workspace       = 9
+max_sessions    = 8
+cwd_deny        = [".ssh", ".gnupg", ".claude", ".config", ".local", ".password-store"]
+search_skip     = ["node_modules", ".git", "target", "build", ".gradle", ".venv", ".cache"]
+trusted_roots   = ["Projects"]
+
+[remoterd]
+agent_user      = "@USER@"
+
+[attestation]
+app_package     = "me.river.remoter"
+app_cert_sha256 = "@APP_CERT_SHA256@"
+max_patch_age_months = 6
+fresh_hours     = 24
+unlocked_device_required_in = "hardware"

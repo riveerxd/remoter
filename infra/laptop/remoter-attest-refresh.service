@@ -1,0 +1,40 @@
+# Fetches Google's attestation roots and revocation status for remoterd,
+# which has no internet. Pairing and re-attestation refuse data older than a
+# week, so a daily run keeps both working.
+[Unit]
+Description=remoter attestation data refresh
+Wants=network-online.target
+After=network-online.target remoterd.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/remoterctl refresh
+# It runs as root and parses what it downloads, so it gets remoterd's
+# sandbox. It writes nothing on disk (remoterd stores the data), and keeps
+# one capability: reaching remoterd's admin socket, which is remoterd's own
+# 0600 file in its 0700 runtime dir.
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+ProtectProc=invisible
+ProcSubset=pid
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+CapabilityBoundingSet=CAP_DAC_OVERRIDE
+AmbientCapabilities=
+UMask=0077

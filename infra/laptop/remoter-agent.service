@@ -1,0 +1,15 @@
+[Unit]
+Description=remoter agent
+
+[Service]
+ExecStart=/usr/local/bin/remoter-agent --config /etc/remoter/config.toml
+Restart=always
+RestartSec=2
+NoNewPrivileges=yes
+LockPersonality=yes
+RestrictRealtime=yes
+SystemCallArchitectures=native
+UMask=0022
+
+[Install]
+WantedBy=default.target
