@@ -1,0 +1,14 @@
+[Unit]
+Description=remoter host firewall
+Before=network-pre.target
+Wants=network-pre.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/nft -f /etc/remoter/nftables.conf
+ExecStop=/usr/bin/nft destroy table inet remoter_host
+ExecStop=/usr/bin/nft destroy table inet remoter_raw
+
+[Install]
+WantedBy=multi-user.target
