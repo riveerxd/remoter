@@ -1,0 +1,12 @@
+# Imported with `nmcli connection import type wireguard file rmt0.conf` from
+# a copy rendered in a private tmpfs dir by install-tunnel.sh.
+[Interface]
+Address    = 10.66.66.3/32
+PrivateKey = @LAPTOP_PRIVATE_KEY@
+
+[Peer]
+PublicKey           = @VPS_PUBLIC_KEY@
+PresharedKey        = @PSK_LAPTOP@
+Endpoint            = @VPS_ENDPOINT@:51820
+AllowedIPs          = 10.66.66.2/32, 10.66.66.1/32
+PersistentKeepalive = 25

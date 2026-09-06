@@ -1,0 +1,33 @@
+# remoter hub. Rendered on the VPS by setup.sh; the private key and PSKs are
+# filled in there from files that never leave /etc/wireguard.
+[Interface]
+Address    = 10.66.66.1/29
+ListenPort = 51820
+PrivateKey = @VPS_PRIVATE_KEY@
+# The VPS runs client apps under Docker, so these go in DOCKER-USER, the one
+# chain Docker leaves to the admin, and live exactly as long as rmt0 does.
+# Rules 4 and 5 stop tunnel traffic from ever reaching Docker's own chains.
+# PreDown runs the new file's rules against the old tunnel's chain, so a rule
+# added since the last start isn't there to delete; `|| true` keeps that from
+# wedging the restart. `setup.sh remove` checks nothing was left behind.
+PostUp  = iptables -I DOCKER-USER 1 -i rmt0 -o rmt0 -s 10.66.66.2 -d 10.66.66.3 -p tcp -m multiport --dports 8443,8444 -j ACCEPT
+PostUp  = iptables -I DOCKER-USER 2 -i rmt0 -o rmt0 -s 10.66.66.2 -d 10.66.66.3 -p icmp --icmp-type echo-request -j ACCEPT
+PostUp  = iptables -I DOCKER-USER 3 -i rmt0 -o rmt0 -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+PostUp  = iptables -I DOCKER-USER 4 -i rmt0 -j DROP
+PostUp  = iptables -I DOCKER-USER 5 -o rmt0 -j DROP
+# Staging ports for the device e2e suite (install.sh --with-staging). This
+# PostUp runs last, so its rule lands first, ahead of the drops above.
+PostUp  = iptables -I DOCKER-USER 1 -i rmt0 -o rmt0 -s 10.66.66.2 -d 10.66.66.3 -p tcp -m multiport --dports 9443,9444 -j ACCEPT
+PreDown = iptables -D DOCKER-USER -i rmt0 -o rmt0 -s 10.66.66.2 -d 10.66.66.3 -p tcp -m multiport --dports 9443,9444 -j ACCEPT || true
+PreDown = iptables -D DOCKER-USER -i rmt0 -o rmt0 -s 10.66.66.2 -d 10.66.66.3 -p tcp -m multiport --dports 8443,8444 -j ACCEPT || true
+PreDown = iptables -D DOCKER-USER -i rmt0 -o rmt0 -s 10.66.66.2 -d 10.66.66.3 -p icmp --icmp-type echo-request -j ACCEPT || true
+PreDown = iptables -D DOCKER-USER -i rmt0 -o rmt0 -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT || true
+PreDown = iptables -D DOCKER-USER -i rmt0 -j DROP || true
+PreDown = iptables -D DOCKER-USER -o rmt0 -j DROP || true
+
+[Peer]
+# laptop
+PublicKey    = @LAPTOP_PUBLIC_KEY@
+PresharedKey = @PSK_LAPTOP@
+AllowedIPs   = 10.66.66.3/32
+@PHONE_PEER@
