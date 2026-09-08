@@ -1,0 +1,47 @@
+[package]
+name = "remoter-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+remoter-agent = { path = "../remoter-agent" }
+remoter-proto = { path = "../remoter-proto" }
+remoter-attest = { path = "../remoter-attest" }
+
+# Its own workspace, so the nightly-only fuzz build never touches the main
+# lockfile or `cargo build --locked`.
+[workspace]
+members = ["."]
+
+[[bin]]
+name = "rel_path"
+path = "fuzz_targets/rel_path.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "canonical"
+path = "fuzz_targets/canonical.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "sig_headers"
+path = "fuzz_targets/sig_headers.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "attestation"
+path = "fuzz_targets/attestation.rs"
+test = false
+doc = false
+bench = false
