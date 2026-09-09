@@ -1,0 +1,2 @@
+# The e2e build type signing key and its password, generated locally, never the release key.
+e2e-keystore/
