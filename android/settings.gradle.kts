@@ -18,5 +18,6 @@ rootProject.name = "remoter"
 
 include(
     ":core:design",
+    ":core:net",
     ":e2e",
 )
