@@ -20,5 +20,6 @@ include(
     ":core:design",
     ":core:crypto",
     ":core:net",
+    ":core:testing",
     ":e2e",
 )
