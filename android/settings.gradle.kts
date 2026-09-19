@@ -21,6 +21,7 @@ include(
     ":core:crypto",
     ":core:net",
     ":core:testing",
+    ":feature:onboarding",
     ":feature:session",
     ":e2e",
 )
