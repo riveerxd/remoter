@@ -22,6 +22,7 @@ include(
     ":core:net",
     ":core:testing",
     ":feature:onboarding",
+    ":feature:home",
     ":feature:session",
     ":e2e",
 )
