@@ -1,0 +1,84 @@
+package me.river.remoter.feature.home
+
+import androidx.compose.ui.test.junit4.createComposeRule
+import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.toImmutableList
+import me.river.remoter.core.design.shots.Variant
+import me.river.remoter.core.design.shots.shot
+import me.river.remoter.core.net.Link
+import me.river.remoter.core.net.SessionState
+import me.river.remoter.core.net.SessionSummary
+import org.junit.Rule
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.ParameterizedRobolectricTestRunner
+import org.robolectric.annotation.Config
+import org.robolectric.annotation.GraphicsMode
+
+private val now = 1_790_620_000_000
+private fun s(id: String, name: String, st: SessionState, code: Int? = null) =
+    SessionSummary(id, name, "Projects/$name", null, now - 5_000_000, st, null, code)
+
+private val base = HomeUi(
+    hostname = "r1v3r", link = Link.Up(38), battery = 64, onAc = true, loaded = true, nowMs = now,
+    pinned = persistentListOf(FolderItem("Projects/remoter", "remoter", true)),
+    recent = persistentListOf(FolderItem("Projects/api", "api", true), FolderItem("Projects/site", "site", false)),
+)
+
+internal val homeStates = mapOf(
+    "up_no_sessions" to base,
+    "up_sessions" to base.copy(
+        battery = 12, onAc = false,
+        sessions = persistentListOf(s("rc-a", "remoter", SessionState.Ready), s("rc-b", "api", SessionState.Starting), s("rc-c", "site", SessionState.Exited, 1)),
+    ),
+    "up_ending" to base.copy(sessions = persistentListOf(s("rc-a", "remoter", SessionState.Ready)), ending = setOf("rc-a")),
+    "reconnecting" to base.copy(link = Link.Reconnecting),
+    "vpn_off" to base.copy(link = Link.VpnOff),
+    "laptop_down" to base.copy(link = Link.LaptopDown(now - 600_000)),
+    "first_run" to base.copy(
+        pinned = persistentListOf(), recent = persistentListOf(),
+        suggestions = persistentListOf(FolderItem("Projects/remoter", "remoter", true), FolderItem("Projects/api", "api", true)),
+    ),
+    "loading" to HomeUi(hostname = "r1v3r", loaded = false),
+    // First launches that never got an answer: status and a way out, never skeletons.
+    "cold_laptop_down" to HomeUi(hostname = "r1v3r", link = Link.LaptopDown(null), nowMs = now, stillDown = 1),
+    "cold_vpn_off" to HomeUi(hostname = "r1v3r", link = Link.VpnOff, nowMs = now, pinned = base.pinned),
+    "cold_load_failed" to HomeUi(hostname = "r1v3r", link = Link.Up(38), nowMs = now, loadFailed = true),
+    "up_exited" to base.copy(sessions = persistentListOf(s("rc-a", "remoter", SessionState.Ready), s("rc-c", "site", SessionState.Exited, 1))),
+    "up_many_pins" to base.copy(pinned = (base.recent + base.pinned).toImmutableList()),
+    "up_worktree" to base.copy(
+        sessions = persistentListOf(s("rc-a", "remoter", SessionState.Ready), s("rc-b", "remoter", SessionState.Ready).copy(worktree = "bright-otter-3f2a")),
+    ),
+)
+
+@RunWith(ParameterizedRobolectricTestRunner::class)
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
+@Config(qualifiers = "w411dp-h891dp-xxhdpi")
+class HomeScreenshots(private val v: Variant) {
+    companion object {
+        @JvmStatic @ParameterizedRobolectricTestRunner.Parameters(name = "{0}")
+        fun params() = Variant.params()
+    }
+
+    @get:Rule val compose = createComposeRule()
+
+    private fun one(k: String) = compose.shot("home_$k", v) {
+        // Reconnecting only shows after 300 ms; the harness clock gets there on idle.
+        HomeContent(homeStates.getValue(k), HomeCallbacks(), entrance = false)
+    }
+
+    @Test fun up_no_sessions() = one("up_no_sessions")
+    @Test fun up_sessions() = one("up_sessions")
+    @Test fun up_ending() = one("up_ending")
+    @Test fun reconnecting() = one("reconnecting")
+    @Test fun vpn_off() = one("vpn_off")
+    @Test fun laptop_down() = one("laptop_down")
+    @Test fun first_run() = one("first_run")
+    @Test fun loading() = one("loading")
+    @Test fun cold_laptop_down() = one("cold_laptop_down")
+    @Test fun cold_vpn_off() = one("cold_vpn_off")
+    @Test fun cold_load_failed() = one("cold_load_failed")
+    @Test fun up_exited() = one("up_exited")
+    @Test fun up_many_pins() = one("up_many_pins")
+    @Test fun up_worktree() = one("up_worktree")
+}
