@@ -23,6 +23,7 @@ include(
     ":core:testing",
     ":feature:onboarding",
     ":feature:home",
+    ":feature:browser",
     ":feature:session",
     ":e2e",
 )
