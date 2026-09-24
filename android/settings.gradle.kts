@@ -25,5 +25,6 @@ include(
     ":feature:home",
     ":feature:browser",
     ":feature:session",
+    ":feature:settings",
     ":e2e",
 )
