@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Dark bg in both themes: the mark's volt dot vanishes on white. -->
+    <style name="Theme.Remoter.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/remoter_bg</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_mark_animated</item>
+        <item name="windowSplashScreenAnimationDuration">420</item>
+        <item name="postSplashScreenTheme">@style/Theme.Remoter</item>
+    </style>
+    <style name="Theme.Remoter" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/remoter_bg</item>
+    </style>
+    <color name="remoter_bg">#FF08090B</color>
+</resources>

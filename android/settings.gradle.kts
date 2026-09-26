@@ -17,6 +17,7 @@ dependencyResolutionManagement {
 rootProject.name = "remoter"
 
 include(
+    ":app",
     ":core:design",
     ":core:crypto",
     ":core:net",

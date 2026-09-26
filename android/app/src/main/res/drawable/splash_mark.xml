@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The mark on the 288 dp splash canvas, all inside the 192 dp safe circle.
+     Geometry matches MarkGeometry in :core:design so the intro lines up. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="288dp"
+    android:height="288dp"
+    android:viewportWidth="288"
+    android:viewportHeight="288">
+    <path
+        android:name="chevron"
+        android:pathData="M112,100 L162,144 L112,188"
+        android:strokeColor="#FFF5F5F5"
+        android:strokeWidth="26"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:trimPathEnd="0" />
+    <group
+        android:name="dot"
+        android:pivotX="190"
+        android:pivotY="144"
+        android:scaleX="0"
+        android:scaleY="0">
+        <path
+            android:fillColor="#FFBEF050"
+            android:pathData="M177,144 a13,13 0 1,0 26,0 a13,13 0 1,0 -26,0" />
+    </group>
+</vector>

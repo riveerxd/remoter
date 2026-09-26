@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 420 ms: chevron draws 0 to 260 ms, the dot overshoots in 180 to 420 ms.
+     The overlap makes it one gesture. On API 33+ this length is the splash length. -->
+<animated-vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:drawable="@drawable/splash_mark">
+    <target android:name="chevron">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:duration="260"
+                android:propertyName="trimPathEnd"
+                android:valueFrom="0"
+                android:valueTo="1"
+                android:valueType="floatType">
+                <aapt:attr name="android:interpolator">
+                    <pathInterpolator android:controlX1="0.16" android:controlY1="1" android:controlX2="0.3" android:controlY2="1" />
+                </aapt:attr>
+            </objectAnimator>
+        </aapt:attr>
+    </target>
+    <target android:name="dot">
+        <aapt:attr name="android:animation">
+            <set android:ordering="together">
+                <objectAnimator
+                    android:duration="240"
+                    android:startOffset="180"
+                    android:propertyName="scaleX"
+                    android:valueFrom="0"
+                    android:valueTo="1"
+                    android:valueType="floatType"
+                    android:interpolator="@interpolator/overshoot_115" />
+                <objectAnimator
+                    android:duration="240"
+                    android:startOffset="180"
+                    android:propertyName="scaleY"
+                    android:valueFrom="0"
+                    android:valueTo="1"
+                    android:valueType="floatType"
+                    android:interpolator="@interpolator/overshoot_115" />
+            </set>
+        </aapt:attr>
+    </target>
+</animated-vector>

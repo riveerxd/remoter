@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The mark on the 108 dp adaptive canvas, scaled so its 192 unit safe circle
+     fits the 66 dp safe zone. Also the monochrome layer for themed icons. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group android:scaleX="0.34375" android:scaleY="0.34375" android:translateX="4.5" android:translateY="4.5">
+        <path
+            android:pathData="M112,100 L162,144 L112,188"
+            android:strokeColor="#FFF5F5F5"
+            android:strokeWidth="26"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+        <path
+            android:fillColor="#FFBEF050"
+            android:pathData="M177,144 a13,13 0 1,0 26,0 a13,13 0 1,0 -26,0" />
+    </group>
+</vector>
