@@ -1,0 +1,16 @@
+# The staging agent for the device e2e suite (install.sh --with-staging).
+[Unit]
+Description=remoter agent, staging instance
+
+[Service]
+ExecStart=/usr/local/bin/remoter-agent --config /etc/remoter/staging/config.toml
+Restart=always
+RestartSec=2
+NoNewPrivileges=yes
+LockPersonality=yes
+RestrictRealtime=yes
+SystemCallArchitectures=native
+UMask=0022
+
+[Install]
+WantedBy=default.target

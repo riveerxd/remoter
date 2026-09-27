@@ -1,0 +1,45 @@
+# /etc/remoter/staging/config.toml, root 0644, rendered by install.sh
+# --with-staging. The staging instance for the device e2e suite: its own
+# ports, device list, state and sessions dir, and it pairs only the e2e build
+# of the app. Production's config never names that package or digest.
+
+[net]
+listen_device   = "rmt0"
+listen_addr     = "10.66.66.3"
+port            = 9443
+pair_port       = 9444
+phone_addr      = "10.66.66.2"
+clock_window_s  = 30
+
+[agent]
+socket          = "/run/remoter/agent-staging.sock"
+home            = "@HOME@"
+claude_bin      = "@HOME@/.local/bin/claude"
+kitty_bin       = "/usr/bin/kitty"
+hyprctl_bin     = "/usr/bin/hyprctl"
+exec_bin        = "/usr/local/bin/remoter-exec"
+workspace       = 9
+max_sessions    = 8
+cwd_deny        = [".ssh", ".gnupg", ".claude", ".config", ".local", ".password-store"]
+search_skip     = ["node_modules", ".git", "target", "build", ".gradle", ".venv", ".cache"]
+trusted_roots   = ["Projects"]
+devices         = "/etc/remoter/staging/devices.json"
+lock_dir        = "/var/lib/remoterd-staging"
+state_dir       = "@HOME@/.local/state/remoter-staging"
+history_file    = "@HOME@/.local/state/remoter-staging/recent.json"
+runtime_dir     = "/run/user/@UID@/remoter-staging"
+
+[remoterd]
+agent_user      = "@USER@"
+devices         = "/etc/remoter/staging/devices.json"
+server_key      = "/etc/remoter/staging/server.key"
+server_cert     = "/etc/remoter/staging/server.crt"
+state_dir       = "/var/lib/remoterd-staging"
+admin_socket    = "/run/remoterd-staging/admin.sock"
+
+[attestation]
+app_package     = "me.river.remoter.e2e"
+app_cert_sha256 = "@E2E_CERT_SHA256@"
+max_patch_age_months = 6
+fresh_hours     = 24
+unlocked_device_required_in = "hardware"
