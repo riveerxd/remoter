@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["remoter-agent", "remoter-attest", "remoter-auth", "remoter-exec", "remoter-proto", "remoterctl", "remoterd"]
+members = ["e2e-host", "remoter-agent", "remoter-attest", "remoter-auth", "remoter-exec", "remoter-proto", "remoterctl", "remoterd"]
 exclude = ["fuzz"]
 
 [workspace.package]
