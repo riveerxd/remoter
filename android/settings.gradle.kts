@@ -27,5 +27,6 @@ include(
     ":feature:browser",
     ":feature:session",
     ":feature:settings",
+    ":benchmark",
     ":e2e",
 )
