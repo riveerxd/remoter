@@ -63,17 +63,18 @@ browses its folders, and starting a session takes one tap and one finger.
 | **End it** | One finger, and the window on the laptop closes with it. |
 
 <div align="center">
-  <img src="docs/screens/start.png" width="640" alt="The start sheet with previous sessions, and the prompt to trust a folder claude doesn't trust yet" />
+  <img src="docs/screens/start.png" width="640" alt="The start sheet with previous sessions" />
 </div>
 
 Sessions open as kitty windows on Hyprland workspace 9, each in its own systemd
 scope. They don't steal focus, and restarting remoter never kills them. When
 you get back to the laptop, they're just there.
 
-Folders Claude Code doesn't trust yet can be trusted from the phone. The app
-tells you what that means first (the folder's own Claude settings, hooks and MCP
-servers get to run), and the trust goes in the same signed request as the start:
-no extra fingerprint, and no way to do it without one.
+Claude Code asks before it works in a folder it doesn't trust, and nobody is at
+the laptop to answer. So remoter marks each folder trusted right before it
+starts a session there. That means the folder's own Claude settings, hooks and
+MCP servers run without asking, so don't start sessions in code you just
+downloaded.
 
 ---
 
@@ -104,6 +105,9 @@ anything as you. That shaped most of the design.
 - **Everything is logged** to a hash-chained audit log the phone can read.
 - **The firewall only touches the tunnel.** LAN, other VPNs and Docker are left
   exactly as they were.
+- **Sessions stay out of** `.ssh`, `.gnupg`, `.config`, `.claude` and the like,
+  and out of your home folder itself. Any other folder in your home gets
+  trusted in Claude Code when a session starts there.
 
 What it won't save you from: someone holding your unlocked phone can read
 folder names, session output and past prompts. They still can't start or end
@@ -146,8 +150,8 @@ flowchart LR
 
 [docs/notes.md](docs/notes.md) collects the undocumented behaviour of Claude
 Code, kitty and Hyprland that the code relies on: which debug log lines mean
-ready, how folder trust is inherited (and why Claude Code marks some folders
-untrusted on its own), why remoter has to refuse a second resume of an open
+ready, why remoter trusts every folder itself instead of relying on Claude
+Code's inherited trust, why remoter has to refuse a second resume of an open
 conversation, and why nothing you type ever ends up on kitty's command line.
 
 </details>

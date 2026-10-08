@@ -23,19 +23,29 @@ some update. Versions are what I saw it on.
 
 ## Folder trust
 
-- An untrusted folder never shows a prompt with Remote Control. It prints
-  `Error: Workspace not trusted.` and exits 1 before any debug line.
+- `claude remote-control` never shows a prompt in an untrusted folder. It
+  prints `Error: Workspace not trusted.` and exits 1 before any debug line.
+- Interactive claude, which remoter runs, does show one. 2.1.295 drew "Accessing workspace: ...
+  Quick safety check" with `❯ No, exit` and `Yes, I trust this folder` and
+  waited, in a folder with no entry of its own under a trusted `~/Projects`.
+  The same setup didn't ask again later, so what triggers it is unclear.
 - Trust is inherited from the nearest ancestor that has an entry in
   `~/.claude.json`. An explicit `hasTrustDialogAccepted: false` on a child wins
-  over a trusted parent.
-- claude writes that explicit `false` itself for folders it ran in with
-  `--dangerously-skip-permissions`. So folders under a trusted `~/Projects`
-  can end up untrusted for no obvious reason. The app has a "trust this folder
-  and start" button for that, and it's part of the signed start request.
+  over a trusted parent. claude writes that `false` itself for folders it ran
+  in with `--dangerously-skip-permissions`.
+- So remoter doesn't rely on inheritance. Before every start and resume the
+  agent sets `hasTrustDialogAccepted: true` on the exact folder. Folders on the
+  deny list and home itself are refused before that, so they never get an
+  entry.
+- Worktree starts pass `--worktree=<session id>`. claude puts it at
+  `<repo>/.claude/worktrees/<name>`, so that path is trusted up front too.
+  Without its own entry, `--worktree` in a folder trusted only through a parent
+  prints `Workspace trust not yet accepted` (2.1.286).
 - Running claude processes rewrite `~/.claude.json` from memory, so the agent
   reads the entry back after writing it and retries if it got lost.
-- With `--worktree` in a folder trusted only through a parent, it prints
-  `Workspace trust not yet accepted` instead (2.1.286).
+- If the dialog shows anyway, the agent sees those lines on screen, stops that
+  claude and reports the session Stuck as untrusted within a few seconds.
+  Retry from the phone starts a fresh one.
 
 ## Resuming
 
