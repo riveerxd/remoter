@@ -12,6 +12,9 @@
 set -euo pipefail
 
 here="$(cd "$(dirname "$0")" && pwd)"
+if [[ "${1:-}" == --direct ]]; then
+    echo "for a direct tunnel the phone's config comes from install-tunnel.sh --direct" >&2; exit 1
+fi
 target="${1:?usage: phone-tunnel.sh <vps-ssh-target>}"
 command -v qrencode >/dev/null || { echo "needs qrencode" >&2; exit 1; }
 
