@@ -2,7 +2,7 @@
 
 <img src="docs/screens/hero.png" width="900" alt="remoter: home with the tunnel map and running sessions, the folder browser, and a live session" />
 
-### Start claude sessions on my laptop from my phone, and pick them up in the Claude app.
+### Start Claude Code on your laptop from your phone, then carry on in the Claude app.
 
 <p>
   <img src="https://img.shields.io/badge/Android-3DDC84?style=flat-square&logo=android&logoColor=white" alt="Android" />
@@ -26,12 +26,11 @@
 
 </div>
 
-Pick a folder on the laptop from the phone, touch the fingerprint sensor, and a
-`claude` Remote Control session comes up there in a few seconds. Then open it in
-the Claude app and keep going. **No open ports on the internet, no cloud of my
-own, no password.** The phone talks to the laptop over a WireGuard tunnel, and
-every action that changes anything is signed by a key that never leaves the
-phone's security chip.
+Pick a folder on your laptop, touch the fingerprint sensor, and a Claude Code
+Remote Control session comes up there a few seconds later. Open it in the Claude
+app and keep going. **Nothing open to the internet, no account, no password.**
+The phone reaches the laptop over a WireGuard tunnel, and anything that changes
+something is signed by a key that never leaves the phone's security chip.
 
 ---
 
@@ -39,16 +38,16 @@ phone's security chip.
 
 Remote Control is great once a session is running. Getting one running still
 meant sitting at the laptop: open a terminal, `cd` somewhere, start `claude`,
-turn Remote Control on. Half the time I think of the thing I want done when
+turn Remote Control on. And the idea for the next thing usually shows up when
 I'm nowhere near the desk.
 
-So remoter is the missing bit in between. The laptop stays where it is, the
-phone browses its folders, and a start is one tap and one finger.
+So I built the missing bit in between. The laptop stays where it is, the phone
+browses its folders, and starting a session takes one tap and one finger.
 
 > [!NOTE]
-> It's built for exactly one person, one laptop and one phone: Arch, Hyprland,
-> kitty, and a Samsung with StrongBox. If your setup is different, expect to
-> change things. It's a personal tool first, not a product.
+> It grew out of my own setup: Arch, Hyprland, kitty, and a Samsung with
+> StrongBox. One laptop, one phone. If yours looks different, expect to change a
+> few things. It's a personal tool first, not a polished product.
 
 ---
 
@@ -58,36 +57,36 @@ phone browses its folders, and a start is one tap and one finger.
 | --- | --- |
 | **Browse and search** | Walks your home folder over the tunnel. Pin the folders you use, see which ones are git repos and which already have a session running. |
 | **Start a session** | In the folder itself, or in its own git worktree so parallel sessions don't trip over each other. Name it, touch the sensor, done. |
-| **Watch it come up** | Starting, Ready, Stuck or Exited, read from claude's own debug log rather than guessed from the screen. The last lines of the terminal come along. |
+| **Watch it come up** | Starting, Ready, Stuck or Exited, read from Claude Code's own debug log instead of guessed from the screen. You also get the last lines of the terminal. |
 | **Open in Claude** | Ready sessions get a button straight into the Claude app. |
 | **Resume** | A folder's past conversations are listed with their title and last prompt. Bring one back as it was, or start fresh from a summary of it. |
-| **End it** | One finger, and the window on the laptop goes away with it. |
+| **End it** | One finger, and the window on the laptop closes with it. |
 
 <div align="center">
   <img src="docs/screens/start.png" width="640" alt="The start sheet with previous sessions, and the prompt to trust a folder claude doesn't trust yet" />
 </div>
 
 Sessions open as kitty windows on Hyprland workspace 9, each in its own systemd
-scope, so they don't steal focus and restarting remoter never kills them. If
-you're back at the laptop, they're just there.
+scope. They don't steal focus, and restarting remoter never kills them. When
+you get back to the laptop, they're just there.
 
-A folder claude doesn't trust can be trusted from the phone. It says what that
-means first (the folder's own Claude settings, hooks and MCP servers get to
-run), and the trust rides in the same signed request as the start, so it costs
-no extra fingerprint and can't be done without one.
+Folders Claude Code doesn't trust yet can be trusted from the phone. The app
+tells you what that means first (the folder's own Claude settings, hooks and MCP
+servers get to run), and the trust goes in the same signed request as the start:
+no extra fingerprint, and no way to do it without one.
 
 ---
 
 ## Security
 
-The laptop runs `claude` with bypass permissions, so whoever can start a session
-can run anything as me. That decided most of the design.
+Sessions run with bypass permissions, so whoever can start one can run
+anything as you. That shaped most of the design.
 
 > [!IMPORTANT]
 > Every start, end, mkdir and resume is signed by a P-256 key in the phone's
 > StrongBox that needs a fingerprint **per signature**. The laptop checks that
-> signature twice: once in the network daemon, and again in the process that
-> actually starts sessions, so a compromised network daemon still can't start
+> signature twice, once in the network daemon and again in the process that
+> actually starts sessions. Even a compromised network daemon can't start
 > anything.
 
 <div align="center">
@@ -106,7 +105,7 @@ can run anything as me. That decided most of the design.
 - **The firewall only touches the tunnel.** LAN, other VPNs and Docker are left
   exactly as they were.
 
-What it doesn't protect against: someone holding your unlocked phone can read
+What it won't save you from: someone holding your unlocked phone can read
 folder names, session output and past prompts. They still can't start or end
 anything without your finger.
 
@@ -129,8 +128,8 @@ flowchart LR
 ```
 
 - **WireGuard** (`rmt0`). The laptop has no public address, so a cheap VPS is
-  the hub. It only forwards between the two peers, and it adds its rules next to
-  whatever else the box runs instead of replacing them.
+  the hub. It only forwards between the two peers, and its firewall rules sit
+  next to whatever else the box already runs instead of replacing them.
 - **remoterd** is the only thing listening. It checks the TLS client, the
   signature and the rate limits, then forwards to the agent.
 - **remoter-agent** runs as you. It checks the signature again, guards every
@@ -145,12 +144,11 @@ flowchart LR
 
 <br/>
 
-[docs/notes.md](docs/notes.md) has the things about `claude`, kitty and Hyprland
-that the code depends on and that aren't written down anywhere else: which debug
-log lines mean ready, how folder trust is inherited (and why claude marks some
-folders untrusted on its own), why a second resume of an open conversation has
-to be refused by remoter, and why nothing user controlled ever goes on kitty's
-command line.
+[docs/notes.md](docs/notes.md) collects the undocumented behaviour of Claude
+Code, kitty and Hyprland that the code relies on: which debug log lines mean
+ready, how folder trust is inherited (and why Claude Code marks some folders
+untrusted on its own), why remoter has to refuse a second resume of an open
+conversation, and why nothing you type ever ends up on kitty's command line.
 
 </details>
 
@@ -180,8 +178,8 @@ you can ssh into with sudo, and an Android 14+ phone with StrongBox.
    infra/laptop/install.sh --app-cert-sha256 <your release cert digest>
    ```
 
-4. **Pair.** `sudo remoterctl pair --name phone`, scan the code on the phone,
-   type the number it shows back on the laptop.
+4. **Pair.** Run `sudo remoterctl pair --name phone`, scan the QR with the app,
+   then type the number the phone shows into the laptop.
 
 5. **Check.** `remoterctl doctor` should be all green.
 
@@ -219,9 +217,9 @@ Release builds are signed with `android/tools/make-release-key.sh` and
 
 <br/>
 
-The Rust side covers every rejection path on purpose: forged and replayed
-signatures, wrong clocks, an attacker on the LAN routing the tunnel address at
-the laptop, a session folder swapped while it starts. `e2e-host` runs the real
+The Rust tests go after every way a request should be refused: forged and
+replayed signatures, skewed clocks, someone on the LAN routing the tunnel address
+at the laptop, a folder swapped out while a session starts. `e2e-host` runs the real
 daemons against a fake `claude` and a software phone.
 
 The app side covers the view models, the UI, accessibility and 378 Roborazzi
@@ -241,11 +239,11 @@ screenshots in light and dark, at 100% and 200% font size.
 ## Known limitations
 
 - Sessions die when Hyprland exits or you log out.
-- One laptop, one phone. Pairing a second phone works, but nothing is designed
+- One laptop, one phone. A second phone can pair, but nothing is designed
   around it.
 - No CI. The test commands above are run by hand.
-- The attestation tests run on Google's published vectors. There's no
-  automated test against a chain dumped from my own phone yet.
+- The attestation tests run on Google's published vectors, not yet on a chain
+  from a real phone.
 
 ## Licence
 
