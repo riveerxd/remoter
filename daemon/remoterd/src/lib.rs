@@ -10,6 +10,7 @@ pub mod http;
 pub mod limits;
 pub mod listener;
 pub mod pair;
+pub mod route;
 pub mod serve;
 pub mod state;
 pub mod tls;

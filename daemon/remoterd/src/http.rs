@@ -164,6 +164,8 @@ async fn health_of(app: &App, device: &str) -> Health {
         .map(|s| s.sessions)
         .unwrap_or(0);
     let (on_ac, battery_pct) = power(&app.settings.power_supply_dir);
+    let dev = app.pairing.device.clone();
+    let tunnel = tokio::task::spawn_blocking(move || crate::route::tunnel(&dev)).await.ok().flatten();
     Health {
         hostname: app.settings.hostname.clone(),
         version: env!("CARGO_PKG_VERSION").into(),
@@ -173,6 +175,7 @@ async fn health_of(app: &App, device: &str) -> Health {
         on_ac,
         battery_pct,
         fresh_until: lock(&app.attest).fresh_until(device),
+        tunnel,
     }
 }
 
