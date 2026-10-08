@@ -297,7 +297,9 @@ fn responses_fixture() {
     check(
         "responses.json",
         json!({
-            "health": Health { hostname: "r1v3r".into(), version: "0.1.0".into(), server_time: 1_790_611_106_000, locked: false, sessions: 1, on_ac: Some(false), battery_pct: Some(12), fresh_until: Some(1_790_697_506_000) },
+            "health": Health { hostname: "r1v3r".into(), version: "0.1.0".into(), server_time: 1_790_611_106_000, locked: false, sessions: 1, on_ac: Some(false), battery_pct: Some(12), fresh_until: Some(1_790_697_506_000), tunnel: Some(Tunnel::Hub) },
+            "health_direct": Health { hostname: "r1v3r".into(), version: "0.1.0".into(), server_time: 1_790_611_106_000, locked: false, sessions: 1, on_ac: Some(false), battery_pct: Some(12), fresh_until: Some(1_790_697_506_000), tunnel: Some(Tunnel::Direct) },
+            "health_older": Health { hostname: "r1v3r".into(), version: "0.1.0".into(), server_time: 1_790_611_106_000, locked: false, sessions: 1, on_ac: Some(false), battery_pct: Some(12), fresh_until: Some(1_790_697_506_000), tunnel: None },
             "list": ListResponse { path: "Projects".into(), is_git: false, trusted: true, spawn_allowed: true, deny_reason: None, entries: vec![entry, denied, link, weird], truncated: false, partial: false },
             "search": SearchResponse { query: "rem".into(), hits: vec![SearchHit { path: "Projects/remoter".into(), name: "remoter".into(), is_git: true, depth: 2 }], capped: false },
             "recent": RecentResponse { entries: vec![RecentEntry { path: "Projects/remoter".into(), name: "remoter".into(), is_git: true, last_spawn: 1_790_611_106_000 }], typical_start_ms: Some(6100) },

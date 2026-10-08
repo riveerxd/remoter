@@ -25,7 +25,11 @@ data class Health(
     @SerialName("on_ac") val onAc: Boolean?,
     @SerialName("battery_pct") val batteryPct: Int?,
     @SerialName("fresh_until") val freshUntil: Long?,
-)
+    /** "hub" or "direct". A string, so a newer laptop's next kind can't break the decode. */
+    val tunnel: String? = null,
+) {
+    val direct get() = tunnel == "direct"
+}
 
 @Serializable
 enum class SymlinkKind {

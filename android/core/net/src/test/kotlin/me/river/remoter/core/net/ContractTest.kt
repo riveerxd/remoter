@@ -15,6 +15,7 @@ import kotlinx.serialization.json.long
 import kotlinx.serialization.serializer
 import okhttp3.HttpUrl
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -125,6 +126,8 @@ class ContractTest {
     fun every_response_round_trips() {
         val o = fixture("responses.json").jsonObject
         roundTrip<Health>(o["health"]!!)
+        roundTrip<Health>(o["health_older"]!!)
+        roundTrip<Health>(o["health_direct"]!!)
         roundTrip<ListResponse>(o["list"]!!)
         roundTrip<SearchResponse>(o["search"]!!)
         roundTrip<RecentResponse>(o["recent"]!!)
@@ -145,7 +148,7 @@ class ContractTest {
         roundTrip<AuditPage>(o["audit"]!!)
         roundTrip<PairResponse>(o["pair"]!!)
         val known = setOf(
-            "health", "list", "search", "recent", "mkdir_request", "mkdir", "spawn_request", "spawn", "sessions",
+            "health", "health_older", "health_direct", "list", "search", "recent", "mkdir_request", "mkdir", "spawn_request", "spawn", "sessions",
             "session_detail", "view_token", "attest_challenge", "attest_response", "lock", "audit", "pair", "events",
             "live_sessions", "resume_request", "handoff_request", "history",
         )
@@ -159,6 +162,18 @@ class ContractTest {
         val health = LiveEvent.parse("health", o["health"].toString()) as LiveEvent.Health
         assertEquals(RemoterJson.decodeFromJsonElement(Health.serializer(), o["health"]!!), health.health)
         assertNull("a newer laptop's event is skipped, not fatal", LiveEvent.parse("weather", "{}"))
+    }
+
+    @Test
+    fun health_says_which_tunnel() {
+        val o = fixture("responses.json").jsonObject
+        assertFalse(RemoterJson.decodeFromJsonElement(Health.serializer(), o["health"]!!).direct)
+        assertTrue(RemoterJson.decodeFromJsonElement(Health.serializer(), o["health_direct"]!!).direct)
+        val older = RemoterJson.decodeFromJsonElement(Health.serializer(), o["health_older"]!!)
+        assertNull(older.tunnel)
+        assertFalse(older.direct)
+        val unknown = Json.parseToJsonElement(o["health_direct"].toString().replace("\"direct\"", "\"carrier-pigeon\""))
+        assertFalse(RemoterJson.decodeFromJsonElement(Health.serializer(), unknown).direct)
     }
 
     @Test

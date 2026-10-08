@@ -22,6 +22,17 @@ pub struct Health {
     /// When the last re-attestation stops counting. `None` means a
     /// re-attestation is due before the next mutation.
     pub fresh_until: Option<i64>,
+    /// Left out when the laptop can't tell, and by laptops from before it was added.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tunnel: Option<Tunnel>,
+}
+
+/// The phone reaches the laptop through the hub, or straight.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Tunnel {
+    Hub,
+    Direct,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

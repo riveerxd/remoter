@@ -74,6 +74,28 @@
     "on_ac": false,
     "server_time": 1790611106000,
     "sessions": 1,
+    "tunnel": "hub",
+    "version": "0.1.0"
+  },
+  "health_direct": {
+    "battery_pct": 12,
+    "fresh_until": 1790697506000,
+    "hostname": "r1v3r",
+    "locked": false,
+    "on_ac": false,
+    "server_time": 1790611106000,
+    "sessions": 1,
+    "tunnel": "direct",
+    "version": "0.1.0"
+  },
+  "health_older": {
+    "battery_pct": 12,
+    "fresh_until": 1790697506000,
+    "hostname": "r1v3r",
+    "locked": false,
+    "on_ac": false,
+    "server_time": 1790611106000,
+    "sessions": 1,
     "version": "0.1.0"
   },
   "history": {
