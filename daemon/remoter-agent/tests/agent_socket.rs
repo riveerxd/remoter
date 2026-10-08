@@ -565,8 +565,25 @@ fn a_trickling_connection_is_cut_at_its_deadline() {
     assert!(out.is_empty(), "{:?}", String::from_utf8_lossy(&out));
 }
 
+// Threads are counted for the whole process, so this runs in a process of its
+// own: other tests here start threads of their own and used to tip it over.
 #[test]
 fn a_flood_of_idle_connections_is_capped() {
+    let out = std::process::Command::new(std::env::current_exe().expect("exe"))
+        .args(["--ignored", "--exact", "flood_in_its_own_process", "--nocapture", "--test-threads", "1"])
+        .env("REMOTER_FLOOD_ALONE", "1")
+        .output()
+        .expect("rerun");
+    let text = format!("{}\n{}", String::from_utf8_lossy(&out.stdout), String::from_utf8_lossy(&out.stderr));
+    assert!(out.status.success() && text.contains("1 passed"), "{text}");
+}
+
+#[test]
+#[ignore = "run by a_flood_of_idle_connections_is_capped"]
+fn flood_in_its_own_process() {
+    if std::env::var_os("REMOTER_FLOOD_ALONE").is_none() {
+        return;
+    }
     let w = World::start(uid());
     let before = threads();
     let flood: Vec<UnixStream> = (0..200).map(|_| UnixStream::connect(&w.socket).expect("connect")).collect();
