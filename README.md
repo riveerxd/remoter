@@ -109,6 +109,11 @@ anything as you. That shaped most of the design.
   and out of your home folder itself. Any other folder in your home gets
   trusted in Claude Code when a session starts there.
 
+Without a VPS the laptop's WireGuard port is open to the internet through the
+router. It answers nothing that isn't signed with the phone's key, so a scan
+sees a closed port. The phone's network does see your home address, though,
+and so does anyone who reads the tunnel config off the phone.
+
 What it won't save you from: someone holding your unlocked phone can read
 folder names, session output and past prompts. They still can't start or end
 anything without your finger.
@@ -134,6 +139,9 @@ flowchart LR
 - **WireGuard** (`rmt0`). The laptop has no public address, so a cheap VPS is
   the hub. It only forwards between the two peers, and its firewall rules sit
   next to whatever else the box already runs instead of replacing them.
+  Without a VPS, the phone can dial the laptop directly instead, as long as the
+  laptop is at home behind a router that forwards one UDP port to it. Same
+  addresses, same ports, same everything above the tunnel.
 - **remoterd** is the only thing listening. It checks the TLS client, the
   signature and the rate limits, then forwards to the agent.
 - **remoter-agent** runs as you. It checks the signature again, guards every
@@ -161,7 +169,8 @@ conversation, and why nothing you type ever ends up on kitty's command line.
 ## Install
 
 You need a laptop running a systemd user session with Hyprland and kitty, a VPS
-you can ssh into with sudo, and an Android 14+ phone with StrongBox.
+you can ssh into with sudo (or a home router you can forward a port on, see
+below), and an Android 14+ phone with StrongBox.
 
 1. **The tunnel.** `infra/vps/setup.sh check <host>` looks at the VPS without
    changing anything. Then on the laptop:
@@ -186,6 +195,31 @@ you can ssh into with sudo, and an Android 14+ phone with StrongBox.
    then type the number the phone shows into the laptop.
 
 5. **Check.** `remoterctl doctor` should be all green.
+
+### Without a VPS
+
+Steps 1 and 2 become one. Pick a name or address the phone can find your home
+by (a static IP, or a dynamic DNS name your router keeps up to date):
+
+```bash
+infra/laptop/install-tunnel.sh --direct <home name or address>
+```
+
+It makes a second NetworkManager profile, `rmt0-direct`, on a random high UDP
+port, shows the phone's config as a QR and tells you what to forward on the
+router. Nothing changes until you switch:
+
+```bash
+infra/laptop/install-tunnel.sh --use direct   # and --use hub to go back
+```
+
+On the phone, switch the WireGuard app to the new tunnel. The app draws two
+nodes instead of three once the laptop says it's direct.
+
+This only works while the laptop is at home. On someone else's Wi-Fi, a hotel or
+your phone's hotspot nobody forwards the port, and the app just shows the laptop
+as unreachable. If your home address changes, turn the tunnel off and on so the
+WireGuard app looks the name up again.
 
 > [!TIP]
 > `install.sh` is safe to run again. Binaries and units get replaced, but the

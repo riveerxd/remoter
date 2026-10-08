@@ -47,6 +47,26 @@ some update. Versions are what I saw it on.
   claude and reports the session Stuck as untrusted within a few seconds.
   Retry from the phone starts a fresh one.
 
+## WireGuard and NetworkManager
+
+- `nmcli connection import type wireguard` names the profile after the file,
+  keeps `ListenPort`, and leaves autoconnect on, so the profile comes up the
+  moment it's imported (1.56). install-tunnel.sh --direct uses `nmcli connection
+  add` with autoconnect off instead and sets the private key and PSK through
+  `nmcli connection edit` on stdin, so they never show up in another user's
+  `ps`.
+- Two profiles for one `rmt0` can't both autoconnect, NM picks one at boot.
+  `--use` turns one off before turning the other on, and doctor checks it.
+- NM adds a route per peer AllowedIPs. That's how remoterd tells the modes
+  apart: a route to 10.66.66.1 on `rmt0` means the hub is a peer.
+- remoterd can't read `/proc/net/route` (`ProcSubset=pid`), so it asks over
+  netlink, which its unit already allows.
+- The WireGuard Android app resolves the endpoint name when the tunnel starts
+  and prefers an IPv4 address when a name has both. After the home address
+  changes, the tunnel needs turning off and on.
+- WireGuard links can be made in an unprivileged user and network namespace,
+  which is how the direct tunnel tests run without root.
+
 ## Resuming
 
 - Conversations live in `~/.claude/projects/<cwd with every non alnum char as
