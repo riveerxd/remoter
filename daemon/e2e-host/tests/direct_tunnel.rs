@@ -180,7 +180,7 @@ fn inside_the_direct_namespace() {
     phone.sh("ip addr add 198.51.100.2/24 dev wan0 && ip link set wan0 up");
     stranger.sh("ip addr add 203.0.113.2/24 dev wan0 && ip link set wan0 up");
 
-    // the laptop side as rmt0-direct.nmconnection sets it up: a fixed port, the phone, no endpoint
+    // as install-tunnel.sh --direct sets it up: a fixed port, the phone, no endpoint
     sh("ip link add rmt0 type wireguard");
     sh(&format!(
         "wg set rmt0 private-key {} listen-port {PORT} peer {} preshared-key {} allowed-ips 10.66.66.2/32",
@@ -218,7 +218,6 @@ fn inside_the_direct_namespace() {
 
     nft(&infra().join("nftables.conf"));
 
-    // what the phone gets
     assert!(phone.reaches("10.66.66.3:8443"));
     assert!(phone.reaches("10.66.66.3:8444"));
     assert!(!phone.reaches("10.66.66.3:22"));
@@ -229,7 +228,6 @@ fn inside_the_direct_namespace() {
     assert!(phone.reaches("10.66.66.3:9443"));
     nft(&infra().join("nftables.conf"));
 
-    // a stranger on the internet
     assert!(!stranger.reaches("10.66.66.3:8443"), "the weak host route");
     let before = handshakes(None, "rmt0");
     let quiet = stranger.with(|| {
