@@ -29,6 +29,6 @@ class PairingE2eTest {
         val code = p.find(By.text(Regex("\\d{3} \\d{3}").toPattern())).text.replace(" ", "")
         report("pair_code", code)
         // Five minutes: the pairing window, while someone types the code on the laptop.
-        p.text("Start in…", 300_000)
+        p.find(By.desc("New session"), 300_000)
     }
 }

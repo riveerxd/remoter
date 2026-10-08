@@ -3,8 +3,10 @@ package me.river.remoter.feature.home
 import androidx.compose.ui.test.junit4.createComposeRule
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
+import me.river.remoter.core.design.components.RemoterSheet
 import me.river.remoter.core.design.shots.Variant
 import me.river.remoter.core.design.shots.shot
+import me.river.remoter.core.net.ClaudeLink
 import me.river.remoter.core.net.Link
 import me.river.remoter.core.net.SessionState
 import me.river.remoter.core.net.SessionSummary
@@ -17,7 +19,10 @@ import org.robolectric.annotation.GraphicsMode
 
 private val now = 1_790_620_000_000
 private fun s(id: String, name: String, st: SessionState, code: Int? = null) =
-    SessionSummary(id, name, "Projects/$name", null, now - 5_000_000, st, null, code)
+    SessionSummary(
+        id, name, "Projects/$name", null, now - 5_000_000, st, null, code,
+        claude = if (st == SessionState.Ready) ClaudeLink("session_01Hq7cXv2mTnR4bWkYe9pLsA", "https://claude.ai/code/session_01Hq7cXv2mTnR4bWkYe9pLsA", null) else null,
+    )
 
 private val base = HomeUi(
     hostname = "r1v3r", link = Link.Up(38), battery = 64, onAc = true, loaded = true, nowMs = now,
@@ -86,6 +91,17 @@ class HomeScreenshots(private val v: Variant) {
     @Test fun up_exited() = one("up_exited")
     @Test fun up_many_pins() = one("up_many_pins")
     @Test fun up_worktree() = one("up_worktree")
+
+    @Test fun new_session() = compose.shot("home_new_session", v) {
+        HomeContent(homeStates.getValue("up_sessions"), HomeCallbacks(), entrance = false)
+        RemoterSheet(visible = true, onDismiss = {}) { NewSession(homeStates.getValue("up_sessions"), HomeCallbacks()) }
+    }
+
+    @Test fun new_session_first_run() = compose.shot("home_new_session_first_run", v) {
+        val ui = homeStates.getValue("first_run")
+        HomeContent(ui, HomeCallbacks(), entrance = false)
+        RemoterSheet(visible = true, onDismiss = {}) { NewSession(ui, HomeCallbacks()) }
+    }
     @Test fun direct_up() = one("direct_up")
     @Test fun direct_reconnecting() = one("direct_reconnecting")
     @Test fun direct_vpn_off() = one("direct_vpn_off")

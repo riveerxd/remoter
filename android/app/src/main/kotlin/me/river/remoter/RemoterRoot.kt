@@ -227,6 +227,7 @@ private fun Graph(start: NavKey, root: RootViewModel, entrance: Boolean, onEntra
                                     onBrowse = { back.add(Browser(it)) },
                                     onSession = { back.add(Session(it.id)) },
                                     onOpenWireGuard = { openWireGuard(context) },
+                                    onOpenClaude = { openClaude(it.claude) },
                                 ),
                                 entrance,
                             )
@@ -254,7 +255,7 @@ private fun Graph(start: NavKey, root: RootViewModel, entrance: Boolean, onEntra
                     entry<Session>(metadata = fadeMeta) { k ->
                         val vm = hiltViewModel<SessionDetailViewModel, SessionDetailViewModel.Factory>(creationCallback = { it.create(k.id) })
                         val ui by vm.ui.collectAsStateWithLifecycle()
-                        // On End, home comes first; the banner shows Ending and collapses there.
+                        // On End, home comes first; its card shows Ending and collapses there.
                         LaunchedEffect(vm) { vm.goHome.collect { back.popTo { it is Home } } }
                         Shared {
                             SessionDetailContent(

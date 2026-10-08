@@ -24,6 +24,7 @@ class FlowE2eTest {
     fun daily_path() {
         p.textHas("Connected", 30_000)
 
+        p.tapNew()
         p.tap("Folder name or path")
         p.type(By.clazz("android.widget.EditText"), Args.folder.substringAfterLast('/').take(3))
         assertTrue("no search results: ${p.visible()}", p.has(Args.folder.substringAfterLast('/'), 5_000))
@@ -31,6 +32,7 @@ class FlowE2eTest {
         p.d.pressBack()
 
         // Into the folder, row by row, the way a thumb gets there.
+        p.tapNew()
         p.tap("Folder name or path")
         p.d.pressBack()
         for (part in Args.folder.split('/')) p.tap(part)
@@ -49,7 +51,7 @@ class FlowE2eTest {
 
         p.find(By.descContains("Session $name"), 15_000).click()
         p.text("End session", 10_000).click()
-        p.text("Start in…", 10_000)
-        assertTrue("the banner never went away", p.d.wait(Until.gone(By.descContains("Session $name")), 30_000))
+        p.text("Sessions", 10_000)
+        assertTrue("the card never went away", p.d.wait(Until.gone(By.descContains("Session $name")), 30_000))
     }
 }

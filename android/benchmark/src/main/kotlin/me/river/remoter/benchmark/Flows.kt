@@ -10,11 +10,12 @@ const val PACKAGE = "me.river.remoter"
 
 fun MacrobenchmarkScope.startHome() {
     startActivityAndWait(Intent().setClassName(PACKAGE, "$PACKAGE.MainActivity").putExtra("fixture_paired", true))
-    device.wait(Until.hasObject(By.text("Start in…")), 5_000)
+    device.wait(Until.hasObject(By.text("Sessions")), 5_000)
 }
 
 fun MacrobenchmarkScope.intoFoldersAndBack() {
-    // In through the search pill; back once to drop the keyboard, staying in the browser.
+    // In through New and its search pill; back once to drop the keyboard, staying in the browser.
+    device.wait(Until.findObject(By.desc("New session")), 3_000)?.click()
     device.wait(Until.findObject(By.text("Folder name or path")), 3_000)?.click()
     device.wait(Until.hasObject(By.text("New folder")), 3_000)
     device.pressBack()
@@ -31,7 +32,10 @@ fun MacrobenchmarkScope.intoFoldersAndBack() {
 }
 
 fun MacrobenchmarkScope.dragStartSheet() {
-    device.findObject(By.text("remoter"))?.click()
+    // home's "remoter" is a session card now; the folder is in New
+    device.wait(Until.findObject(By.desc("New session")), 3_000)?.click()
+    device.wait(Until.findObject(By.text("Pinned")), 3_000)
+    device.findObjects(By.text("remoter")).lastOrNull()?.click()
     device.wait(Until.hasObject(By.text("Start session")), 3_000)
     val h = device.displayHeight
     val w = device.displayWidth
@@ -43,7 +47,7 @@ fun MacrobenchmarkScope.dragStartSheet() {
 }
 
 fun MacrobenchmarkScope.scrollHome() {
-    val sheet = device.findObject(By.text("Start in…")) ?: return
+    val sheet = device.findObject(By.text("Sessions")) ?: return
     val h = device.displayHeight
     val w = device.displayWidth
     device.swipe(w / 2, (h * 0.85).toInt(), w / 2, (h * 0.3).toInt(), 20)

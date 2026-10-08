@@ -1,28 +1,29 @@
 package me.river.remoter.feature.home
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.runtime.SideEffect
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
-import me.river.remoter.core.design.StaggerMaxItems
 import me.river.remoter.core.design.SheetSpring
 import me.river.remoter.core.design.pressIndication
 import me.river.remoter.core.design.Press
 import me.river.remoter.core.design.SwapText
 import me.river.remoter.core.design.AnimatedItems
 import me.river.remoter.core.design.Appear
+import me.river.remoter.core.design.AppearAnywhere
 import me.river.remoter.core.design.FadeSwap
 import me.river.remoter.core.design.FadeInPlace
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.ui.layout.layout
+import me.river.remoter.core.design.components.ClaudeChip
+import me.river.remoter.core.design.components.SearchPill
+import me.river.remoter.core.net.StuckReason
+import me.river.remoter.feature.session.reasonText
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -56,21 +57,16 @@ import androidx.compose.material3.rememberBottomSheetScaffoldState
 import androidx.compose.material3.rememberStandardBottomSheetState
 import androidx.compose.material3.SheetValue
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.draw.alpha
 import androidx.compose.runtime.key
-import androidx.compose.runtime.mutableStateMapOf
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
@@ -105,7 +101,6 @@ import me.river.remoter.core.design.components.RoundIconButton
 import me.river.remoter.core.design.components.RouteMap
 import me.river.remoter.core.design.components.introAnchor
 import me.river.remoter.core.design.components.RouteNode
-import me.river.remoter.core.design.components.SearchPill
 import me.river.remoter.core.design.components.SecondaryButton
 import me.river.remoter.core.design.components.Skeleton
 import me.river.remoter.core.design.components.SkeletonRow
@@ -153,6 +148,8 @@ data class HomeCallbacks(
     val onMapDetails: () -> Unit = {},
     val onTogglePin: (FolderItem, pinned: Boolean) -> Unit = { _, _ -> },
     val onReorder: () -> Unit = {},
+    val onNew: () -> Unit = {},
+    val onOpenClaude: (SessionSummary) -> Unit = {},
 )
 
 private val nodes = persistentListOf(
@@ -167,8 +164,8 @@ private val directNodes = persistentListOf(
 )
 
 /**
- * Uber style: live map on top, a persistent sheet with search and folders, trip
- * banners floating over the map. [entrance] plays the stagger once, after the splash.
+ * Uber style: live map on top, a persistent sheet with the running sessions, and
+ * "+ New" riding the sheet's edge. [entrance] plays the stagger once, after the splash.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -180,23 +177,32 @@ fun HomeContent(ui: HomeUi, cb: HomeCallbacks, entrance: Boolean) {
     // back lowers a raised sheet first, only leaves home from the peek
     BackHandler(enabled = expanded) { scope.launch { sheet.bottomSheetState.partialExpand() } }
     val phone = rememberPhoneStats()
-    var bannersPx by remember { mutableIntStateOf(0) }
-    // Map height when nothing squeezes it. Banners only get the room left above the sheet, or at
-    // large fonts they ride up over "Connected". Measured unsqueezed so nothing feeds back.
+    var newPx by remember { mutableIntStateOf(0) }
+    // Map height when nothing squeezes it. "+ New" only gets the room left above the sheet, or at
+    // large fonts it rides up over "Connected". Measured unsqueezed so nothing feeds back.
     var mapNaturalPx by remember { mutableIntStateOf(0) }
     BoxWithConstraints(Modifier.fillMaxSize().background(c.bg)) {
         // The grid runs the full height, under the sheet too: stopping it halfway down the map
         // left a bare band above the sheet that read as a layout bug.
         DotGrid()
         MapGlow(ui.link is Link.Up)
-        // Everything above the sheet's peek, less the banners that ride on the sheet's edge.
-        val bannersDp = with(LocalDensity.current) { bannersPx.toDp() }
+        // Everything above the sheet's peek, less the button that rides on the sheet's edge.
+        val newDp = with(LocalDensity.current) { newPx.toDp() } + Space.s16
         val mapNaturalDp = with(LocalDensity.current) { mapNaturalPx.toDp() }
-        val mapHeight = (maxHeight - PeekHeight - bannersDp).coerceAtLeast(mapNaturalDp)
+        val mapHeight = (maxHeight - PeekHeight - newDp).coerceAtLeast(mapNaturalDp)
         val statusTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
         // A full-height sheet would slide its handle under the status bar, where it can't be
         // grabbed. Capping the content stops the sheet with its handle just below it.
         val contentMax = maxHeight - statusTop - Touch.min
+        // "+ New" rides just above the sheet's top edge and fades as the sheet rises over the map,
+        // where the header's plus takes over, so it's never drawn on top of the sheet.
+        val density = LocalDensity.current
+        val layoutPx = with(density) { maxHeight.toPx() }
+        val peekTopPx = layoutPx - with(density) { PeekHeight.toPx() }
+        val fadePx = with(density) { NewFade.toPx() }
+        val gapPx = with(density) { Space.s16.toPx() }
+        val sheetTop = { runCatching { sheet.bottomSheetState.requireOffset() }.getOrDefault(peekTopPx) }
+        val visibility = { ((sheetTop() - (peekTopPx - fadePx)) / fadePx).coerceIn(0f, 1f) }
         val toggle: () -> Unit = {
             scope.launch { if (expanded) sheet.bottomSheetState.partialExpand() else sheet.bottomSheetState.expand() }
         }
@@ -218,7 +224,7 @@ fun HomeContent(ui: HomeUi, cb: HomeCallbacks, entrance: Boolean) {
             containerColor = Color.Transparent,
             sheetContent = {
                 Box(Modifier.heightIn(max = contentMax).staggerIn(1, entrance)) {
-                    SheetBody(ui, cb, entrance, atPeek = sheet.bottomSheetState.currentValue == SheetValue.PartiallyExpanded && !expanded)
+                    SheetBody(ui, cb, entrance, atPeek = sheet.bottomSheetState.currentValue == SheetValue.PartiallyExpanded && !expanded, plusAlpha = { 1f - visibility() })
                 }
             },
         ) {
@@ -226,30 +232,23 @@ fun HomeContent(ui: HomeUi, cb: HomeCallbacks, entrance: Boolean) {
                 MapArea(ui, cb, phone) { mapNaturalPx = it }
             }
         }
-        // Trip banners ride just above the sheet's top edge, like Uber's trip banner, and fade out
-        // as the sheet rises over the map, so they are never drawn on top of it.
-        val density = LocalDensity.current
-        val layoutPx = with(density) { maxHeight.toPx() }
-        val peekTopPx = layoutPx - with(density) { PeekHeight.toPx() }
-        val fadePx = with(density) { BannerFade.toPx() }
-        val gapPx = with(density) { Space.s8.toPx() }
-        val sheetTop = { runCatching { sheet.bottomSheetState.requireOffset() }.getOrDefault(peekTopPx) }
-        val visibility = { ((sheetTop() - (peekTopPx - fadePx)) / fadePx).coerceIn(0f, 1f) }
         if (visibility() > 0f) {
-            Banners(
-                ui, cb,
-                roomPx = { peekTopPx - gapPx * 2 - mapNaturalPx },
+            NewButton(
+                cb.onNew,
                 Modifier
-                    .onSizeChanged { bannersPx = it.height }
-                    .offset { IntOffset(0, (sheetTop() - gapPx - bannersPx).roundToInt()) }
-                    .graphicsLayer { alpha = visibility() },
+                    .align(Alignment.TopEnd)
+                    .padding(end = Space.gutter)
+                    .onSizeChanged { newPx = it.height }
+                    .offset { IntOffset(0, (sheetTop() - gapPx - newPx).roundToInt()) }
+                    .graphicsLayer { alpha = visibility() }
+                    .staggerIn(2, entrance),
             )
         }
     }
 }
 
-private val PeekHeight = 360.dp
-private val BannerFade = 120.dp
+private val PeekHeight = 440.dp
+private val NewFade = 120.dp
 
 @Composable
 private fun MapArea(ui: HomeUi, cb: HomeCallbacks, phone: PhoneStats, onNaturalHeight: (Int) -> Unit) {
@@ -379,9 +378,6 @@ private fun StatusLine(l: Link, ui: HomeUi, cb: HomeCallbacks) {
                     StatusLabel("Connected", StatusTone.Live)
                     DetailsLink(cb.onMapDetails)
                 }
-                Appear(ui.visibleSessions().isEmpty()) {
-                    Text("Sessions you start show up here", style = t.label, color = c.textMuted)
-                }
             }
             Link.Reconnecting -> {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -473,130 +469,71 @@ private fun HomeUi.visibleSessions() = sessions.filter { it.id !in hidden }
 /** Still has a window on the laptop. The laptop node and the folder rows count the same thing. */
 private fun SessionSummary.isAlive() = state != SessionState.Exited && state != SessionState.Gone
 
-/**
- * Each banner has its own transition keyed by session id, so a session that
- * goes away collapses out over 200 ms where it was, instead of vanishing.
- */
+/** The pill on the sheet's edge. Same weight as Start in the start sheet: it's the one way in. */
 @Composable
-private fun Banners(ui: HomeUi, cb: HomeCallbacks, roomPx: () -> Float, modifier: Modifier) {
-    val list = ui.visibleSessions()
-    val states = remember { mutableStateMapOf<String, MutableTransitionState<Boolean>>() }
-    val last = remember { mutableStateMapOf<String, SessionSummary>() }
-    // What is there when home appears is simply there; a session that starts later opens in.
-    val firstFrame = remember { booleanArrayOf(true) }
-    SideEffect { firstFrame[0] = false }
-    list.forEach { s ->
-        last[s.id] = s
-        states.getOrPut(s.id) { MutableTransitionState(firstFrame[0]) }.targetState = true
-    }
-    states.forEach { (id, st) -> if (list.none { it.id == id }) st.targetState = false }
-    LaunchedEffect(states.values.map { it.isIdle to it.currentState }) {
-        states.entries.filter { (_, st) -> st.isIdle && !st.currentState && !st.targetState }.map { it.key }.forEach {
-            states.remove(it)
-            last.remove(it)
-        }
-    }
-    if (states.isEmpty()) return
-    var expanded by remember { mutableStateOf(false) }
-    var bannerPx by remember { mutableIntStateOf(0) }
-    var pillPx by remember { mutableIntStateOf(0) }
-    val gapPx = with(LocalDensity.current) { Space.s8.toPx() }
-    val order = list.map { it.id } + states.keys.filter { id -> list.none { it.id == id } }
-    val fit = bannersThatFit(list.size, roomPx(), bannerPx.toFloat(), pillPx.toFloat(), gapPx)
-    // The fold only limits live banners: one that's leaving stays until it has collapsed out.
-    val live = list.map { it.id }
-    val shown = if (expanded) order else live.take(fit) + order.filter { it !in live }
-    // Banners that "+N more" reveals open in one after another instead of all appearing at once.
-    val revealed = remember { mutableStateMapOf<String, Int>() }
-    shown.forEachIndexed { n, id ->
-        if (id !in revealed && !firstFrame[0] && revealed.isNotEmpty()) {
-            states[id]?.let { st -> if (st.currentState && st.isIdle) states[id] = MutableTransitionState(false).apply { targetState = true } }
-        }
-        revealed[id] = n
-    }
-    revealed.keys.filter { it !in shown }.forEach { revealed.remove(it) }
-    Column(modifier.fillMaxWidth().padding(horizontal = Space.gutter), verticalArrangement = Arrangement.spacedBy(Space.s8)) {
-        shown.forEachIndexed { n, id ->
-            val st = states[id] ?: return@forEachIndexed
-            val s = last[id] ?: return@forEachIndexed
-            val delay = minOf(n, StaggerMaxItems) * Dur.stagger
-            key(id) {
-                AnimatedVisibility(
-                    visibleState = st,
-                    enter = expandVertically(tween(Dur.base, delay, EaseOut)) + fadeIn(tween(Dur.base, delay, EaseOut)),
-                    exit = shrinkVertically(tween(Dur.exit, easing = EaseIn)) + fadeOut(tween(Dur.exit, easing = EaseIn)),
-                ) { Banner(s, ui, cb, Modifier.onSizeChanged { if (it.height > 0) bannerPx = it.height }) }
-            }
-        }
-        if (list.size > fit || expanded && list.size > 2) {
-            Box(
-                Modifier
-                    .align(Alignment.CenterHorizontally)
-                    .heightIn(min = Touch.min)
-                    .onSizeChanged { pillPx = it.height }
-                    .clickable(null, pressIndication(Press.Button), role = Role.Button) { expanded = !expanded }
-                    .shadow(if (Remoter.colors.isDark) 0.dp else 6.dp, Shapes.pill)
-                    .clip(Shapes.pill)
-                    .background(Remoter.colors.surfaceRaised)
-                    .padding(horizontal = Space.s16, vertical = Space.s16),
-            ) {
-                SwapText(
-                    when {
-                        expanded -> "Show less"
-                        fit == 0 -> if (list.size == 1) "1 session" else "${list.size} sessions"
-                        else -> "+${list.size - fit} more"
-                    },
-                    Remoter.type.label.tnum(),
-                    Remoter.colors.text,
-                )
-            }
-        }
+private fun NewButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val c = Remoter.colors
+    Row(
+        modifier
+            .heightIn(min = Touch.primaryButton)
+            .clickable(null, pressIndication(Press.Button), role = Role.Button, onClick = onClick)
+            // light mode: the map is white too, only the shadow lifts it off
+            .shadow(if (c.isDark) 0.dp else 10.dp, Shapes.pill)
+            .clip(Shapes.pill)
+            .background(c.cta)
+            .semantics(mergeDescendants = true) { contentDescription = "New session" }
+            .padding(start = Space.s16, end = Space.s24),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(Glyphs.plus, contentDescription = null, tint = c.onCta, modifier = Modifier.size(22.dp))
+        Spacer(Modifier.width(Space.s8))
+        Text("New", style = Remoter.type.bodyStrong, color = c.onCta)
     }
 }
 
+/**
+ * One session with the room a floating banner never had: status and age, name and
+ * folder, then what can be done about it. Exited ones swipe away sideways, since the
+ * sheet already owns vertical drags.
+ */
 @Composable
-private fun Banner(s: SessionSummary, ui: HomeUi, cb: HomeCallbacks, modifier: Modifier = Modifier) {
+private fun SessionCard(s: SessionSummary, ui: HomeUi, cb: HomeCallbacks, modifier: Modifier = Modifier) {
     val c = Remoter.colors
     val t = Remoter.type
     val ending = s.id in ui.ending
     val (word, tone) = s.statusWord(ending)
     val exited = s.state == SessionState.Exited
-    // There is no exit time on the wire, only the start, so an exited banner says which one it shows.
+    // There is no exit time on the wire, only the start, so an exited card says which one it shows.
     val spoken = if (exited) {
         "Session ${s.name}, ${word.lowercase()}, started at ${clockTime(s.started)}"
     } else {
         "Session ${s.name}, ${word.lowercase()}, running ${spokenDuration(ui.nowMs - s.started)}"
     } + (s.worktree?.let { ", in worktree $it" } ?: "")
-    val large = LocalDensity.current.fontScale > 1.3f
-    // Exited banner follows the finger down and fades. Past the line it slides away and clears,
-    // short of it it springs back.
     val drag = remember(s.id) { Animatable(0f) }
     val scope = rememberCoroutineScope()
     val haptics = rememberHaptics()
     val threshold = with(LocalDensity.current) { ClearThreshold.toPx() }
-    Row(
+    Column(
         modifier
             .fillMaxWidth()
-            .heightIn(min = Touch.row)
+            .padding(horizontal = Space.gutter, vertical = Space.s4)
             .graphicsLayer {
-                translationY = drag.value
-                alpha = 1f - (drag.value / (threshold * 2)).coerceIn(0f, 0.9f)
+                translationX = drag.value
+                alpha = 1f - (kotlin.math.abs(drag.value) / (threshold * 2)).coerceIn(0f, 0.9f)
             }
             .sharedContainer("session-${s.id}")
-            .clickable(role = Role.Button, onClick = { cb.onSession(s) })
-            .shadow(if (c.isDark) 0.dp else 6.dp, Shapes.card)
+            .clickable(null, pressIndication(Press.Card), role = Role.Button, onClick = { cb.onSession(s) })
             .clip(Shapes.card)
-            .background(c.surfaceRaised)
-            .animateContentSize(tween(Dur.base, easing = EaseOut))
+            .background(c.surface)
             .then(
                 if (exited) {
                     Modifier.pointerInput(s.id) {
                         var past = false
-                        detectVerticalDragGestures(
+                        detectHorizontalDragGestures(
                             onDragEnd = {
                                 scope.launch {
-                                    if (drag.value > threshold) {
-                                        drag.animateTo(threshold * 3, tween(Dur.exit, easing = EaseIn))
+                                    if (kotlin.math.abs(drag.value) > threshold) {
+                                        drag.animateTo(kotlin.math.sign(drag.value) * size.width, tween(Dur.exit, easing = EaseIn))
                                         cb.onClearSession(s.id)
                                     } else {
                                         drag.animateTo(0f, SheetSpring)
@@ -607,8 +544,8 @@ private fun Banner(s: SessionSummary, ui: HomeUi, cb: HomeCallbacks, modifier: M
                             onDragCancel = { scope.launch { drag.animateTo(0f, SheetSpring) } },
                         ) { change, d ->
                             change.consume()
-                            scope.launch { drag.snapTo((drag.value + d).coerceAtLeast(0f)) }
-                            val now = drag.value + d > threshold
+                            scope.launch { drag.snapTo(drag.value + d) }
+                            val now = kotlin.math.abs(drag.value + d) > threshold
                             if (now && !past) haptics.threshold()
                             past = now
                         }
@@ -621,71 +558,71 @@ private fun Banner(s: SessionSummary, ui: HomeUi, cb: HomeCallbacks, modifier: M
                 contentDescription = spoken
                 if (exited) customActions = listOf(CustomAccessibilityAction("Clear") { cb.onClearSession(s.id); true })
             }
-            .padding(start = Space.s16, end = if (exited) Space.s4 else Space.s16, top = Space.s8, bottom = Space.s8),
-        verticalAlignment = Alignment.CenterVertically,
+            .animateContentSize(tween(Dur.base, easing = EaseOut))
+            .padding(Space.cardPadding),
     ) {
-        // Status and the ending spinner crossfade in one fixed column, so names line up across
-        // banners whatever the status word and nothing jumps when a session starts ending.
-        FadeSwap(ending, Modifier.widthIn(min = StatusColumn)) { isEnding ->
-            if (isEnding) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(s.name, style = t.title, color = c.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    CircularProgressIndicator(Modifier.size(12.dp), color = c.textMuted, strokeWidth = 1.5.dp, trackColor = Color.Transparent)
-                    Spacer(Modifier.width(Space.s8))
-                    Text("Ending\u2026", style = t.label, color = c.text)
+                    // The status and the ending spinner crossfade in place, so nothing jumps when End lands.
+                    FadeSwap(ending) { isEnding ->
+                        if (isEnding) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                // Reduced motion freezes the loop, so it holds a steady partial ring instead.
+                                if (Remoter.reducedMotion) {
+                                    CircularProgressIndicator({ 0.3f }, Modifier.size(14.dp), color = c.textMuted, strokeWidth = 2.dp, trackColor = Color.Transparent)
+                                } else {
+                                    CircularProgressIndicator(Modifier.size(14.dp), color = c.textMuted, strokeWidth = 2.dp, trackColor = Color.Transparent)
+                                }
+                                Spacer(Modifier.width(Space.s8))
+                                Text("Ending\u2026", style = t.label, color = c.text)
+                            }
+                        } else {
+                            StatusLabel(word, tone, pulsing = s.state == SessionState.Starting)
+                        }
+                    }
+                    Text(
+                        " · " + if (exited) "started ${clockTime(s.started)}" else uptime(ui.nowMs - s.started),
+                        style = t.label.tnum(), color = c.textMuted, maxLines = 1,
+                    )
                 }
-            } else {
-                StatusLabel(word, tone, pulsing = s.state == SessionState.Starting)
-            }
-        }
-        Spacer(Modifier.width(Space.s16))
-        Column(Modifier.weight(1f)) {
-            Text(s.name, style = t.bodyStrong, color = c.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            // An exited banner has no clock ticking on the right, so its start time takes the path's line
-            // and the name keeps its room at large font sizes.
-            if (exited) {
-                Text("started ${clockTime(s.started)}", style = t.label.tnum(), color = c.textMuted)
-            } else if (!large) {
-                // At large font sizes the path only fit as "...s/remoter", which said nothing the
-                // name didn't. The detail screen has the full path.
                 Text(trimmedPath(s.path), style = t.label, color = c.textMuted, maxLines = 1, overflow = TextOverflow.StartEllipsis)
+                Appear(s.worktree != null) { s.worktree?.let { WorktreeLine(it) } }
             }
-            Appear(s.worktree != null) { s.worktree?.let { WorktreeLine(it) } }
+            val claude = s.claude
+            when {
+                ending -> {}
+                exited -> Box(
+                    // Swiping clears it too, but a gesture nobody can see can't be the only way.
+                    Modifier
+                        .size(Touch.min)
+                        .offset(x = Space.s8)
+                        .clickable(null, pressIndication(Press.Icon), role = Role.Button, onClick = { cb.onClearSession(s.id) })
+                        .clip(Shapes.pill),
+                    contentAlignment = Alignment.Center,
+                ) { Icon(Glyphs.close, contentDescription = "Clear ${s.name}", tint = c.textMuted, modifier = Modifier.size(20.dp)) }
+                s.state == SessionState.Ready && claude != null -> {
+                    Spacer(Modifier.width(Space.s8))
+                    ClaudeChip("Open", { cb.onOpenClaude(s) }, Modifier.semantics { contentDescription = "Open ${s.name} in Claude" })
+                }
+            }
         }
-        if (exited) {
-            // Swiping down still clears it, but a gesture nobody can see can't be the only way.
-            Box(
-                Modifier
-                    .size(Touch.min)
-                    .clickable(null, pressIndication(Press.Icon), role = Role.Button, onClick = { cb.onClearSession(s.id) })
-                    .clip(Shapes.pill),
-                contentAlignment = Alignment.Center,
-            ) { Icon(Glyphs.close, contentDescription = "Clear ${s.name}", tint = c.textMuted, modifier = Modifier.size(20.dp)) }
-        } else {
-            Text(uptime(ui.nowMs - s.started), style = t.label.tnum(), color = c.textMuted)
+        if (s.state == SessionState.Stuck && !ending) {
+            Text(
+                reasonText(s.reason),
+                style = t.body, color = if (s.reason == StuckReason.Timeout) c.warn else c.danger,
+                modifier = Modifier.padding(top = Space.s8),
+            )
         }
     }
 }
 
-private val StatusColumn = 76.dp
-
-private val ClearThreshold = 48.dp
-
-/**
- * How many of [count] banners fit in [roomPx] above the sheet, at most two, leaving room for the
- * "+N" pill when some are left out. Zero means only the pill. Before anything is measured the
- * sizes are 0 and two show, which the first measured frame corrects.
- */
-internal fun bannersThatFit(count: Int, roomPx: Float, bannerPx: Float, pillPx: Float, gapPx: Float): Int {
-    for (k in minOf(2, count) downTo 1) {
-        val pill = if (k < count) gapPx + pillPx else 0f
-        if (k * bannerPx + (k - 1) * gapPx + pill <= roomPx) return k
-    }
-    return 0
-}
+private val ClearThreshold = 96.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SheetBody(ui: HomeUi, cb: HomeCallbacks, entrance: Boolean, atPeek: Boolean) {
+private fun SheetBody(ui: HomeUi, cb: HomeCallbacks, entrance: Boolean, atPeek: Boolean, plusAlpha: () -> Float) {
     val c = Remoter.colors
     val t = Remoter.type
     val haptics = rememberHaptics()
@@ -697,6 +634,7 @@ private fun SheetBody(ui: HomeUi, cb: HomeCallbacks, entrance: Boolean, atPeek: 
             past = f >= 1f
         }
     }
+    val list = ui.visibleSessions()
     // Pull to refresh only works at the peek. Pulling down from there has nowhere else to go,
     // but on a raised sheet the same drag has to bring the sheet down, and a refresh gesture
     // sitting on top of it once made an expanded sheet impossible to close.
@@ -712,37 +650,40 @@ private fun SheetBody(ui: HomeUi, cb: HomeCallbacks, entrance: Boolean, atPeek: 
             Modifier.fillMaxSize().verticalScroll(rememberScrollState()).windowInsetsPadding(WindowInsets.navigationBars),
         ) {
             Row(Modifier.fillMaxWidth().padding(start = Space.gutter, end = Space.s8).staggerIn(2, entrance), verticalAlignment = Alignment.CenterVertically) {
-                Text("Start in…", style = t.headline, color = c.text, modifier = Modifier.weight(1f))
-                // First run has its own big Browse button, and two would compete. Its place is kept,
-                // invisible and inert, so the header doesn't change shape once folders arrive.
-                val firstRun = ui.loaded && ui.pinned.isEmpty() && ui.recent.isEmpty()
-                QuietLink("Browse ~", cb.onBrowseHome, Modifier.then(if (firstRun) Modifier.alpha(0f).clearAndSetSemantics {} else Modifier), enabled = !firstRun)
+                Text("Sessions", style = t.headline, color = c.text)
+                val alive = list.count { it.isAlive() }
+                AppearAnywhere(alive > 0) {
+                    Text(
+                        "$alive",
+                        style = t.label.tnum(),
+                        color = c.text,
+                        modifier = Modifier
+                            .padding(start = Space.s8)
+                            .clip(Shapes.pill)
+                            .background(c.surface)
+                            .padding(horizontal = Space.s8, vertical = Space.s4)
+                            .semantics { contentDescription = if (alive == 1) "1 running" else "$alive running" },
+                    )
+                }
+                Spacer(Modifier.weight(1f))
+                // At the peek "+ New" sits right above; raised, the sheet hides it and this takes over.
+                Box(Modifier.size(Touch.min).graphicsLayer { alpha = plusAlpha() }) {
+                    if (!atPeek) RoundIconButton(Glyphs.plus, "New session", cb.onNew)
+                }
             }
-            Spacer(Modifier.height(Space.s16))
-            SearchPill(cb.onSearch, Modifier.padding(horizontal = Space.gutter).sharedContainer("search").staggerIn(3, entrance))
-            Spacer(Modifier.height(Space.s16))
-            if (ui.loaded && ui.pinned.isEmpty() && ui.recent.isEmpty()) {
-                FirstRun(ui, cb)
-            } else {
-                // Pins live on the phone, so they show even when the laptop never answered. Pinning
-                // collapses the row out of one list and opens it in the other so the move reads.
-                Appear(ui.pinned.isNotEmpty()) {
-                    SectionLabel("Pinned", if (ui.pinned.size > 1) ({ QuietLink("Reorder", cb.onReorder) }) else null)
-                }
-                AnimatedItems(ui.pinned.mapIndexed { n, f -> n to f }, key = { it.second.path }) { (n, f) ->
-                    HomeRow(f, pinned = true, cb, Modifier.staggerIn(4 + n, entrance), ui)
-                }
-                FadeSwap(ui.loaded) { loaded -> Column(Modifier.fillMaxWidth()) {
-                    if (loaded) {
-                        val recent = ui.recent.filter { r -> ui.pinned.none { it.path == r.path } }.take(5)
-                        Appear(recent.isNotEmpty()) { SectionLabel("Recent") }
-                        AnimatedItems(recent.mapIndexed { n, f -> n to f }, key = { it.second.path }) { (n, f) ->
-                            HomeRow(f, pinned = false, cb, Modifier.staggerIn(4 + ui.pinned.size + n, entrance), ui)
-                        }
+            Spacer(Modifier.height(Space.s8))
+            FadeSwap(list.isEmpty()) { empty ->
+                Column(Modifier.fillMaxWidth()) {
+                    if (empty && !ui.loaded) {
+                        SessionsPending(ui, cb)
+                    } else if (empty) {
+                        NothingRunning(ui, cb)
                     } else {
-                        FoldersPending(ui, cb)
+                        AnimatedItems(list.mapIndexed { n, it -> n to it }, key = { it.second.id }) { (n, s) ->
+                            SessionCard(s, ui, cb, Modifier.staggerIn(3 + n, entrance))
+                        }
                     }
-                } }
+                }
             }
             Spacer(Modifier.height(Space.s24))
         }
@@ -754,6 +695,107 @@ private fun SheetBody(ui: HomeUi, cb: HomeCallbacks, entrance: Boolean, atPeek: 
             color = c.text,
         )
     }
+}
+
+/**
+ * The sheet with nothing running: the folders you'd start in again, one tap each,
+ * so "+ New" is never the long way round. First run gets the explanation instead.
+ */
+@Composable
+private fun ColumnScope.NothingRunning(ui: HomeUi, cb: HomeCallbacks) {
+    val c = Remoter.colors
+    val t = Remoter.type
+    if (ui.loaded && ui.pinned.isEmpty() && ui.recent.isEmpty()) {
+        FirstRun(ui, cb)
+        return
+    }
+    Column(Modifier.fillMaxWidth().padding(horizontal = Space.gutter, vertical = Space.s8), verticalArrangement = Arrangement.spacedBy(Space.s4)) {
+        Text("Nothing running", style = t.title, color = c.text)
+        Text("Start Claude Code on ${ui.hostname} again, or tap New for any folder.", style = t.body, color = c.textMuted)
+    }
+    val again = (ui.pinned + ui.recent.filter { r -> ui.pinned.none { it.path == r.path } }).take(QuickStarts)
+    if (again.isNotEmpty()) {
+        SectionLabel("Start again")
+        AnimatedItems(again, key = { it.path }) { f -> HomeRow(f, pinned = ui.pinned.any { it.path == f.path }, cb, Modifier, ui) }
+    }
+}
+
+/**
+ * Before the first answer an empty list means nothing yet, not nothing running. Skeletons
+ * while one can still come, otherwise why it hasn't.
+ */
+@Composable
+private fun SessionsPending(ui: HomeUi, cb: HomeCallbacks) {
+    val note = when {
+        ui.link == Link.VpnOff -> "Your sessions show up once WireGuard is on."
+        ui.link is Link.LaptopDown -> "Your sessions show up once ${ui.hostname} answers."
+        ui.loadFailed -> "Couldn't load your sessions from ${ui.hostname}."
+        else -> null
+    }
+    if (note == null) {
+        repeat(2) { Skeleton(null, 88.dp, Modifier.padding(horizontal = Space.gutter, vertical = Space.s4), shape = Shapes.card) }
+        return
+    }
+    Column(
+        Modifier.fillMaxWidth().padding(horizontal = Space.gutter, vertical = Space.s8),
+        verticalArrangement = Arrangement.spacedBy(Space.s8),
+    ) {
+        Text(note, style = Remoter.type.body, color = Remoter.colors.textMuted)
+        // The down states already have their action on the map; only a failed load needs one here.
+        if (ui.link is Link.Up && ui.loadFailed) SecondaryButton("Try again", cb.onRefresh)
+    }
+    // pins live on the phone, so they're there to start from even before the laptop answers
+    if (ui.pinned.isNotEmpty()) {
+        SectionLabel("Pinned")
+        ui.pinned.forEach { f -> HomeRow(f, pinned = true, cb, Modifier, ui) }
+    }
+}
+
+private const val QuickStarts = 4
+
+/**
+ * What "+ New" opens: search, browse, and the pinned and recent folders that used to
+ * fill the home sheet. Lives in a [me.river.remoter.core.design.components.RemoterSheet],
+ * whose own padding the rows reach past so their text lines up with the title.
+ */
+@Composable
+internal fun ColumnScope.NewSession(ui: HomeUi, cb: HomeCallbacks) {
+    val c = Remoter.colors
+    val t = Remoter.type
+    Text("New session", style = t.title, color = c.text)
+    Text("Pick a folder on ${ui.hostname}", style = t.label, color = c.textMuted)
+    Spacer(Modifier.height(Space.s16))
+    SearchPill(cb.onSearch, Modifier.sharedContainer("search"))
+    Spacer(Modifier.height(Space.s8))
+    Column(Modifier.bleed(Space.gutter)) {
+        FolderRow(FolderRowModel("Browse ~", path = "Every folder in your home", isGit = false), onClick = cb.onBrowseHome)
+        // Pins live on the phone, so they show even when the laptop never answered. Pinning
+        // collapses the row out of one list and opens it in the other so the move reads.
+        Appear(ui.pinned.isNotEmpty()) {
+            SectionLabel("Pinned", if (ui.pinned.size > 1) ({ QuietLink("Reorder", cb.onReorder) }) else null)
+        }
+        AnimatedItems(ui.pinned, key = { it.path }) { f -> HomeRow(f, pinned = true, cb, Modifier, ui) }
+        FadeSwap(ui.loaded) { loaded -> Column(Modifier.fillMaxWidth()) {
+            if (loaded) {
+                val recent = ui.recent.filter { r -> ui.pinned.none { it.path == r.path } }.take(5)
+                Appear(recent.isNotEmpty()) { SectionLabel("Recent") }
+                AnimatedItems(recent, key = { it.path }) { f -> HomeRow(f, pinned = false, cb, Modifier, ui) }
+                if (ui.pinned.isEmpty() && recent.isEmpty() && ui.suggestions.isNotEmpty()) {
+                    SectionLabel("Try one of these")
+                    ui.suggestions.forEach { f -> HomeRow(f, pinned = null, cb, Modifier) }
+                }
+            } else {
+                FoldersPending(ui, cb)
+            }
+        } }
+    }
+}
+
+/** Lets full width rows reach [x] past their parent's padding on both sides. */
+private fun Modifier.bleed(x: androidx.compose.ui.unit.Dp) = layout { m, cons ->
+    val px = x.roundToPx()
+    val p = m.measure(cons.copy(minWidth = cons.minWidth + 2 * px, maxWidth = cons.maxWidth + 2 * px))
+    layout(cons.maxWidth, p.height) { p.place(-px, 0) }
 }
 
 /**
@@ -829,9 +871,9 @@ private fun FirstRun(ui: HomeUi, cb: HomeCallbacks) {
         verticalArrangement = Arrangement.spacedBy(Space.s8),
     ) {
         Mark(size = 96.dp, chevronColor = c.line)
-        Text("Your folders land here", style = t.title, color = c.text)
+        Text("Nothing running yet", style = t.title, color = c.text)
         Text(
-            "Start a session once and it shows up here for one tap next time.",
+            "Start Claude Code in a folder on ${ui.hostname}. It shows up here while it runs.",
             style = t.body, color = c.textMuted,
             textAlign = TextAlign.Center,
         )

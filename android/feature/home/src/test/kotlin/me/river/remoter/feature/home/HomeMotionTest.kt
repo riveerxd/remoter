@@ -5,7 +5,8 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.performTouchInput
-import androidx.compose.ui.test.swipeDown
+import androidx.compose.ui.test.swipeLeft
+import androidx.compose.ui.test.swipeRight
 import kotlinx.collections.immutable.persistentListOf
 import me.river.remoter.core.design.RemoterTheme
 import me.river.remoter.core.net.SessionState
@@ -32,19 +33,19 @@ class HomeMotionTest {
     }
 
     @Test
-    fun a_short_pull_on_an_exited_banner_springs_back() {
+    fun a_short_swipe_on_an_exited_card_springs_back() {
         val cleared = mutableListOf<String>()
         show(cleared)
-        compose.onNodeWithContentDescription("Session old-session", substring = true).performTouchInput { swipeDown(startY = centerY, endY = centerY + 40f) }
+        compose.onNodeWithContentDescription("Session old-session", substring = true).performTouchInput { swipeRight(startX = centerX, endX = centerX + 40f) }
         compose.waitForIdle()
         assertEquals(emptyList<String>(), cleared)
     }
 
     @Test
-    fun a_long_pull_on_an_exited_banner_clears_it() {
+    fun a_long_swipe_on_an_exited_card_clears_it() {
         val cleared = mutableListOf<String>()
         show(cleared)
-        compose.onNodeWithContentDescription("Session old-session", substring = true).performTouchInput { swipeDown(startY = centerY, endY = centerY + 600f) }
+        compose.onNodeWithContentDescription("Session old-session", substring = true).performTouchInput { swipeLeft(startX = right - 10f, endX = left + 10f) }
         compose.waitForIdle()
         assertEquals(listOf("rc-x"), cleared)
     }

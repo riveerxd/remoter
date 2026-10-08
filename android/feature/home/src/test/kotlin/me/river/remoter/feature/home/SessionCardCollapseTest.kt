@@ -15,7 +15,7 @@ import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = "w411dp-h891dp-xxhdpi")
-class BannerCollapseTest {
+class SessionCardCollapseTest {
     @get:Rule val compose = createComposeRule()
 
     @Test

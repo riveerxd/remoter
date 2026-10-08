@@ -64,9 +64,17 @@ class HomeInteractionTest {
     fun a_failed_first_load_has_try_again() {
         var refreshed = false
         show(HomeUi(hostname = "r1v3r", link = Link.Up(30), loadFailed = true), HomeCallbacks(onRefresh = { refreshed = true }))
-        compose.onNodeWithText("Couldn't load your folders", substring = true).assertExists()
+        compose.onNodeWithText("Couldn't load your sessions", substring = true).assertExists()
         compose.onNodeWithText("Try again").performClick()
         assertTrue(refreshed)
+    }
+
+    // an empty list before the first answer used to read as nothing running
+    @Test
+    fun nothing_running_waits_for_an_answer() {
+        show(HomeUi(hostname = "r1v3r", link = Link.LaptopDown(null)))
+        compose.onNodeWithText("Nothing running").assertDoesNotExist()
+        compose.onNodeWithText("Your sessions show up once r1v3r answers.").assertExists()
     }
 
     @Test
@@ -79,7 +87,7 @@ class HomeInteractionTest {
     fun exited_banner_reads_as_started() {
         val s = session("rc-c", "site", SessionState.Exited)
         show(base.copy(sessions = persistentListOf(s)))
-        compose.onNodeWithText("started ${clockTime(s.started)}").assertExists()
+        compose.onNodeWithText("started ${clockTime(s.started)}", substring = true).assertExists()
         compose.onNodeWithContentDescription("Session site, exited, started at ${clockTime(s.started)}").assertExists()
         compose.onAllNodesWithText("running", substring = true).assertCountEquals(0)
     }
@@ -96,15 +104,13 @@ class HomeInteractionTest {
     }
 
     @Test
-    fun more_banners_expand_and_collapse_again() {
+    fun every_session_gets_a_card_and_the_count_says_how_many() {
         val list = persistentListOf(
-            session("a", "one", SessionState.Ready), session("b", "two", SessionState.Ready), session("c", "three", SessionState.Ready),
+            session("a", "one", SessionState.Ready), session("b", "two", SessionState.Ready), session("c", "three", SessionState.Exited),
         )
         show(base.copy(sessions = list))
-        compose.onNodeWithText("+1 more").performClick()
-        compose.onNodeWithText("three").assertExists()
-        compose.onNodeWithText("Show less").performClick()
-        compose.onNodeWithText("+1 more").assertExists()
+        listOf("one", "two", "three").forEach { compose.onNodeWithText(it).assertExists() }
+        compose.onNodeWithContentDescription("2 running").assertExists()
     }
 
     @Test
@@ -119,7 +125,9 @@ class HomeInteractionTest {
     @Test
     fun reorder_shows_with_two_pins() {
         var reorder = false
-        show(base.copy(pinned = base.recent), HomeCallbacks(onReorder = { reorder = true }))
+        compose.setContent {
+            RemoterTheme(dark = true, reducedMotion = true) { Column { NewSession(base.copy(pinned = base.recent), HomeCallbacks(onReorder = { reorder = true })) } }
+        }
         compose.onNodeWithText("Reorder").performClick()
         assertTrue(reorder)
     }

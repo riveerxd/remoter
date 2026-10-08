@@ -59,6 +59,7 @@ class Phone {
 
     fun visible(): String = d.findObjects(By.pkg(APP)).flatMap { o -> listOfNotNull(o.text, o.contentDescription) }.distinct().joinToString(" | ")
 
-    fun isPaired(): Boolean = has("Start in…", 6_000)
+    fun isPaired(): Boolean = d.wait(Until.hasObject(By.desc("New session")), 6_000) == true
+    fun tapNew() = find(By.desc("New session")).click()
     fun needPaired() = assumeTrue("not paired with the staging laptop; run the pairing step first", isPaired())
 }

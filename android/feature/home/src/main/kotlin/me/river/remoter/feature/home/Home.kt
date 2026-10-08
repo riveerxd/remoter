@@ -74,6 +74,7 @@ data class HomeNav(
     val onBrowse: (String) -> Unit,
     val onSession: (SessionSummary) -> Unit,
     val onOpenWireGuard: () -> Unit,
+    val onOpenClaude: (SessionSummary) -> Unit = {},
 )
 
 internal const val UndoMs = 5_000L
@@ -82,6 +83,7 @@ private sealed interface HomeSheet {
     data class Menu(val f: FolderItem, val pinned: Boolean) : HomeSheet
     data object Reorder : HomeSheet
     data object Map : HomeSheet
+    data object New : HomeSheet
 }
 
 @Composable
@@ -91,26 +93,31 @@ fun HomeScreen(vm: HomeViewModel, nav: HomeNav, entrance: Boolean) {
     var copied by remember { mutableStateOf<String?>(null) }
     val slot = LocalSheetSlot.current
     val clip = LocalClipboardManager.current
+    // Leaving for the browser drops the New sheet: coming back, home is where you were.
+    fun leave(go: () -> Unit) {
+        sheet = null
+        go()
+    }
+    val callbacks = HomeCallbacks(
+        onSettings = nav.onSettings,
+        onSearch = { leave(nav.onSearch) },
+        onBrowseHome = { leave { nav.onBrowse("") } },
+        // Start takes the one sheet slot, which drops New without its exit.
+        onFolder = { f -> if (slot == null) sheet = null; nav.onStart(f) },
+        onFolderMenu = { f, p -> sheet = HomeSheet.Menu(f, p) },
+        onSession = nav.onSession,
+        onClearSession = vm::clear,
+        onRetry = vm::retry,
+        onOpenWireGuard = nav.onOpenWireGuard,
+        onRefresh = { vm.refresh(manual = true) },
+        onMapDetails = { sheet = HomeSheet.Map },
+        onTogglePin = { f, pinned -> if (pinned) vm.unpin(f.path) else vm.pin(f.path) },
+        onReorder = { sheet = HomeSheet.Reorder },
+        onNew = { sheet = HomeSheet.New },
+        onOpenClaude = nav.onOpenClaude,
+    )
     Box(Modifier.fillMaxSize()) {
-        HomeContent(
-            ui,
-            HomeCallbacks(
-                onSettings = nav.onSettings,
-                onSearch = nav.onSearch,
-                onBrowseHome = { nav.onBrowse("") },
-                onFolder = nav.onStart,
-                onFolderMenu = { f, p -> sheet = HomeSheet.Menu(f, p) },
-                onSession = nav.onSession,
-                onClearSession = vm::clear,
-                onRetry = vm::retry,
-                onOpenWireGuard = nav.onOpenWireGuard,
-                onRefresh = { vm.refresh(manual = true) },
-                onMapDetails = { sheet = HomeSheet.Map },
-                onTogglePin = { f, pinned -> if (pinned) vm.unpin(f.path) else vm.pin(f.path) },
-                onReorder = { sheet = HomeSheet.Reorder },
-            ),
-            entrance,
-        )
+        HomeContent(ui, callbacks, entrance)
         ui.undoUnpin?.let { (_, path) ->
             // The host runs the 5 s grace and holds it while a finger is on the snackbar.
             key(path) {
@@ -149,6 +156,7 @@ fun HomeScreen(vm: HomeViewModel, nav: HomeNav, entrance: Boolean) {
                 }
                 HomeSheet.Reorder -> Reorder(ui, vm::move) { sheet = null }
                 HomeSheet.Map -> MapDetails(ui)
+                HomeSheet.New -> NewSession(ui, callbacks)
             }
         }
     }

@@ -15,7 +15,7 @@ import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = "w411dp-h891dp-xxhdpi")
-class WorktreeBannerTest {
+class WorktreeCardTest {
     @get:Rule val compose = createComposeRule()
 
     private val now = 1_790_620_000_000
@@ -26,7 +26,7 @@ class WorktreeBannerTest {
         compose.setContent { RemoterTheme(dark = true, reducedMotion = true) { HomeContent(ui, HomeCallbacks(), false) } }
     }
 
-    /** Two sessions of one folder, one in a worktree, looked the same on the banner. */
+    /** Two sessions of one folder, one in a worktree, used to look the same. */
     @Test
     fun a_worktree_session_says_which_worktree() {
         show(plain.copy(id = "rc-b", worktree = "bright-otter-3f2a"))
