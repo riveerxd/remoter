@@ -136,7 +136,10 @@ class FixtureBackend(
         return RemoterJson.decodeFromJsonElement(responses.getValue(key))
     }
 
-    override suspend fun health(): Health = get<Health>("health").copy(sessions = live.size)
+    override suspend fun health(): Health = get<Health>(healthKey).copy(sessions = live.size)
+
+    /** "health_direct" to play a laptop the phone dials straight. */
+    var healthKey = "health"
     override suspend fun list(path: String, hidden: Boolean): ListResponse =
         get<ListResponse>("list").copy(path = path)
     override suspend fun search(query: String, path: String): SearchResponse = get<SearchResponse>("search").copy(query = query)
@@ -177,7 +180,7 @@ class FixtureBackend(
         version.collect {
             gate()
             val list = current()
-            val h = get<Health>("health").copy(sessions = list.size)
+            val h = get<Health>(healthKey).copy(sessions = list.size)
             if (h != health) emit(LiveEvent.Health(h)).also { health = h }
             if (list != sent) emit(LiveEvent.Sessions(list)).also { sent = list }
         }
@@ -236,7 +239,8 @@ class FixtureBackend(
         // The laptop's rule: one same-folder session per folder at a time. A retry of the same bytes
         // already got its answer above, so it never trips this.
         if (oneSessionPerFolder && first == spawnCalls.lastIndex && req.mode == SpawnMode.SameDir) {
-            val busy = current().filter { it.path == req.path && it.state != SessionState.Exited && it.state != SessionState.Gone }
+            // like the agent: a start claude refused, or that it stopped at the trust dialog, has no claude left in the folder
+            val busy = current().filter { it.path == req.path && it.state != SessionState.Exited && it.state != SessionState.Gone && it.reason != StuckReason.Untrusted }
             if (busy.isNotEmpty()) {
                 val base = error(ErrorCode.FolderBusy)
                 throw ApiException(base.status, base.body.copy(sessions = busy))

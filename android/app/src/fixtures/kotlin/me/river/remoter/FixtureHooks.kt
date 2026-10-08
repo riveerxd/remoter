@@ -29,5 +29,6 @@ object FixtureHooks {
         }
         intent.getStringExtra("fixture_fail")?.let { v -> backend.failWith = ErrorCode.entries.firstOrNull { it.name.equals(v, true) } }
         if (intent.hasExtra("fixture_empty")) backend.emptyHome = true
+        if (intent.hasExtra("fixture_direct")) backend.healthKey = "health_direct"
     }
 }
