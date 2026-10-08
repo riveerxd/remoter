@@ -92,7 +92,7 @@ scenario!(pairing_reads_and_mkdir, inner_pairing_reads_and_mkdir, |lab| {
         assert_eq!(entry(".ssh")["deny_reason"], "denied");
         let docs = c.get("/v1/fs/list?path=Documents").await.json();
         assert_eq!(docs["trusted"], false);
-        assert_eq!(docs["deny_reason"], "untrusted");
+        assert_eq!((&docs["spawn_allowed"], &docs["deny_reason"]), (&serde_json::json!(true), &serde_json::Value::Null), "trusted at start");
         assert_eq!(c.get("/v1/fs/list?path=..%2F..").await.code(), "path_outside_home");
 
         let s = c.get("/v1/fs/search?q=rem&path=").await.json();
@@ -107,7 +107,6 @@ scenario!(pairing_reads_and_mkdir, inner_pairing_reads_and_mkdir, |lab| {
         assert_eq!(mode_of(&lab.dir.join("home/Projects/made")).0, uid(), "created as you, by the agent");
         assert_eq!(c.signed(&phone.sign("POST", "/v1/fs/mkdir", &mkdir_body("Projects", "made", false))).await.code(), "exists");
         assert_eq!(c.signed(&phone.sign("POST", "/v1/fs/mkdir", &mkdir_body("Projects", "-rf", false))).await.code(), "name_invalid");
-        assert_eq!(c.signed(&phone.sign("POST", "/v1/sessions", &spawn_body("Documents/notes", "x"))).await.code(), "untrusted_folder");
         assert_eq!(c.signed(&phone.sign("POST", "/v1/sessions", &spawn_body("Projects/.ssh", "x"))).await.code(), "path_denied");
 
         let audit = c.get("/v1/audit").await.json();

@@ -255,7 +255,7 @@ fn listing_facts_sort_and_trust() {
     let home_list = l.list(&parse_rel(b"").expect("home"), false).expect("list");
     let other = home_list.entries.iter().find(|e| e.name == "outside-ish").expect("listed");
     assert!(!other.trusted, "home is explicitly untrusted");
-    assert_eq!(other.deny_reason, Some(DenyReason::Untrusted));
+    assert!(other.spawn_allowed && other.deny_reason.is_none(), "the agent trusts it at start");
 }
 
 #[test]

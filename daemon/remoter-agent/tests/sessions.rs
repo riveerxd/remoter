@@ -565,7 +565,7 @@ fn t_a_refused_start_doesnt_hold_its_folder(l: Box<dyn Launcher>) {
     let failed = s.spawn(&req("Projects/remoter", "first"), None).expect("spawn");
     let got = wait_state(&s, &failed, SessionState::Stuck, Duration::from_secs(10));
     assert_eq!(got.reason, Some(StuckReason::Untrusted));
-    let again = s.spawn(&SpawnRequest { trust: true, ..req("Projects/remoter", "again") }, None);
+    let again = s.spawn(&req("Projects/remoter", "again"), None);
     assert!(again.is_ok(), "nothing runs in the folder, so it isn't busy: {:?}", again.err());
     for id in [failed, again.expect("again")] {
         s.kill(&id).expect("kill");
@@ -586,19 +586,70 @@ fn t_a_slow_stuck_start_still_holds_its_folder(l: Box<dyn Launcher>) {
     wait_gone(&s, &hung, Duration::from_secs(10));
 }
 
-fn t_trust_from_the_phone_trusts_then_starts(l: Box<dyn Launcher>) {
-    let w = World::new();
-    let s = w.sessions(w.cfg("ready"), l);
-    // Documents is outside the trusted ~/Projects
-    assert_eq!(s.spawn(&req("Documents", "plain ask"), None).err().map(|e| e.code), Some(ErrorCode::UntrustedFolder));
-    let id = s.spawn(&SpawnRequest { trust: true, ..req("Documents", "trusted now") }, None).expect("trust and start");
-    wait_state(&s, &id, SessionState::Ready, Duration::from_secs(15));
+fn trust_entry(w: &World, abs: &Path) -> serde_json::Value {
     let json: serde_json::Value = serde_json::from_slice(&std::fs::read(w.root.join("claude.json")).expect("read")).expect("json");
-    let key = w.home.join("Documents").display().to_string();
-    assert_eq!(json["projects"][&key]["hasTrustDialogAccepted"], true);
-    assert_eq!(json["projects"][format!("{}/Projects", w.home.display())]["hasTrustDialogAccepted"], true, "the rest is kept");
+    json["projects"][abs.display().to_string()]["hasTrustDialogAccepted"].clone()
+}
+
+// Documents has no trusted parent, Projects/plain only inherits one
+fn t_every_folder_is_trusted_before_start(l: Box<dyn Launcher>) {
+    let w = World::new();
+    let s = w.sessions(dialog_fake(&w, "dialog", DIALOG_THEN_READY, false), l);
+    for rel in ["Documents", "Projects/plain"] {
+        let id = s.spawn(&req(rel, "plain"), None).expect("spawn");
+        wait_state(&s, &id, SessionState::Ready, Duration::from_secs(15));
+        assert_eq!(trust_entry(&w, &w.home.join(rel)), true, "{rel}");
+        s.kill(&id).expect("kill");
+        wait_gone(&s, &id, Duration::from_secs(10));
+    }
+    assert_eq!(trust_entry(&w, &w.home.join("Projects")), true, "the rest is kept");
+}
+
+fn t_resume_trusts_the_folder_first(l: Box<dyn Launcher>) {
+    let w = World::new();
+    w.seed_conversation("Projects/remoter", CONV, "fix the banner");
+    let reattach = "log \"[remote-bridge] Reattaching to session cse_01Pm4tWq9zHc2vNe7gRb5kDy\"\nlog \"[bridge:repl] handleStateChange state=connected detail=x\"\nexec sleep 600";
+    let s = w.sessions(dialog_fake(&w, "dialog-resume", &format!("trusted || dialog\n{reattach}"), false), l);
+    let id = s.spawn(&resume("Projects/remoter", "back", CONV), None).expect("resume");
+    wait_state(&s, &id, SessionState::Ready, Duration::from_secs(15));
     s.kill(&id).expect("kill");
     wait_gone(&s, &id, Duration::from_secs(10));
+}
+
+fn t_worktree_trusts_the_worktree_too(l: Box<dyn Launcher>) {
+    let w = World::new();
+    let repo = make_repo(&w);
+    let s = w.sessions(dialog_fake(&w, "dialog-wt", DIALOG_WORKTREE, false), l);
+    let id = s.spawn(&SpawnRequest { mode: SpawnMode::Worktree, ..req("Projects/wtrepo", "wt") }, None).expect("spawn");
+    let got = wait_state(&s, &id, SessionState::Ready, Duration::from_secs(15));
+    let name = got.worktree.expect("worktree name");
+    assert_eq!(trust_entry(&w, &repo), true);
+    assert_eq!(trust_entry(&w, &repo.join(".claude/worktrees").join(&name)), true);
+    s.kill(&id).expect("kill");
+    wait_gone(&s, &id, Duration::from_secs(10));
+}
+
+// went 90 s without a word once, after a claude update asked again
+fn t_a_trust_dialog_is_stuck_untrusted_in_seconds(l: Box<dyn Launcher>) {
+    let w = World::new();
+    let mut cfg = dialog_fake(&w, "dialog-always", "dialog", true);
+    cfg.ready_timeout = Duration::from_secs(60);
+    let s = w.sessions(cfg, l);
+    let first = s.spawn(&req("Projects/remoter", "first"), None).expect("spawn");
+    let got = wait_state(&s, &first, SessionState::Stuck, Duration::from_secs(10));
+    assert_eq!(got.reason, Some(StuckReason::Untrusted));
+    let pid: i32 = std::fs::read_to_string(w.dir_of(&first).join("dialog-pid")).expect("pid").trim().parse().expect("number");
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while Path::new(&format!("/proc/{pid}")).exists() {
+        assert!(Instant::now() < deadline, "claude still waits on the dialog");
+        std::thread::sleep(Duration::from_millis(100));
+    }
+    let again = s.spawn(&req("Projects/remoter", "again"), None);
+    assert!(again.is_ok(), "retry from the phone: {:?}", again.err());
+    for id in [first, again.expect("again")] {
+        s.kill(&id).expect("kill");
+        wait_gone(&s, &id, Duration::from_secs(10));
+    }
 }
 
 const CONV: &str = "c82d8b5c-edd4-453e-8d59-4748ff325c03";
@@ -646,6 +697,42 @@ fn handoff_fake(w: &World, name: &str, delay: u32, code: u32) -> SessionsConfig 
     std::fs::set_permissions(&p, std::fs::Permissions::from_mode(0o755)).expect("chmod");
     w.cfg(name)
 }
+
+/// Shows the trust dialog the way 2.1.295 does, and waits on it, unless the
+/// folder it ends up in has its own `true` entry. Inheriting from a parent
+/// doesn't count. `always` shows it whatever the entry says.
+fn dialog_fake(w: &World, name: &str, then: &str, always: bool) -> SessionsConfig {
+    let p = w.root.join("fakes").join(name);
+    let check = if always { "false" } else { "/usr/bin/jq -e --arg p \"$(pwd)\" '.projects[$p].hasTrustDialogAccepted == true' CJ >/dev/null" };
+    let body = format!(
+        r#"{prelude}trusted() {{ {check}; }}
+dialog() {{
+  printf ' Accessing workspace:\n\n %s\n\n Quick safety check: Is this a project you created or one you trust?\n\n ❯ No, exit\n   Yes, I trust this folder\n\n Enter to confirm · Esc to cancel\n' "$(pwd)"
+  echo $$ > "$d/dialog-pid"
+  exec sleep 600
+}}
+{then}
+"#,
+        prelude = PRELUDE,
+        check = check.replace("CJ", &w.root.join("claude.json").display().to_string()),
+    );
+    std::fs::write(&p, body).expect("fake");
+    std::fs::set_permissions(&p, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+    w.cfg(name)
+}
+
+const DIALOG_THEN_READY: &str = "trusted || dialog\nready\nexec sleep 600";
+
+// --worktree=<name>, like claude: the repo is checked, then the worktree it moves into
+const DIALOG_WORKTREE: &str = r#"name=
+for a; do case "$a" in --worktree=*) name="${a#--worktree=}";; esac; done
+[ -n "$name" ] || { echo "no worktree name given"; exit 1; }
+trusted || dialog
+/usr/bin/git worktree add -q -b "worktree-$name" ".claude/worktrees/$name"
+cd ".claude/worktrees/$name"
+trusted || dialog
+ready
+exec sleep 600"#;
 
 fn handoff(path: &str, name: &str, conv: &str) -> SpawnRequest {
     SpawnRequest { handoff: Some(conv.into()), ..req(path, name) }
@@ -859,8 +946,23 @@ macro_rules! suite {
             }
             #[$attr]
             #[test]
-            fn trust_from_the_phone_trusts_then_starts() {
-                t_trust_from_the_phone_trusts_then_starts($make());
+            fn every_folder_is_trusted_before_start() {
+                t_every_folder_is_trusted_before_start($make());
+            }
+            #[$attr]
+            #[test]
+            fn resume_trusts_the_folder_first() {
+                t_resume_trusts_the_folder_first($make());
+            }
+            #[$attr]
+            #[test]
+            fn worktree_trusts_the_worktree_too() {
+                t_worktree_trusts_the_worktree_too($make());
+            }
+            #[$attr]
+            #[test]
+            fn a_trust_dialog_is_stuck_untrusted_in_seconds() {
+                t_a_trust_dialog_is_stuck_untrusted_in_seconds($make());
             }
             #[$attr]
             #[test]
@@ -975,7 +1077,6 @@ fn every_refusal_has_its_own_code() {
 
     assert_eq!(refused(&w, w.cfg("ready"), req("Projects/.ssh", "x")), ErrorCode::PathDenied);
     assert_eq!(refused(&w, w.cfg("ready"), req("", "x")), ErrorCode::PathDenied, "home itself");
-    assert_eq!(refused(&w, w.cfg("ready"), req("Documents", "x")), ErrorCode::UntrustedFolder);
     assert_eq!(refused(&w, w.cfg("ready"), req("Projects/nope", "x")), ErrorCode::NotFound);
     assert_eq!(refused(&w, w.cfg("ready"), req("../x", "x")), ErrorCode::PathOutsideHome);
     assert_eq!(refused(&w, w.cfg("ready"), req("/etc", "x")), ErrorCode::PathOutsideHome);
@@ -1096,20 +1197,30 @@ impl Launcher for FailLaunch {
     }
 }
 
-// --worktree refuses a folder only trusted through its parent
 #[test]
-fn worktree_spawn_adds_own_trust_entry() {
+fn spawn_writes_trust_before_launch() {
     let w = World::new();
     let s = w.sessions(w.cfg("ready"), Box::new(FailLaunch));
-    let entry = |rel: &str| {
-        let json: serde_json::Value = serde_json::from_slice(&std::fs::read(w.root.join("claude.json")).expect("read")).expect("json");
-        json["projects"][w.home.join(rel).display().to_string()]["hasTrustDialogAccepted"].clone()
-    };
     s.spawn(&req("Projects/plain", "same dir"), None).expect_err("the launcher fails");
-    assert_eq!(entry("Projects/plain"), serde_json::Value::Null, "plain claude is fine with the parent's trust");
+    assert_eq!(trust_entry(&w, &w.home.join("Projects/plain")), true, "its own entry, not the parent's");
     s.spawn(&SpawnRequest { mode: SpawnMode::Worktree, ..req("Projects/remoter", "wt") }, None).expect_err("the launcher fails");
-    assert_eq!(entry("Projects/remoter"), true);
-    assert_eq!(entry("Projects"), true, "the parent is kept");
+    assert_eq!(trust_entry(&w, &w.home.join("Projects/remoter")), true);
+    let json: serde_json::Value = serde_json::from_slice(&std::fs::read(w.root.join("claude.json")).expect("read")).expect("json");
+    let worktrees = format!("{}/", w.home.join("Projects/remoter/.claude/worktrees").display());
+    let wt: Vec<_> = json["projects"].as_object().expect("projects").iter().filter(|(k, _)| k.starts_with(&worktrees)).collect();
+    assert_eq!(wt.len(), 1, "{wt:?}");
+    assert_eq!(wt[0].1["hasTrustDialogAccepted"], true);
+    assert_eq!(trust_entry(&w, &w.home.join("Projects")), true, "the parent is kept");
+    assert_eq!(refused(&w, w.cfg("ready"), req("Projects/.ssh", "x")), ErrorCode::PathDenied);
+    assert_eq!(trust_entry(&w, &w.home.join("Projects/.ssh")), serde_json::Value::Null, "a refused start writes nothing");
+}
+
+#[test]
+fn older_phones_trust_flag_still_starts() {
+    let w = World::new();
+    let s = w.sessions(w.cfg("ready"), Box::new(FailLaunch));
+    let r: SpawnRequest = serde_json::from_str(r#"{"path":"Documents","name":"x","mode":"same-dir","trust":true}"#).expect("still parses");
+    assert_eq!(s.spawn(&r, None).err().map(|e| e.code), Some(ErrorCode::SpawnFailed), "got as far as the launcher");
 }
 
 const ENDED: &str = "rc-01k6b7y3m4n5p6q7r8s9t0zzzz";

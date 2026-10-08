@@ -61,8 +61,8 @@ impl Lister<'_> {
             path: here.as_string(),
             is_git: here_facts.is_git,
             trusted,
-            spawn_allowed: deny.is_none() && trusted,
-            deny_reason: deny.or((!trusted).then_some(DenyReason::Untrusted)),
+            spawn_allowed: deny.is_none(),
+            deny_reason: deny,
             entries: rows.into_iter().map(|r| r.entry).collect(),
             truncated,
             partial,
@@ -149,8 +149,8 @@ impl Lister<'_> {
         let deny = policy::deny_reason(canonical, self.cwd_deny);
         entry.trusted = self.trust.is_trusted(&self.abs(canonical));
         entry.session_count = self.sessions.get(&canonical.as_string()).copied().unwrap_or(0);
-        entry.spawn_allowed = deny.is_none() && entry.trusted;
-        entry.deny_reason = deny.or((!entry.trusted).then_some(DenyReason::Untrusted));
+        entry.spawn_allowed = deny.is_none();
+        entry.deny_reason = deny;
     }
 
     /// On a thread with a budget: a hung network mount just makes it `partial`.

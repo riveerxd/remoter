@@ -40,6 +40,7 @@ pub enum DenyReason {
     Denied,
     /// Home itself.
     Home,
+    /// Only from an older laptop. Now the agent trusts a folder itself before starting there.
     Untrusted,
     Unsupported,
     SymlinkAbsolute,
@@ -62,6 +63,7 @@ pub struct FsEntry {
     /// ran out.
     pub file_count: Option<u32>,
     pub session_count: u32,
+    /// What `~/.claude.json` says today. Starting doesn't depend on it.
     pub trusted: bool,
     pub spawn_allowed: bool,
     pub deny_reason: Option<DenyReason>,
@@ -153,8 +155,8 @@ pub struct SpawnRequest {
     pub path: String,
     pub name: String,
     pub mode: SpawnMode,
-    /// "Trust this folder and start" on the phone, covered by the same signature as the rest
-    /// of the body. Without it an untrusted folder is refused.
+    /// Older phones ask for it on a folder claude didn't trust. Still accepted, but ignored:
+    /// the agent trusts every folder it starts in.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub trust: bool,
     /// A past conversation in this folder to bring back, by its claude session uuid. Left off

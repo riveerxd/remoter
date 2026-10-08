@@ -30,6 +30,11 @@ pub const TEXT_UNTRUSTED: &str = "Workspace not trusted";
 pub const TEXT_WORKTREE_UNTRUSTED: &str = "Workspace trust not yet accepted";
 /// folder already has a Remote Control on this machine
 pub const TEXT_FOLDER_SERVED: &str = "already served";
+/// The interactive trust dialog as 2.1.295 draws it. It waits there for a key.
+const DIALOG_LINES: [&str; 3] = ["Accessing workspace:", "No, exit", "Yes, I trust this folder"];
+
+/// Set when claude stopped at the trust dialog and we ended it.
+pub const TRUST_DIALOG_FILE: &str = "trust-dialog";
 
 /// Written on the first Ready so the link survives a restart and a truncated debug log.
 pub const LINK_FILE: &str = "link.json";
@@ -171,12 +176,6 @@ impl Sessions {
             Some(conv) => Some((conv.clone(), inner.handoff_source(&abs, conv, req.resume.is_some())?)),
             None => None,
         };
-        if !inner.trust.is_trusted(&abs) {
-            if !req.trust {
-                return Err(err(ErrorCode::UntrustedFolder, abs.display().to_string()));
-            }
-            inner.trust.grant(&abs).map_err(|e| err(ErrorCode::Internal, format!("couldn't trust {}: {e}", abs.display())))?;
-        }
         let name = req.name.trim_matches(' ');
         if !is_valid_session_name(name) {
             return Err(err(ErrorCode::NameInvalid, "session name breaks the rules"));
@@ -196,13 +195,18 @@ impl Sessions {
             .filter(|p| p.is_file())
             .ok_or_else(|| err(ErrorCode::SpawnFailed, "claude_bin doesn't exist"))?;
         inner.launcher.prepare()?;
-        // `--worktree` wants the folder's own trust entry even when an ancestor
-        // already covers it. Widens nothing. Kept last so a refused spawn writes nothing.
-        if req.mode == SpawnMode::Worktree && !inner.trust.is_trusted_here(&abs) {
-            inner.trust.grant(&abs).map_err(|e| err(ErrorCode::Internal, format!("couldn't trust {}: {e}", abs.display())))?;
-        }
 
         let id = format!("rc-{}", ulid::Ulid::generate().to_string().to_ascii_lowercase());
+        // claude has asked under a trusted parent before, so every start gets its
+        // own entry, and a worktree's too. Kept last so a refused spawn writes nothing.
+        let worktree = (req.mode == SpawnMode::Worktree).then_some(id.as_str());
+        let mut trust = vec![abs.clone()];
+        trust.extend(worktree.map(|name| abs.join(".claude/worktrees").join(name)));
+        for p in &trust {
+            if !inner.trust.is_trusted_here(p) {
+                inner.trust.grant(p).map_err(|e| err(ErrorCode::Internal, format!("couldn't trust {}: {e}", p.display())))?;
+            }
+        }
         let dir = inner.cfg.runtime_base.join(&id);
         std::fs::DirBuilder::new().mode(0o700).create(&dir).map_err(|e| err(ErrorCode::Internal, e.to_string()))?;
         let spec = Spec {
@@ -215,7 +219,7 @@ impl Sessions {
             name: name.to_owned(),
             device: device.map(str::to_owned),
             started: local::now_ms(),
-            argv: interactive_argv(&claude.display().to_string(), name, req.mode, req.resume.as_deref()),
+            argv: interactive_argv(&claude.display().to_string(), name, worktree, req.resume.as_deref()),
             handoff: handoff_source.as_ref().map(|(conv, (transcript, _))| HandoffSpec {
                 from: conv.clone(),
                 transcript: transcript.display().to_string(),
@@ -423,6 +427,10 @@ impl Inner {
             SessionState::Ending
         } else {
             match &status {
+                _ if dir.join(TRUST_DIALOG_FILE).exists() => {
+                    reason = Some(StuckReason::Untrusted);
+                    SessionState::Stuck
+                }
                 Some(s) if s.state == ExecState::Stuck => {
                     reason = s.reason;
                     SessionState::Stuck
@@ -444,7 +452,7 @@ impl Inner {
                 _ => SessionState::Starting,
             }
         };
-        let worktree = if spec.argv.iter().any(|a| a == "--worktree") { self.worktree(&dir, &spec, status.as_ref()) } else { None };
+        let worktree = if spec.argv.iter().any(|a| a == "--worktree" || a.starts_with("--worktree=")) { self.worktree(&dir, &spec, status.as_ref()) } else { None };
         let claude = if state == SessionState::Starting {
             None
         } else {
@@ -625,6 +633,7 @@ impl Inner {
         self.dirs()
             .into_iter()
             .filter(|id| live.contains(id))
+            .filter(|id| !self.cfg.runtime_base.join(id).join(TRUST_DIALOG_FILE).exists())
             .filter(|id| {
                 let status: Option<Status> = std::fs::read(self.cfg.runtime_base.join(id).join(STATUS_FILE)).ok().and_then(|b| serde_json::from_slice(&b).ok());
                 status.is_none_or(|s| matches!(s.state, ExecState::Running | ExecState::Handoff))
@@ -687,6 +696,10 @@ impl Inner {
             if before != Some(now) {
                 self.push(id, Event::State { state: now.0, reason: now.1, exit_code: now.2 });
             }
+            let starting = matches!(now, (SessionState::Starting, ..) | (SessionState::Stuck, Some(StuckReason::Timeout), _));
+            if starting || now.1 == Some(StuckReason::Untrusted) {
+                self.stop_at_trust_dialog(id, starting);
+            }
             match d.summary.state {
                 SessionState::Gone => {
                     let dir = self.cfg.runtime_base.join(id);
@@ -705,6 +718,30 @@ impl Inner {
             let fast = started.elapsed() < self.cfg.ready_timeout + Duration::from_secs(1);
             std::thread::sleep(if fast { Duration::from_millis(500) } else { Duration::from_secs(2) });
         }
+    }
+
+    /// A claude at the trust dialog waits for someone at the laptop. End it, so the
+    /// phone hears Untrusted now rather than Timeout in 90 s, and a retry isn't busy.
+    fn stop_at_trust_dialog(&self, id: &str, look: bool) {
+        let dir = self.cfg.runtime_base.join(id);
+        let flag = dir.join(TRUST_DIALOG_FILE);
+        let since = std::fs::metadata(&flag).and_then(|m| m.modified()).ok();
+        if since.is_none() {
+            if !look || !self.launcher.screen(&dir).is_some_and(|t| trust_dialog(&t)) {
+                return;
+            }
+            let _ = local::write_atomic(&flag, b"");
+        }
+        let status: Option<Status> = std::fs::read(dir.join(STATUS_FILE)).ok().and_then(|b| serde_json::from_slice(&b).ok());
+        let Some(pid) = status.filter(|s| s.state == ExecState::Running).and_then(|s| s.pid) else { return };
+        // pid came from a file
+        if !belongs_to(pid, id) {
+            return;
+        }
+        let late = since.and_then(|t| t.elapsed().ok()).is_some_and(|e| e > KILL_GRACE);
+        let sig = if late { libc::SIGKILL } else if since.is_none() { libc::SIGTERM } else { return };
+        // SAFETY: kill has no memory safety preconditions.
+        unsafe { libc::kill(pid, sig) };
     }
 
     fn last_state(&self, id: &str) -> Option<(SessionState, Option<StuckReason>, Option<i32>)> {
@@ -893,7 +930,7 @@ fn repl_connected(debug: &str) -> bool {
 
 /// Interactive claude with Remote Control on, so the whole chat is on the laptop
 /// screen too. Server mode (`claude remote-control`) only shows a status line.
-pub fn interactive_argv(claude: &str, name: &str, mode: SpawnMode, resume: Option<&str>) -> Vec<String> {
+pub fn interactive_argv(claude: &str, name: &str, worktree: Option<&str>, resume: Option<&str>) -> Vec<String> {
     let mut argv = vec![
         claude.to_owned(),
         format!("--remote-control={name}"),
@@ -901,8 +938,9 @@ pub fn interactive_argv(claude: &str, name: &str, mode: SpawnMode, resume: Optio
         "--permission-mode".into(),
         "bypassPermissions".into(),
     ];
-    if mode == SpawnMode::Worktree {
-        argv.push("--worktree".into());
+    // named, so we know its path and can trust it before claude gets there
+    if let Some(wt) = worktree {
+        argv.push(format!("--worktree={wt}"));
     }
     // uuid only: nothing for kitty's `$VAR` expansion or claude's option parser to chew on
     if let Some(conv) = resume.filter(|c| is_uuid(c)) {
@@ -973,6 +1011,14 @@ pub fn exit_reason(screen: &str) -> Option<StuckReason> {
     } else {
         None
     }
+}
+
+/// Whole lines with spaces ignored, so a conversation that only quotes the
+/// dialog doesn't count, and a screen read that loses spaces still does.
+pub fn trust_dialog(screen: &str) -> bool {
+    let squeeze = |l: &str| l.chars().filter(|c| !c.is_whitespace() && *c != '❯').collect::<String>();
+    let lines: HashSet<String> = screen.lines().map(squeeze).collect();
+    DIALOG_LINES.iter().all(|l| lines.contains(&squeeze(l)))
 }
 
 fn read_worktree(dir: &Path, spec: &Spec) -> Option<WorktreeFile> {
@@ -1061,6 +1107,18 @@ mod tests {
         assert_eq!(exit_reason(screen), Some(StuckReason::Untrusted));
     }
 
+    /// 2.1.295 in a folder it doesn't trust
+    #[test]
+    fn trust_dialog_on_screen() {
+        let screen = " Accessing workspace:\n\n /home/r/Projects/x\n\n Quick safety check: Is this a project you created or one you trust? (Like your own code, a well-known open source\n project, or work from your team). If not, take a moment to review what's in this folder first.\n\n Claude Code'll be able to read, edit, and execute files here.\n\n Security guide\n\n ❯ No, exit\n   Yes, I trust this folder\n\n Enter to confirm · Esc to cancel\n";
+        assert!(trust_dialog(screen));
+        assert!(trust_dialog(&screen.replace(' ', "")), "a pty dump loses the spaces");
+        assert!(!trust_dialog("> it showed ❯ No, exit / Yes, I trust this folder and waited"));
+        assert!(!trust_dialog("  Yes, I trust this folder\n  No, exit"), "the menu alone");
+        assert!(!trust_dialog(""));
+        assert_eq!(exit_reason(screen), None, "it doesn't exit, so it isn't an exit reason");
+    }
+
     #[test]
     fn worktree_name_only_from_claudes_worktree_dir() {
         let repo = Path::new("/h/Projects/remoter");
@@ -1084,21 +1142,21 @@ mod tests {
 
     #[test]
     fn spawns_an_interactive_claude() {
-        let a = interactive_argv("/usr/bin/claude", "my proj", SpawnMode::SameDir, None);
+        let a = interactive_argv("/usr/bin/claude", "my proj", None, None);
         assert_eq!(a, ["/usr/bin/claude", "--remote-control=my proj", "--name=my proj", "--permission-mode", "bypassPermissions"]);
         assert!(!a.iter().any(|x| x == "remote-control"), "server mode shows no chat in the window");
-        assert_eq!(interactive_argv("c", "n", SpawnMode::Worktree, None).last().map(String::as_str), Some("--worktree"));
+        assert_eq!(interactive_argv("c", "n", Some("rc-01k6b7y3m4n5p6q7r8s9t0v1w2"), None).last().map(String::as_str), Some("--worktree=rc-01k6b7y3m4n5p6q7r8s9t0v1w2"));
     }
 
     #[test]
     fn resume_adds_only_the_uuid() {
         let id = "c82d8b5c-edd4-453e-8d59-4748ff325c03";
-        let a = interactive_argv("/usr/bin/claude", "fix", SpawnMode::SameDir, Some(id));
+        let a = interactive_argv("/usr/bin/claude", "fix", None, Some(id));
         assert_eq!(a, ["/usr/bin/claude", "--remote-control=fix", "--name=fix", "--permission-mode", "bypassPermissions", "--resume", id]);
         assert_eq!(resumed_id(&a), Some(id));
-        let sneaky = interactive_argv("c", "n", SpawnMode::SameDir, Some("--dangerously-skip-permissions"));
+        let sneaky = interactive_argv("c", "n", None, Some("--dangerously-skip-permissions"));
         assert!(!sneaky.iter().any(|x| x.contains("dangerously") || x == "--resume"), "{sneaky:?}");
-        assert_eq!(resumed_id(&interactive_argv("c", "n", SpawnMode::SameDir, None)), None);
+        assert_eq!(resumed_id(&interactive_argv("c", "n", None, None)), None);
     }
 
     /// claude 2.1.292, resuming a conversation whose cloud session was never archived.

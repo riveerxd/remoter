@@ -1,6 +1,6 @@
 //! Workspace trust the way claude decides it: the nearest ancestor (or the
-//! folder itself) with an entry in `~/.claude.json` wins. We only ever write
-//! the file for a signed "trust this folder" from the phone.
+//! folder itself) with an entry in `~/.claude.json` wins. Before every start
+//! we give the folder its own entry, the only write we ever make.
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -52,7 +52,7 @@ impl Trust {
             entry.as_object_mut().ok_or("project entry isn't an object")?.insert("hasTrustDialogAccepted".into(), serde_json::Value::Bool(true));
             write_replace(&self.file, &serde_json::to_vec_pretty(&v).map_err(|e| e.to_string())?)?;
             std::thread::sleep(std::time::Duration::from_millis(150));
-            if self.is_trusted(abs) {
+            if self.is_trusted_here(abs) {
                 return Ok(());
             }
         }
