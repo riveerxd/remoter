@@ -63,7 +63,7 @@ browses its folders, and starting a session takes one tap and one finger.
 | **End it** | One finger, and the window on the laptop closes with it. |
 
 <div align="center">
-  <img src="docs/screens/start.png" width="640" alt="The start sheet with previous sessions" />
+  <img src="docs/screens/start.png" width="640" alt="The start sheet with previous sessions, and a session coming up" />
 </div>
 
 Sessions open as kitty windows on Hyprland workspace 9, each in its own systemd
