@@ -1,6 +1,7 @@
 package me.river.remoter.feature.session
 
 import me.river.remoter.core.design.components.ClaudeButton
+import me.river.remoter.core.design.components.ClaudeCrab
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.Animatable
@@ -553,7 +554,7 @@ private val nodes = persistentListOf(
     RouteNode(Glyphs.phone, "This phone"),
     RouteNode(Glyphs.relay, "Relay"),
     RouteNode(Glyphs.laptop, "Laptop"),
-    RouteNode(Glyphs.spark, "Claude"),
+    RouteNode(ClaudeCrab, "Claude"),
 )
 
 private val readyNodes = persistentListOf(
