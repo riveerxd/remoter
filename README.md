@@ -1,5 +1,12 @@
 <div align="center">
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/brand/logo-dark.png" />
+  <img src="docs/brand/logo-light.png" width="340" alt="remoter" />
+</picture>
+
+<br/><br/>
+
 <img src="docs/screens/hero.png" width="900" alt="remoter: home with the tunnel map and running sessions, the folder browser, and a live session" />
 
 ### Start claude sessions on my laptop from my phone, and pick them up in the Claude app.
