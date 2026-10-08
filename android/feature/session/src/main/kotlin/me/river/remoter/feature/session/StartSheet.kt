@@ -557,6 +557,18 @@ private val nodes = persistentListOf(
     RouteNode(ClaudeCrab, "Claude"),
 )
 
+private val directNodes = persistentListOf(
+    RouteNode(Glyphs.phone, "This phone"),
+    RouteNode(Glyphs.laptop, "Laptop"),
+    RouteNode(ClaudeCrab, "Claude"),
+)
+
+private val directReadyNodes = persistentListOf(
+    RouteNode(Glyphs.phone, "This phone"),
+    RouteNode(Glyphs.laptop, "Laptop"),
+    RouteNode(Glyphs.check, "Claude, ready"),
+)
+
 private val readyNodes = persistentListOf(
     RouteNode(Glyphs.phone, "This phone"),
     RouteNode(Glyphs.relay, "Relay"),
@@ -586,7 +598,7 @@ private fun Run(ui: StartUi, cb: StartCallbacks) {
         is StartState.Starting -> listOf(done >= 2, done >= 3, done >= s.steps.size).map { if (it) Hop.Live else Hop.Pulse }
         is StartState.Stuck, is StartState.Exited -> listOf(Hop.Live, Hop.Live, Hop.Broken)
         else -> listOf(Hop.Live, Hop.Live, Hop.Live)
-    }.toImmutableList()
+    }.let { if (ui.direct) listOf(it[0], it[2]) else it }.toImmutableList()
     val ring = remember { Animatable(0f) }
     val shake = remember { Animatable(0f) }
     val density = LocalDensity.current
@@ -605,7 +617,10 @@ private fun Run(ui: StartUi, cb: StartCallbacks) {
         }
     }
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Space.s16)) {
-        val shownNodes = if (s is StartState.Ready) readyNodes else nodes
+        val shownNodes = when {
+            ui.direct -> if (s is StartState.Ready) directReadyNodes else directNodes
+            else -> if (s is StartState.Ready) readyNodes else nodes
+        }
         RouteMap(
             shownNodes, hops, nodeSize = 48.dp, lineWidth = 4.dp, ring = ring.value,
             // Light mode draws the ring like the focus ring: `text`, volt inside.

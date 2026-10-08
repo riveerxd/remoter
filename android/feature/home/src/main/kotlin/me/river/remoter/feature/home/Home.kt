@@ -265,6 +265,7 @@ internal fun MapDetails(ui: HomeUi) {
     Text("Connection", style = t.title, color = c.text)
     Column(verticalArrangement = Arrangement.spacedBy(Space.s8), modifier = Modifier.padding(top = Space.s16)) {
         Fact("Laptop key", ui.serverFp?.let(::groupFingerprint) ?: "Not paired")
+        Fact("Route", if (ui.direct) "Straight to the laptop" else "Through the relay")
         // Reconnecting can't tell a dropped tunnel from a slow laptop, so it doesn't guess.
         Fact(
             "WireGuard",
@@ -284,6 +285,13 @@ internal fun MapDetails(ui: HomeUi) {
             },
         )
         ui.lastRequestId?.let { RequestId(it) }
+        // the phone's WireGuard app looks the home address up once per tunnel start
+        if (ui.direct && ui.link is Link.LaptopDown) {
+            Text(
+                "If your home address changed, turn the tunnel off and on again.",
+                style = t.label, color = c.textMuted, modifier = Modifier.padding(top = Space.s8),
+            )
+        }
     }
 }
 

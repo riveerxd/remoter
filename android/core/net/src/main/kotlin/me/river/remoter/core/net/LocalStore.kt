@@ -43,6 +43,8 @@ data class HomeSnapshot(
     val battery: Int?,
     val onAc: Boolean?,
     val takenAtMs: Long,
+    /** So a cold start draws the right map before the first probe answers. */
+    val direct: Boolean = false,
 )
 
 @Serializable

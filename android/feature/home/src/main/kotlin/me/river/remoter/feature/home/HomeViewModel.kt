@@ -59,6 +59,8 @@ data class HomeUi(
     val lastRequestId: String? = null,
     val hidden: Set<String> = emptySet(),
     val undoUnpin: Pair<Int, String>? = null,
+    /** The phone dials the laptop itself, no hub in between. */
+    val direct: Boolean = false,
 )
 
 private const val RetryHoldMs = 600L
@@ -84,7 +86,7 @@ class HomeViewModel @Inject constructor(
                 hub.seed(snap.sessions)
                 _ui.update {
                     it.copy(
-                        hostname = snap.hostname, battery = snap.battery, onAc = snap.onAc,
+                        hostname = snap.hostname, battery = snap.battery, onAc = snap.onAc, direct = snap.direct,
                         recent = snap.recent.map(::item).toImmutableList(), loaded = true,
                     )
                 }
@@ -98,6 +100,7 @@ class HomeViewModel @Inject constructor(
                         link = l, account = a,
                         hostname = h?.hostname ?: it.hostname,
                         battery = h?.batteryPct ?: it.battery, onAc = h?.onAc ?: it.onAc,
+                        direct = h?.direct ?: it.direct,
                         lastSeenMs = (l as? Link.LaptopDown)?.lastSeenMs ?: it.lastSeenMs,
                         stillDown = if (l is Link.Up) 0 else it.stillDown,
                     )
@@ -153,7 +156,7 @@ class HomeViewModel @Inject constructor(
         if (recent != null) {
             val u = _ui.value
             store.update { st ->
-                st.copy(snapshot = HomeSnapshot(u.hostname, recent.take(5), hub.sessions.value.orEmpty(), u.battery, u.onAc, clock.nowMs()))
+                st.copy(snapshot = HomeSnapshot(u.hostname, recent.take(5), hub.sessions.value.orEmpty(), u.battery, u.onAc, clock.nowMs(), u.direct))
             }
         }
     }

@@ -94,6 +94,7 @@ class MainActivity : FragmentActivity() {
                             play = intro.value == IntroPhase.Play,
                             onLeave = { entrance.value = true },
                             onDone = { intro.value = IntroPhase.Off },
+                            direct = store.state.value?.snapshot?.direct == true,
                         )
                     }
                 }

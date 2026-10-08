@@ -42,7 +42,7 @@ class IntroTest {
     private var left = 0
     private var done = 0
 
-    private fun show(reduced: Boolean, anchored: Boolean = false) {
+    private fun show(reduced: Boolean, anchored: Boolean = false, direct: Boolean = false) {
         compose.mainClock.autoAdvance = false
         compose.setContent {
             RemoterTheme(dark = true, reducedMotion = reduced) {
@@ -56,7 +56,7 @@ class IntroTest {
                                 Box(Modifier.fillMaxWidth().padding(horizontal = 24.dp).height(80.dp).introAnchor())
                             }
                         }
-                        Intro(play, onLeave = { left++ }, onDone = { done++ })
+                        Intro(play, onLeave = { left++ }, onDone = { done++ }, direct = direct)
                     }
                 }
             }
@@ -111,6 +111,19 @@ class IntroTest {
             compose.mainClock.advanceTimeBy(ms - at)
             at = ms
             compose.onRoot().captureRoboImage("src/test/snapshots/intro_%04d.png".format(ms))
+        }
+    }
+
+    @Test
+    fun direct_frames() {
+        show(reduced = false, anchored = true, direct = true)
+        play = true
+        compose.waitForIdle()
+        var at = 0L
+        for (ms in listOf(380L, 520L, 680L)) {
+            compose.mainClock.advanceTimeBy(ms - at)
+            at = ms
+            compose.onRoot().captureRoboImage("src/test/snapshots/intro_direct_%04d.png".format(ms))
         }
     }
 }

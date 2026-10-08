@@ -18,6 +18,8 @@ import me.river.remoter.core.net.SessionState
 import me.river.remoter.core.testing.FakeSigner
 import me.river.remoter.core.testing.FakeVpnNetworks
 import me.river.remoter.core.testing.FixtureBackend
+import me.river.remoter.core.net.HomeSnapshot
+import me.river.remoter.core.net.Health
 import me.river.remoter.core.testing.MainDispatcherRule
 import me.river.remoter.core.testing.MemoryStore
 import me.river.remoter.core.testing.SchedulerClock
@@ -42,7 +44,7 @@ import org.junit.Test
 class HomeViewModelTest {
     @get:Rule val main = MainDispatcherRule()
 
-    private class Rig(scope: TestScope, down: Boolean = false) {
+    private class Rig(scope: TestScope, down: Boolean = false, snapshot: HomeSnapshot? = null) {
         val clock = SchedulerClock(scope.testScheduler)
         val fixture = FixtureBackend().also { it.unreachable = down }
 
@@ -52,7 +54,9 @@ class HomeViewModelTest {
 
         /** Replaces the fixture's live stream when a test needs to push its own events. */
         var liveFeed: Flow<LiveEvent>? = null
+        var tunnel: String? = null
         val api = object : RemoterApi by fixture {
+            override suspend fun health(): Health = fixture.health().copy(tunnel = tunnel)
             override suspend fun recent(): RecentResponse = if (failRecent) throw UnreachableException() else fixture.recent()
             override suspend fun sessions(): SessionsResponse = fixture.sessions().also { sessionCalls++ }
             override fun live(): Flow<LiveEvent> = liveFeed ?: fixture.live()
@@ -61,13 +65,13 @@ class HomeViewModelTest {
         val hub = SessionsHub(api, signer, clock)
         val monitor = ConnectionMonitor(api, FakeVpnNetworks(), clock).also { it.start(scope.backgroundScope) }
         val live = LiveSync(api, monitor, hub).also { it.start(scope.backgroundScope) }
-        val store = MemoryStore(LocalState(laptop = PairedLaptop("r1v3r", "fp", "dev", 0, "StrongBox", "TEE", null)))
+        val store = MemoryStore(LocalState(laptop = PairedLaptop("r1v3r", "fp", "dev", 0, "StrongBox", "TEE", null), snapshot = snapshot))
         val vm = HomeViewModel(api, monitor, hub, store, clock)
     }
 
     // The view model ticks a clock every second forever; cancel it or runTest never goes idle.
-    private fun runRig(down: Boolean = false, block: suspend TestScope.(Rig) -> Unit) = runTest(main.dispatcher.scheduler) {
-        val r = Rig(this, down)
+    private fun runRig(down: Boolean = false, snapshot: HomeSnapshot? = null, block: suspend TestScope.(Rig) -> Unit) = runTest(main.dispatcher.scheduler) {
+        val r = Rig(this, down, snapshot)
         try { block(r) } finally { r.vm.viewModelScope.cancel() }
     }
 
@@ -217,5 +221,26 @@ class HomeViewModelTest {
         r.vm.pin("Projects/api")
         runCurrent()
         assertEquals(listOf("Projects/api"), r.store.state.value?.pinned)
+    }
+
+    @Test
+    fun the_map_follows_the_laptops_tunnel() = runRig { r ->
+        r.tunnel = "direct"
+        advanceTimeBy(1_000)
+        assertTrue(r.vm.ui.value.direct)
+        r.tunnel = "hub"
+        advanceTimeBy(ConnectionMonitor.INTERVAL_MS + 1_000)
+        assertFalse(r.vm.ui.value.direct)
+        r.tunnel = "direct"
+        advanceTimeBy(ConnectionMonitor.INTERVAL_MS + 1_000)
+        r.vm.refresh().join()
+        assertTrue("remembered for the next cold start", r.store.state.value?.snapshot?.direct == true)
+    }
+
+    @Test
+    fun a_cold_start_draws_the_last_known_tunnel() = runRig(down = true, snapshot = HomeSnapshot("r1v3r", emptyList(), emptyList(), 50, true, 0, direct = true)) { r ->
+        advanceTimeBy(30_000)
+        assertTrue(r.vm.ui.value.link is Link.LaptopDown)
+        assertTrue(r.vm.ui.value.direct)
     }
 }

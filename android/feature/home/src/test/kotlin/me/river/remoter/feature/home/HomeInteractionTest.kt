@@ -146,6 +146,13 @@ class HomeInteractionTest {
     }
 
     @Test
+    fun direct_details_say_the_route_and_the_address_fix() {
+        compose.setContent { RemoterTheme(dark = true, reducedMotion = true) { Column { MapDetails(base.copy(direct = true, link = Link.LaptopDown(null))) } } }
+        compose.onNodeWithText("Straight to the laptop").assertExists()
+        compose.onNodeWithText("turn the tunnel off and on", substring = true).assertExists()
+    }
+
+    @Test
     fun wireguard_is_unknown_while_reconnecting() {
         compose.setContent { RemoterTheme(dark = true, reducedMotion = true) { Column { MapDetails(base.copy(link = Link.Reconnecting)) } } }
         compose.onNodeWithText("Unknown").assertExists()

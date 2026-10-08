@@ -66,6 +66,9 @@ internal val startStates: List<Pair<String, StartUi>> = listOf(
     "starting_reconnecting" to ui(StartState.Starting(id, steps(3), 0, streamReconnecting = true, slow = false)),
     "starting_slow" to ui(StartState.Starting(id, steps(4), 0, streamReconnecting = false, slow = true)).copy(elapsedS = 12),
     "ready" to ui(StartState.Ready(id, "remoter", link)),
+    "direct_starting_accepted" to ui(StartState.Starting(id, steps(2), 0, streamReconnecting = false, slow = false)).copy(direct = true),
+    "direct_ready" to ui(StartState.Ready(id, "remoter", link)).copy(direct = true),
+    "direct_stuck" to ui(StartState.Stuck(id, StuckReason.Untrusted, tail)).copy(direct = true),
     "ready_no_link_yet" to ui(StartState.Ready(id, "remoter", null)),
     "stuck" to ui(StartState.Stuck(id, StuckReason.Untrusted, tail)),
     "exited" to ui(StartState.Exited(id, 1, tail)),
@@ -121,6 +124,9 @@ class StartScreenshots(private val v: Variant) {
     @Test fun starting_reconnecting() = one("starting_reconnecting")
     @Test fun starting_slow() = one("starting_slow")
     @Test fun ready() = one("ready")
+    @Test fun direct_starting_accepted() = one("direct_starting_accepted")
+    @Test fun direct_ready() = one("direct_ready")
+    @Test fun direct_stuck() = one("direct_stuck")
     @Test fun stuck_ending() = one("stuck_ending")
     @Test fun stuck_end_failed() = one("stuck_end_failed")
     @Test fun ready_no_link_yet() = one("ready_no_link_yet")

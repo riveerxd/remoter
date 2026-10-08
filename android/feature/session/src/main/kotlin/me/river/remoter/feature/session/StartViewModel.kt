@@ -80,6 +80,7 @@ data class StartUi(
     val endError: AppError? = null,
     val past: PastState = PastState.Loading,
     val pastExpanded: Boolean = false,
+    val direct: Boolean = false,
 )
 
 fun sessionNameProblem(name: String): String? {
@@ -113,7 +114,7 @@ class StartViewModel @Inject constructor(
     private var signed: Signed? = null
     private var tail = mutableListOf<String>()
     private var jobs = mutableListOf<Job>()
-    /** Kept apart from [jobs]: a retry or a trust restart must not strand the list half loaded. */
+    /** Kept apart from [jobs]: a retry must not strand the list half loaded. */
     private var pastJob: Job? = null
 
     private val host get() = monitor.health.value?.hostname ?: store.state.value?.laptop?.hostname ?: "the laptop"
@@ -135,6 +136,7 @@ class StartViewModel @Inject constructor(
             target = target,
             form = StartForm(name = Names.sessionNameFromFolder(target.folder)),
             hostname = host,
+            direct = monitor.health.value?.direct ?: (store.state.value?.snapshot?.direct == true),
             typicalStartS = if (times.size >= 3) (times.sorted()[times.size / 2] + 500) / 1000 else null,
             past = PastState.Loading,
         )

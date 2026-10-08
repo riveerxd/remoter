@@ -102,7 +102,8 @@ private fun win(ms: Float, start: Int, dur: Int) = ((ms - start) / dur).coerceIn
  * motion it draws nothing and finishes as soon as it may play.
  *
  * If home reported its route row through [LocalIntroAnchor], the nodes glide
- * onto it while the backdrop fades; otherwise they fade where they are.
+ * onto it while the backdrop fades; otherwise they fade where they are. [direct]
+ * leaves the relay out, once the app knows there isn't one.
  */
 @Composable
 fun Intro(
@@ -111,6 +112,7 @@ fun Intro(
     onDone: () -> Unit,
     modifier: Modifier = Modifier,
     anchor: IntroAnchor? = LocalIntroAnchor.current,
+    direct: Boolean = false,
 ) {
     val leave by rememberUpdatedState(onLeave)
     val done by rememberUpdatedState(onDone)
@@ -137,7 +139,10 @@ fun Intro(
         done()
     }
     val c = Remoter.colors
-    val glyphs = listOf(rememberVectorPainter(Glyphs.phone), rememberVectorPainter(Glyphs.relay), rememberVectorPainter(Glyphs.laptop))
+    val phone = rememberVectorPainter(Glyphs.phone)
+    val relay = rememberVectorPainter(Glyphs.relay)
+    val laptop = rememberVectorPainter(Glyphs.laptop)
+    val glyphs = if (direct) listOf(phone, laptop) else listOf(phone, relay, laptop)
     var origin by remember { mutableStateOf(Offset.Zero) }
     Canvas(
         modifier
@@ -169,14 +174,14 @@ fun Intro(
         // mirrors home's RouteMap: 64 dp nodes, 24 dp from each edge
         val node0 = 64.dp.toPx()
         val pad = Space.s24.toPx()
-        val from = listOf(pad + node0 / 2, size.width / 2, size.width - pad - node0 / 2)
+        val from = listOfNotNull(pad + node0 / 2, (size.width / 2).takeUnless { direct }, size.width - pad - node0 / 2)
         val target = anchor?.bounds?.translate(-origin)
         val g = if (target == null) 0f else EaseOut.transform(win(ms, IntroTiming.LEAVE, IntroTiming.GLIDE))
         val node = if (target == null) node0 else lerp(node0, target.height - 16.dp.toPx(), g)
         val xs = if (target == null) {
             from
         } else {
-            val to = listOf(target.left + node / 2, target.center.x, target.right - node / 2)
+            val to = listOfNotNull(target.left + node / 2, target.center.x.takeUnless { direct }, target.right - node / 2)
             from.zip(to) { a, b -> lerp(a, b, g) }
         }
         val y = if (target == null) center.y else lerp(center.y, target.center.y, g)
@@ -188,7 +193,7 @@ fun Intro(
         if (fg <= 0f) return@Canvas
 
         val lw = 8.dp.toPx()
-        val segs = (0 until 2).map { i -> xs[i] + node / 2 to xs[i + 1] - node / 2 }
+        val segs = (0 until xs.size - 1).map { i -> xs[i] + node / 2 to xs[i + 1] - node / 2 }
         val sweep = Sweep.transform(win(ms, IntroTiming.LINE_START, IntroTiming.LINE_DRAW)) * segs.size
         segs.forEachIndexed { i, (a, b) ->
             val p = (sweep - i).coerceIn(0f, 1f)
@@ -199,8 +204,8 @@ fun Intro(
         if (pulse > 0f && pulse < 1f) {
             val lens = segs.map { (a, b) -> b - a }
             var at = Sweep.transform(pulse) * lens.sum()
-            val i = if (at <= lens[0]) 0 else 1
-            if (i == 1) at -= lens[0]
+            var i = 0
+            while (i < lens.lastIndex && at > lens[i]) at -= lens[i++]
             val (a, b) = segs[i]
             val half = 14.dp.toPx()
             val x = a + at
@@ -228,7 +233,7 @@ fun Intro(
         val ring = win(ms, IntroTiming.RING_START, IntroTiming.RING_RUN)
         if (ring > 0f && ring < 1f) {
             val r = node / 2 + 5.dp.toPx() + 6.dp.toPx() * EaseOut.transform(ring)
-            drawCircle(c.volt.copy(alpha = (1f - ring) * fg), r, Offset(xs[2], y), style = Stroke(3.dp.toPx()))
+            drawCircle(c.volt.copy(alpha = (1f - ring) * fg), r, Offset(xs.last(), y), style = Stroke(3.dp.toPx()))
         }
     }
 }

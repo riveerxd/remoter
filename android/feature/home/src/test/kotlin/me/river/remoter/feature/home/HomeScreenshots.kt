@@ -49,6 +49,11 @@ internal val homeStates = mapOf(
     "up_worktree" to base.copy(
         sessions = persistentListOf(s("rc-a", "remoter", SessionState.Ready), s("rc-b", "remoter", SessionState.Ready).copy(worktree = "bright-otter-3f2a")),
     ),
+    "direct_up" to base.copy(direct = true),
+    "direct_reconnecting" to base.copy(direct = true, link = Link.Reconnecting),
+    "direct_vpn_off" to base.copy(direct = true, link = Link.VpnOff),
+    "direct_laptop_down" to base.copy(direct = true, link = Link.LaptopDown(now - 600_000)),
+    "direct_loading" to HomeUi(hostname = "r1v3r", loaded = false, direct = true),
 )
 
 @RunWith(ParameterizedRobolectricTestRunner::class)
@@ -81,4 +86,9 @@ class HomeScreenshots(private val v: Variant) {
     @Test fun up_exited() = one("up_exited")
     @Test fun up_many_pins() = one("up_many_pins")
     @Test fun up_worktree() = one("up_worktree")
+    @Test fun direct_up() = one("direct_up")
+    @Test fun direct_reconnecting() = one("direct_reconnecting")
+    @Test fun direct_vpn_off() = one("direct_vpn_off")
+    @Test fun direct_laptop_down() = one("direct_laptop_down")
+    @Test fun direct_loading() = one("direct_loading")
 }

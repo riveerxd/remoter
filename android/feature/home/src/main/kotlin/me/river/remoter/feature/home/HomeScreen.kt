@@ -161,6 +161,11 @@ private val nodes = persistentListOf(
     RouteNode(Glyphs.laptop, "Laptop"),
 )
 
+private val directNodes = persistentListOf(
+    RouteNode(Glyphs.phone, "This phone"),
+    RouteNode(Glyphs.laptop, "Laptop"),
+)
+
 /**
  * Uber style: live map on top, a persistent sheet with search and folders, trip
  * banners floating over the map. [entrance] plays the stagger once, after the splash.
@@ -275,7 +280,7 @@ private fun MapArea(ui: HomeUi, cb: HomeCallbacks, phone: PhoneStats, onNaturalH
                 FadeSwap(!ui.loaded && shown == null) { pending -> Column(Modifier.fillMaxWidth()) {
                 if (pending) {
                     Row(Modifier.fillMaxWidth().padding(horizontal = Space.s24), horizontalArrangement = Arrangement.SpaceBetween) {
-                        repeat(3) { Skeleton(64.dp, 64.dp, shape = Shapes.pill) }
+                        repeat(if (ui.direct) 2 else 3) { Skeleton(64.dp, 64.dp, shape = Shapes.pill) }
                     }
                 } else {
                     val hops = when (shown) {
@@ -284,9 +289,9 @@ private fun MapArea(ui: HomeUi, cb: HomeCallbacks, phone: PhoneStats, onNaturalH
                         Link.Reconnecting -> listOf(Hop.Pulse, Hop.Pulse)
                         Link.VpnOff -> listOf(Hop.Broken, Hop.Idle)
                         is Link.LaptopDown -> listOf(Hop.Live, Hop.Broken)
-                    }.toImmutableList()
+                    }.let { if (ui.direct) listOf(if (shown is Link.LaptopDown) Hop.Broken else it[0]) else it }.toImmutableList()
                     RouteMap(
-                        nodes, hops,
+                        if (ui.direct) directNodes else nodes, hops,
                         Modifier
                             .padding(horizontal = Space.s24)
                             .clickable(role = Role.Button, onClickLabel = "Connection details", onClick = cb.onMapDetails)
@@ -316,7 +321,7 @@ private fun MapArea(ui: HomeUi, cb: HomeCallbacks, phone: PhoneStats, onNaturalH
 @Composable
 private fun NodeStats(l: Link?, ui: HomeUi, phone: PhoneStats, modifier: Modifier = Modifier) {
     val c = Remoter.colors
-    val relay: Pair<String, Color>? = when (l) {
+    val tunnel: Pair<String, Color>? = when (l) {
         is Link.Up -> "${l.latencyMs} ms round trip" to c.textMuted
         Link.VpnOff -> "Tunnel off" to c.danger
         Link.Reconnecting -> "Handshaking" to c.warn
@@ -343,7 +348,8 @@ private fun NodeStats(l: Link?, ui: HomeUi, phone: PhoneStats, modifier: Modifie
     val phoneFacts = if (large) emptyList() else listOfNotNull(phone.line()?.let { it to c.textMuted })
     Box(modifier.fillMaxWidth()) {
         NodeLabel("This phone", phoneFacts, Alignment.Start, Modifier.align(Alignment.TopStart))
-        NodeLabel("Relay", if (large) emptyList() else listOfNotNull(relay), Alignment.CenterHorizontally, Modifier.align(Alignment.TopCenter))
+        // with no relay the tunnel's facts sit under the middle of the one line
+        NodeLabel(if (ui.direct) "Direct" else "Relay", if (large) emptyList() else listOfNotNull(tunnel), Alignment.CenterHorizontally, Modifier.align(Alignment.TopCenter))
         NodeLabel(ui.hostname, if (large) emptyList() else laptop, Alignment.End, Modifier.align(Alignment.TopEnd))
     }
 }
@@ -394,7 +400,11 @@ private fun StatusLine(l: Link, ui: HomeUi, cb: HomeCallbacks) {
                 val seen = (l.lastSeenMs ?: ui.lastSeenMs)?.let { " · last seen ${clockTime(it)}" } ?: ""
                 val still = ui.stillDown > 0 && !ui.retrying
                 SwapText(
-                    if (still) "Still no answer from ${ui.hostname}$seen" else "${ui.hostname} is asleep or offline$seen",
+                    when {
+                        still -> "Still no answer from ${ui.hostname}$seen"
+                        ui.direct -> "${ui.hostname} is asleep or away from home$seen"
+                        else -> "${ui.hostname} is asleep or offline$seen"
+                    },
                     t.label.tnum(), c.text, textAlign = TextAlign.Center,
                 )
                 Row(verticalAlignment = Alignment.CenterVertically) {
