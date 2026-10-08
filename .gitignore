@@ -29,6 +29,4 @@ infra/**/*.conf.rendered
 .vscode/
 *.swp
 
-# local tooling
-.claude/
 __pycache__/
