@@ -47,6 +47,57 @@ pub fn file_check(e: &Expect<'_>) -> Check {
     }
 }
 
+fn tunnel_checks_direct(v: &mut Vec<Check>, dev: &str) {
+    let port = out("nmcli", &["-g", "wireguard.listen-port", "connection", "show", "rmt0-direct"]).unwrap_or_default();
+    let port = port.trim();
+    v.push(check(
+        "direct tunnel on a fixed port",
+        port.parse::<u16>().is_ok_and(|p| p > 0),
+        if port.is_empty() { "no rmt0-direct profile".into() } else { format!("UDP {port}") },
+        "nmcli connection modify rmt0-direct wireguard.listen-port <the port the router forwards>",
+    ));
+    let route = out("ip", &["route", "get", "1.1.1.1"]).unwrap_or_default();
+    let outer = outer_dev(&route);
+    let physical = outer.is_some_and(|d| Path::new("/sys/class/net").join(d).join("device").exists());
+    v.push(check(
+        "the phone's replies leave through a network card",
+        physical,
+        format!("internet traffic goes out {}", outer.unwrap_or("nowhere")),
+        "turn off the VPN that takes all traffic (wg0?), it carries the phone's replies away",
+    ));
+    // root only; without it there's nothing to judge, and the app shows whether the phone gets through
+    if let Some(hs) = out("wg", &["show", dev, "latest-handshakes"]) {
+        let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
+        let fresh = handshake_fresh(&hs, now);
+        v.push(check(
+            "phone handshake in the last 3 minutes",
+            fresh,
+            if fresh { "yes" } else { "no recent handshake" },
+            "turn the tunnel on in the phone's WireGuard app; if it's on, check the router forwards the UDP port here",
+        ));
+    }
+}
+
+/// The `dev` of an `ip route get` line.
+pub fn outer_dev(route: &str) -> Option<&str> {
+    let mut words = route.split_whitespace();
+    words.by_ref().find(|w| *w == "dev")?;
+    words.next()
+}
+
+pub fn handshake_fresh(wg_latest: &str, now: u64) -> bool {
+    wg_latest.lines().filter_map(|l| l.split_whitespace().nth(1)?.parse::<u64>().ok()).any(|t| t > 0 && now.saturating_sub(t) < 180)
+}
+
+/// (name, autoconnect, active). NM races two autoconnecting profiles for rmt0 at boot.
+pub fn autoconnect_clash(profiles: &[(String, bool, bool)]) -> Option<String> {
+    if profiles.iter().filter(|p| p.1).count() < 2 {
+        return None;
+    }
+    let idle = profiles.iter().find(|p| !p.2).unwrap_or(&profiles[1]);
+    Some(format!("nmcli connection modify {} connection.autoconnect no", idle.0))
+}
+
 pub struct Inputs<'a> {
     pub config: &'a Path,
     pub agent: &'a remoter_agent::config::AgentConfig,
@@ -88,10 +139,25 @@ pub fn run(i: &Inputs<'_>) -> Vec<Check> {
         "nmcli connection up rmt0",
     ));
 
-    // `wg show` needs root, so the handshake is judged by whether the hub
-    // answers through the tunnel right now.
-    let ping = Command::new("ping").args(["-c", "1", "-W", "2", "-I", &i.remoterd.net.listen_device, "10.66.66.1"]).stdout(Stdio::null()).stderr(Stdio::null()).status().is_ok_and(|s| s.success());
-    v.push(check("VPS answers over rmt0", ping, if ping { "yes" } else { "no answer in 2 s" }, "check the VPS and `sudo wg show rmt0 latest-handshakes`"));
+    let tunnel = remoterd::route::tunnel(&i.remoterd.net.listen_device);
+    if tunnel == Some(remoter_proto::api::Tunnel::Direct) {
+        tunnel_checks_direct(&mut v, &i.remoterd.net.listen_device);
+    } else {
+        // `wg show` needs root, so the handshake is judged by whether the hub
+        // answers through the tunnel right now.
+        let ping = Command::new("ping").args(["-c", "1", "-W", "2", "-I", &i.remoterd.net.listen_device, "10.66.66.1"]).stdout(Stdio::null()).stderr(Stdio::null()).status().is_ok_and(|s| s.success());
+        v.push(check("VPS answers over rmt0", ping, if ping { "yes" } else { "no answer in 2 s" }, "check the VPS and `sudo wg show rmt0 latest-handshakes`"));
+    }
+    let profiles: Vec<(String, bool, bool)> = ["rmt0", "rmt0-direct"]
+        .iter()
+        .filter_map(|n| {
+            let f = out("nmcli", &["-g", "connection.autoconnect,GENERAL.STATE", "connection", "show", n])?;
+            Some((n.to_string(), f.lines().next() == Some("yes"), f.contains("activated")))
+        })
+        .collect();
+    if let Some(fix) = autoconnect_clash(&profiles) {
+        v.push(check("only the tunnel in use starts on boot", false, "both rmt0 profiles autoconnect", &fix));
+    }
 
     for (unit, user) in [("remoterd.service", false), ("remoter-firewall.service", false), ("remoter-agent.service", true)] {
         let mut args = vec!["is-active", unit];
@@ -127,12 +193,6 @@ pub fn run(i: &Inputs<'_>) -> Vec<Check> {
         None => v.push(check("nft tables (needs sudo to list)", out("systemctl", &["is-active", "remoter-firewall.service"]).is_some_and(|s| s.trim() == "active"), "judged from remoter-firewall.service", "sudo remoterctl doctor")),
     }
 
-    let trust = remoter_agent::trust::Trust::new(i.agent.home.join(".claude.json"));
-    for r in &i.agent.trusted_roots {
-        let p = i.agent.home.join(r);
-        v.push(check(&format!("~/{r} trusted by claude"), trust.is_trusted(&p), "", &format!("cd {} && claude, then accept the trust dialog once", p.display())));
-    }
-
     let settings = std::fs::read_to_string(i.agent.home.join(".claude/settings.json")).unwrap_or_default();
     v.push(check(
         "bypass permissions accepted once",
@@ -144,4 +204,41 @@ pub fn run(i: &Inputs<'_>) -> Vec<Check> {
     let ntp = out("timedatectl", &["show", "-p", "NTPSynchronized", "--value"]).unwrap_or_default();
     v.push(check("clock synced", ntp.trim() == "yes", ntp.trim(), "sudo timedatectl set-ntp true"));
     v
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn outer_dev_from_ip_route_get() {
+        assert_eq!(outer_dev("1.1.1.1 via 192.168.0.1 dev eno1 src 192.168.0.68 uid 1000\n    cache"), Some("eno1"));
+        assert_eq!(outer_dev("1.1.1.1 dev wg0 table 51820 src 10.8.0.2 uid 1000"), Some("wg0"));
+        assert_eq!(outer_dev(""), None);
+        assert_eq!(outer_dev("RTNETLINK answers: Network is unreachable dev"), None);
+    }
+
+    #[test]
+    fn handshakes() {
+        let now = 1_791_500_000;
+        assert!(handshake_fresh("PUBKEY=\t1791499950\n", now));
+        assert!(!handshake_fresh("PUBKEY=\t1791499000\n", now));
+        assert!(!handshake_fresh("PUBKEY=\t0\n", now), "never");
+        assert!(!handshake_fresh("", now));
+    }
+
+    #[test]
+    fn only_one_profile_may_autoconnect() {
+        let p = |n: &str, auto: bool, active: bool| (n.to_string(), auto, active);
+        assert_eq!(autoconnect_clash(&[p("rmt0", true, true)]), None);
+        assert_eq!(autoconnect_clash(&[p("rmt0", true, true), p("rmt0-direct", false, false)]), None);
+        assert_eq!(
+            autoconnect_clash(&[p("rmt0", true, false), p("rmt0-direct", true, true)]).as_deref(),
+            Some("nmcli connection modify rmt0 connection.autoconnect no")
+        );
+        assert_eq!(
+            autoconnect_clash(&[p("rmt0", true, true), p("rmt0-direct", true, false)]).as_deref(),
+            Some("nmcli connection modify rmt0-direct connection.autoconnect no")
+        );
+    }
 }
