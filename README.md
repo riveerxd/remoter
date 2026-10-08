@@ -1,12 +1,5 @@
 <div align="center">
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/brand/logo-dark.png" />
-  <img src="docs/brand/logo-light.png" width="340" alt="remoter" />
-</picture>
-
-<br/><br/>
-
 <img src="docs/screens/hero.png" width="900" alt="remoter: home with the tunnel map and running sessions, the folder browser, and a live session" />
 
 ### Start claude sessions on my laptop from my phone, and pick them up in the Claude app.
@@ -71,7 +64,7 @@ phone browses its folders, and a start is one tap and one finger.
 | **End it** | One finger, and the window on the laptop goes away with it. |
 
 <div align="center">
-  <img src="docs/screens/start.png" width="620" alt="The start sheet with previous sessions, and the prompt to trust a folder claude doesn't trust yet" />
+  <img src="docs/screens/start.png" width="640" alt="The start sheet with previous sessions, and the prompt to trust a folder claude doesn't trust yet" />
 </div>
 
 Sessions open as kitty windows on Hyprland workspace 9, each in its own systemd
