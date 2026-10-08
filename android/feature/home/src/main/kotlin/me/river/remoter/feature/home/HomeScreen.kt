@@ -212,17 +212,18 @@ fun HomeContent(ui: HomeUi, cb: HomeCallbacks, entrance: Boolean) {
             sheetShape = Shapes.sheet,
             sheetContainerColor = c.surfaceRaised,
             sheetShadowElevation = if (c.isDark) 0.dp else 8.dp,
-            sheetDragHandle = {
+            // The handle is drawn in the content: Material's own handle slot wraps it in a second
+            // clickable on the same spot, which the accessibility checks flag and TalkBack reads twice.
+            sheetDragHandle = null,
+            containerColor = Color.Transparent,
+            sheetContent = {
                 DragHandle(
-                    Modifier.clickable(
+                    Modifier.align(Alignment.CenterHorizontally).clickable(
                         role = Role.Button,
                         onClickLabel = if (expanded) "Collapse" else "Expand",
                         onClick = toggle,
                     ),
                 )
-            },
-            containerColor = Color.Transparent,
-            sheetContent = {
                 Box(Modifier.heightIn(max = contentMax).staggerIn(1, entrance)) {
                     SheetBody(ui, cb, entrance, atPeek = sheet.bottomSheetState.currentValue == SheetValue.PartiallyExpanded && !expanded, plusAlpha = { 1f - visibility() })
                 }
