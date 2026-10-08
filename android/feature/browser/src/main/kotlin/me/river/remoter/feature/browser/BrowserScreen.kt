@@ -111,7 +111,6 @@ import me.river.remoter.core.net.FsEntry
 import me.river.remoter.core.net.SearchHit
 import me.river.remoter.core.net.SymlinkKind
 import me.river.remoter.core.net.displayPath
-import me.river.remoter.feature.session.CommandBlock
 import me.river.remoter.feature.session.ErrorActions
 import me.river.remoter.feature.session.ErrorContent
 import me.river.remoter.feature.session.copy
@@ -320,7 +319,6 @@ private fun FsEntry.toModel(pinned: Boolean): FolderRowModel = FolderRowModel(
         unsupported -> RowNote.Unsupported
         symlink == SymlinkKind.Absolute -> RowNote.AbsoluteSymlink
         denyReason == DenyReason.Denied || denyReason == DenyReason.Home -> RowNote.Denied
-        denyReason == DenyReason.Untrusted -> RowNote.Untrusted
         else -> null
     },
     pinned = pinned,
@@ -492,37 +490,20 @@ private fun Problem(error: AppError, host: String, cb: BrowserCallbacks) {
     )
 }
 
-/**
- * The small sheet a blocked Start opens: why, and what to do. [path] feeds the
- * trust command; [onOpenWireGuard] gives Offline a way out.
- */
+/** The small sheet a blocked Start opens: why, and what to do. [onOpenWireGuard] gives Offline a way out. */
 @Composable
-fun BlockedCopy(b: Blocked, host: String, folder: String, path: String? = null, onOpenWireGuard: (() -> Unit)? = null) {
+fun BlockedCopy(b: Blocked, host: String, folder: String, onOpenWireGuard: (() -> Unit)? = null) {
     val (title, body) = when (b) {
         Blocked.Denied -> "Sessions can't start in $folder" to "remoter keeps sessions out of folders like .ssh and .config, so nothing starts there by mistake. Pick a project folder instead."
         Blocked.Home -> "Sessions can't start in ~ itself" to "Pick a folder inside it."
-        Blocked.Untrusted -> "$host doesn't trust $folder yet" to "Run this on the laptop once and accept the trust prompt."
         Blocked.Offline -> "$host isn't reachable right now" to "Check WireGuard, or wake the laptop, then try again."
         Blocked.Unsupported -> "$folder has characters remoter won't touch" to "Rename it on the laptop to use it here."
     }
     Text(title, style = Remoter.type.title, color = Remoter.colors.text)
     Spacer(Modifier.height(Space.s8))
     Text(body, style = Remoter.type.body, color = Remoter.colors.textMuted)
-    when {
-        b == Blocked.Untrusted -> {
-            Spacer(Modifier.height(Space.s16))
-            CommandBlock(if (path != null) "cd ${shellPath(path)} && claude" else "claude")
-        }
-        b == Blocked.Offline && onOpenWireGuard != null -> {
-            Spacer(Modifier.height(Space.s16))
-            PrimaryButton("Turn on WireGuard", onOpenWireGuard)
-        }
+    if (b == Blocked.Offline && onOpenWireGuard != null) {
+        Spacer(Modifier.height(Space.s16))
+        PrimaryButton("Turn on WireGuard", onOpenWireGuard)
     }
-}
-
-/** `~/Projects/my app` as something a shell takes: ~ must stay outside quotes to expand. */
-internal fun shellPath(path: String): String {
-    if (path.isEmpty()) return "~"
-    val safe = path.all { it.isLetterOrDigit() || it in "/._-" }
-    return if (safe) "~/$path" else "~/'" + path.replace("'", "'\\''") + "'"
 }

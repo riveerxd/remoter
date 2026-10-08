@@ -68,8 +68,6 @@ data class ErrorActions(
     val onUseWorktree: (() -> Unit)? = null,
     /** Open conversation: start a fresh session from a handoff of it instead. */
     val onHandoffInstead: (() -> Unit)? = null,
-    /** Untrusted folder: trust it from the phone and start, under one fingerprint. */
-    val onTrust: (() -> Unit)? = null,
     val onDismiss: () -> Unit = {},
     /** The lock request is in flight: the hold button spins and ignores another hold. */
     val locking: Boolean = false,
@@ -96,8 +94,7 @@ fun ErrorContent(error: AppError, host: String, actions: ErrorActions, modifier:
         }
         Text(copy.title, style = t.title, color = if (copy.look == ErrorLook.Security) c.danger else c.text)
         copy.body?.let { Text(it, style = t.body, color = c.textMuted) }
-        // With trust one tap away, the laptop command is noise.
-        if (!(error == AppError.Untrusted && actions.onTrust != null)) copy.command?.let { CommandBlock(it) }
+        copy.command?.let { CommandBlock(it) }
         if (error is AppError.SessionCap) {
             // An ended session closes out of the list where it was, and End turns into its spinner in
             // place, instead of rows vanishing and the ones below jumping up.
@@ -144,7 +141,6 @@ fun ErrorContent(error: AppError, host: String, actions: ErrorActions, modifier:
             error is AppError.VpnOff -> actions.onOpenWireGuard?.let { PrimaryButton("Turn on WireGuard", it) }
             error is AppError.RateLimited -> RateLimitButton(error.retryAfterS, actions.onRetry)
             error is AppError.FolderBusy -> actions.onUseWorktree?.let { PrimaryButton("Start in a new worktree", it) }
-            error == AppError.Untrusted -> actions.onTrust?.let { PrimaryButton("Trust this folder and start", it) }
             // Closed on the laptop by now, so the same pick goes again, under a new fingerprint.
             error == AppError.ConversationOpen -> {
                 actions.onHandoffInstead?.let { PrimaryButton("Hand off instead", it) }

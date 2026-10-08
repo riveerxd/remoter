@@ -42,8 +42,7 @@ data class BrowserNav(
     val onBack: () -> Unit,
     val onCrumb: (String) -> Unit,
     val onOpen: (String) -> Unit,
-    /** [untrusted]: claude hasn't been told to trust it; the start sheet offers to, under the same fingerprint. */
-    val onStart: (path: String, isGit: Boolean, untrusted: Boolean) -> Unit,
+    val onStart: (path: String, isGit: Boolean) -> Unit,
     /** The folder is gone on the laptop: pop to the nearest one that still exists. */
     val onGone: (String) -> Unit,
 )
@@ -79,7 +78,7 @@ fun BrowserScreen(vm: BrowserViewModel, nav: BrowserNav, focusSearch: Boolean) {
                 onToggleGit = vm::toggleGit,
                 onSubmitNew = vm::submitNewFolder,
                 onCancelNew = vm::cancelNewFolder,
-                onStartHere = { nav.onStart(ui.path, ui.list?.isGit == true, ui.list?.denyReason == DenyReason.Untrusted) },
+                onStartHere = { nav.onStart(ui.path, ui.list?.isGit == true) },
                 onBlocked = { sheet = BrowserSheet.Block(it) },
                 onRetry = { vm.load() },
                 onRetrySearch = vm::retrySearch,
@@ -122,9 +121,10 @@ fun BrowserScreen(vm: BrowserViewModel, nav: BrowserNav, focusSearch: Boolean) {
                 is BrowserSheet.Menu -> {
                     val child = vm.childPath(s.e.name)
                     MenuHeader(s.e.name, displayPath(child))
+                    // an older laptop still says untrusted, and its refusal explains
                     val canStart = s.e.spawnAllowed || s.e.denyReason == DenyReason.Untrusted
                     // The Start sheet takes the sheet slot, which closes this menu without its exit.
-                    if (canStart) MenuRow(Glyphs.play, "Start here", { if (slot == null) sheet = null; nav.onStart(child, s.e.isGit, !s.e.spawnAllowed) }, divider = false)
+                    if (canStart) MenuRow(Glyphs.play, "Start here", { if (slot == null) sheet = null; nav.onStart(child, s.e.isGit) }, divider = false)
                     MenuRow(Glyphs.pin, if (child in ui.pinned) "Unpin" else "Pin", { sheet = null; vm.togglePin(child) }, divider = canStart)
                     MenuRow(Glyphs.copy, "Copy path", {
                         clip.setText(AnnotatedString(displayPath(child)))
@@ -144,7 +144,7 @@ fun BrowserScreen(vm: BrowserViewModel, nav: BrowserNav, focusSearch: Boolean) {
                         Text("It points outside your home folder, so remoter won't follow it.", style = Remoter.type.body, color = Remoter.colors.textMuted)
                     }
                 }
-                is BrowserSheet.Block -> BlockedCopy(s.b, ui.hostname, ui.name, ui.path, onOpenWireGuard = { sheet = null; openWireGuard(context) })
+                is BrowserSheet.Block -> BlockedCopy(s.b, ui.hostname, ui.name, onOpenWireGuard = { sheet = null; openWireGuard(context) })
             }
         }
     }

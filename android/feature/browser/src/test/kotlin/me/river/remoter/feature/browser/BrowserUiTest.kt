@@ -39,9 +39,9 @@ class BrowserUiTest {
 
     @Test
     fun blocked_copy_says_why_and_what_to_do() {
-        compose.setContent { RemoterTheme(dark = true, reducedMotion = true) { androidx.compose.foundation.layout.Column { BlockedCopy(Blocked.Untrusted, "r1v3r", "Downloads") } } }
-        compose.onNodeWithText("r1v3r doesn't trust Downloads yet").assertIsDisplayed()
-        compose.onNodeWithText("Run this on the laptop once", substring = true).assertIsDisplayed()
+        compose.setContent { RemoterTheme(dark = true, reducedMotion = true) { androidx.compose.foundation.layout.Column { BlockedCopy(Blocked.Denied, "r1v3r", ".ssh") } } }
+        compose.onNodeWithText("Sessions can't start in .ssh").assertIsDisplayed()
+        compose.onNodeWithText("Pick a project folder instead", substring = true).assertIsDisplayed()
     }
 
     @Test

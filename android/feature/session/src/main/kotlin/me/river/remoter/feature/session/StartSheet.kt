@@ -121,8 +121,6 @@ data class StartCallbacks(
     /** A null link still opens the Claude app, through the launcher rung. */
     val onOpenClaude: (ClaudeLink?) -> Unit = {},
     val onUseWorktree: () -> Unit = {},
-    val onTrust: () -> Unit = {},
-    val onTrustAndRetry: () -> Unit = {},
     val onPickPast: (Conversation) -> Unit = {},
     val onRetryPast: () -> Unit = {},
     val onMorePast: () -> Unit = {},
@@ -163,7 +161,6 @@ fun StartContent(ui: StartUi, cb: StartCallbacks) {
                 cb.errors.copy(
                     onRetry = cb.onRetry, onDismiss = cb.onClose,
                     onUseWorktree = if (ui.target?.isGit == true && !ui.form.resumesAsIs) cb.onUseWorktree else null,
-                    onTrust = cb.onTrust,
                     onHandoffInstead = cb.onHandoffInstead,
                 ),
             )
@@ -226,14 +223,10 @@ private fun Form(ui: StartUi, cb: StartCallbacks) {
             Spacer(Modifier.width(Space.s8))
             Text("Bypass permissions · it can run anything as you", style = t.label, color = c.textMuted)
         }
-        Appear(ui.target?.untrusted == true) { TrustNote(ui.hostname) }
         val s = ui.state
         val label = when {
             s is StartState.NotAccepted && ui.retryLeftS != null -> "Retry now"
             s is StartState.NotAccepted -> "Retry with fingerprint"
-            ui.target?.untrusted == true && ui.form.resumesAsIs -> "Trust and resume"
-            ui.target?.untrusted == true && ui.form.resume != null -> "Trust and start with handoff"
-            ui.target?.untrusted == true -> "Trust and start"
             ui.form.resumesAsIs -> "Resume session"
             ui.form.resume != null -> "Start with handoff"
             else -> "Start session"
@@ -643,24 +636,8 @@ private fun Run(ui: StartUi, cb: StartCallbacks) {
     }
 }
 
-/** What trusting means, said before the fingerprint rather than after a refusal. */
-@Composable
-private fun TrustNote(host: String) {
-    val c = Remoter.colors
-    Column(
-        Modifier.fillMaxWidth().clip(Shapes.card).background(c.surface).padding(Space.cardPadding),
-        verticalArrangement = Arrangement.spacedBy(Space.s4),
-    ) {
-        Text("Claude doesn't trust this folder yet", style = Remoter.type.bodyStrong, color = c.text)
-        Text(
-            "Trusting it lets the folder's own Claude settings, hooks and MCP servers run on $host. Fine for your own projects; skip it for code you just downloaded.",
-            style = Remoter.type.label, color = c.textMuted,
-        )
-    }
-}
-
 fun reasonText(r: StuckReason?): String = when (r) {
-    StuckReason.Untrusted -> "This folder isn't trusted on the laptop yet"
+    StuckReason.Untrusted -> "Claude asked to trust this folder anyway, so the laptop stopped it. Try again"
     StuckReason.NotLoggedIn -> "Claude isn't logged in on the laptop"
     StuckReason.FolderChanged -> "Folder changed while starting"
     StuckReason.Network -> "The laptop couldn't reach Claude"
@@ -744,7 +721,6 @@ private fun androidx.compose.foundation.layout.ColumnScope.Failed(s: StartState,
     EndError(ui)
     // The way out matches the reason: Retry alone would meet the same refusal from claude.
     val primary: Pair<String, () -> Unit> = when {
-        s is StartState.Stuck && s.reason == StuckReason.Untrusted -> "Trust this folder and start" to cb.onTrustAndRetry
         s is StartState.Stuck && s.reason == StuckReason.FolderBusy && ui.target?.isGit == true && !ui.form.resumesAsIs ->
             "Start in a new worktree" to cb.onUseWorktree
         else -> "Retry" to cb.onRetry

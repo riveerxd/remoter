@@ -40,7 +40,7 @@ import me.river.remoter.core.design.Space
 import me.river.remoter.core.design.Touch
 import me.river.remoter.core.design.tnum
 
-enum class RowNote { Denied, Untrusted, AbsoluteSymlink, Unsupported }
+enum class RowNote { Denied, AbsoluteSymlink, Unsupported }
 
 @Immutable
 data class FolderRowModel(
@@ -156,9 +156,6 @@ private fun Subtitle(model: FolderRowModel) {
     val t = Remoter.type
     when (model.note) {
         RowNote.Denied -> NoteLine(Glyphs.lock, "Sessions can't start here")
-        // The long version wrapped and made this row taller than its neighbours. What trusting
-        // means is said in the Start sheet, where it's decided.
-        RowNote.Untrusted -> NoteLine(Glyphs.shield, "Not trusted yet")
         RowNote.AbsoluteSymlink -> NoteLine(null, "Opens by its real path")
         RowNote.Unsupported -> NoteLine(null, "Name has characters remoter won't touch")
         null -> {

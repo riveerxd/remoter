@@ -127,12 +127,4 @@ class BrowserSearchPinRetryTest {
             vm.viewModelScope.cancel()
         }
     }
-
-    @Test
-    fun trust_command_survives_spaces_and_quotes() {
-        assertEquals("~/Projects/api", shellPath("Projects/api"))
-        assertEquals("~/'my app'", shellPath("my app"))
-        assertEquals("~/'it'\\''s'", shellPath("it's"))
-        assertEquals("~", shellPath(""))
-    }
 }

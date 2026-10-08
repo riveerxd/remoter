@@ -44,7 +44,7 @@ import me.river.remoter.core.net.toAppError
 import me.river.remoter.feature.session.copy
 
 /** Why Start can't go ahead here. The button stays tappable and this explains it. */
-enum class Blocked { Denied, Home, Untrusted, Offline, Unsupported }
+enum class Blocked { Denied, Home, Offline, Unsupported }
 
 data class NewFolder(
     val editing: Boolean = false,
@@ -88,7 +88,7 @@ data class BrowserUi(
             list == null -> null
             list.spawnAllowed -> null
             list.denyReason == DenyReason.Home -> Blocked.Home
-            // not a block, the start sheet can trust it from the phone
+            // only an older laptop says this, and its refusal explains
             list.denyReason == DenyReason.Untrusted -> null
             list.denyReason == DenyReason.Unsupported -> Blocked.Unsupported
             else -> Blocked.Denied

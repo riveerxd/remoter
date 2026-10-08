@@ -159,7 +159,7 @@ private fun Graph(start: NavKey, root: RootViewModel, entrance: Boolean, onEntra
     fun openClaude(link: me.river.remoter.core.net.ClaudeLink?) {
         if (!ClaudeOpener.open(context, link)) root.say("The Claude app isn't installed")
     }
-    fun startIn(path: String, isGit: Boolean, untrusted: Boolean = false) = startVm.open(StartTarget(path, folderName(path), isGit, untrusted))
+    fun startIn(path: String, isGit: Boolean) = startVm.open(StartTarget(path, folderName(path), isGit))
     fun pairAgain(r: PairAgainReason) = back.resetTo(Onboarding(r))
     val locking by root.locking.collectAsStateWithLifecycle()
     val capEnding by root.ending.collectAsStateWithLifecycle()
@@ -306,8 +306,6 @@ private fun Graph(start: NavKey, root: RootViewModel, entrance: Boolean, onEntra
                 onEndIt = startVm::endIt,
                 onOpenClaude = { openClaude(it); startVm.done() },
                 onUseWorktree = startVm::startInWorktree,
-                onTrust = startVm::trustAndStart,
-                onTrustAndRetry = startVm::trustAndRetry,
                 onHandoffInstead = startVm::handoffInstead,
                 onPickPast = startVm::selectResume,
                 onRetryPast = startVm::retryPast,

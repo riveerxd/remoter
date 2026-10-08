@@ -112,7 +112,6 @@ class ComponentScreenshots(private val dark: Boolean, private val fontScale: Flo
         FolderRow(FolderRowModel("remoter", isGit = true, hasClaudeMd = true, folderCount = 3, running = 1, pinned = true), {}, onPin = {})
         FolderRow(FolderRowModel("scratch", folderCount = 1, pinned = false), {}, onPin = {})
         FolderRow(FolderRowModel(".ssh", note = RowNote.Denied, pinned = false), {}, onPin = {})
-        FolderRow(FolderRowModel("Downloads", note = RowNote.Untrusted, pinned = false), {}, onPin = {})
         FolderRow(FolderRowModel("work", note = RowNote.AbsoluteSymlink, pinned = false), {}, onPin = {})
         FolderRow(FolderRowModel("bad\uFFFDname", note = RowNote.Unsupported), {})
         FolderRow(FolderRowModel("a-folder-name-that-is-long-enough-to-need-two-lines-at-large-font-scale", isGit = true), {})

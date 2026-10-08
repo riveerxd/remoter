@@ -6,7 +6,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
-/** Start used to stop at "run this on the laptop"; trusting now happens in the start sheet, from the phone. */
+/** The laptop trusts every folder it starts in, so only an older one still says untrusted. */
 class UntrustedStartTest {
     private fun ui(spawnAllowed: Boolean, deny: DenyReason?) =
         BrowserUi("Documents", ListResponse("Documents", false, trusted = false, spawnAllowed = spawnAllowed, denyReason = deny, entries = emptyList(), truncated = false, partial = false), loading = false)

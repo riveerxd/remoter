@@ -157,19 +157,6 @@ class ResumeViewModelTest {
     }
 
     @Test
-    fun untrusted_and_resumed_says_both() = runRig { r ->
-        r.unlocked()
-        r.vm.open(target.copy(untrusted = true))
-        runCurrent()
-        r.vm.selectResume(banner)
-        r.vm.start()
-        advanceUntilIdle()
-        assertEquals("Trust ~/Projects/remoter and resume Fix the banner s overlap on r1v3r", r.signer.prompts.single().title)
-        assertTrue(r.body().trust)
-        assertEquals(banner.id, r.body().resume)
-    }
-
-    @Test
     fun open_conversation_refusal_keeps_pick() = runRig { r ->
         r.unlocked()
         r.vm.open(target)

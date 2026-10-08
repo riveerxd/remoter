@@ -108,10 +108,6 @@ data class SpawnRequest(
     val path: String,
     val name: String,
     val mode: SpawnMode,
-    // Left out when false, so a laptop that predates it still takes every ordinary start.
-    @OptIn(kotlinx.serialization.ExperimentalSerializationApi::class)
-    @kotlinx.serialization.EncodeDefault(kotlinx.serialization.EncodeDefault.Mode.NEVER)
-    val trust: Boolean = false,
     /** A past conversation in this folder to bring back. Left out when null, so an older laptop still takes every start. */
     @OptIn(kotlinx.serialization.ExperimentalSerializationApi::class)
     @kotlinx.serialization.EncodeDefault(kotlinx.serialization.EncodeDefault.Mode.NEVER)

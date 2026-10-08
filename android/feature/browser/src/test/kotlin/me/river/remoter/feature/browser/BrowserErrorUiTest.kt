@@ -89,12 +89,6 @@ class BrowserErrorUiTest {
     }
 
     @Test
-    fun untrusted_gives_the_command_to_run() {
-        compose.setContent { RemoterTheme(dark = true, reducedMotion = true) { Column { BlockedCopy(Blocked.Untrusted, "r1v3r", "Downloads", "Downloads") } } }
-        compose.onNodeWithText("cd ~/Downloads && claude").assertIsDisplayed()
-    }
-
-    @Test
     fun offline_gives_a_way_to_turn_on_wireguard() {
         var wg = false
         compose.setContent { RemoterTheme(dark = true, reducedMotion = true) { Column { BlockedCopy(Blocked.Offline, "r1v3r", "api", onOpenWireGuard = { wg = true }) } } }

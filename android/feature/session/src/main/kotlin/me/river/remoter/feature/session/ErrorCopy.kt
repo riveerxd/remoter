@@ -57,7 +57,7 @@ fun AppError.copy(host: String): ErrorCopy = when (this) {
     )
     AppError.Untrusted -> ErrorCopy(
         ErrorLook.Limits, "Claude doesn't trust this folder yet",
-        "Trusting it lets the folder's own Claude settings, hooks and MCP servers run on $host. Fine for your own projects; skip it for code you just downloaded.",
+        "remoter on $host is older than this app. Update it there and it trusts the folders it starts in by itself.",
     )
     AppError.NotFound -> ErrorCopy(ErrorLook.Inline, "That folder isn't there anymore")
     is AppError.Denied -> ErrorCopy(ErrorLook.Limits, "Sessions can't start here", "Folders like .ssh and your home itself are off limits for sessions.")

@@ -40,8 +40,7 @@ import me.river.remoter.core.net.Names
 import java.time.ZoneId
 import javax.inject.Inject
 
-/** [untrusted]: known untrusted from the listing, so the first start already asks to trust it. */
-data class StartTarget(val path: String, val folder: String, val isGit: Boolean, val untrusted: Boolean = false)
+data class StartTarget(val path: String, val folder: String, val isGit: Boolean)
 
 data class StartForm(
     val mode: SpawnMode = SpawnMode.SameDir,
@@ -261,16 +260,6 @@ class StartViewModel @Inject constructor(
         }
     }
 
-    /** Untrusted refusal: the same start, now also trusting the folder. A new request, so a new fingerprint. */
-    fun trustAndStart() {
-        val s = _ui.value.state
-        if (s !is StartState.NotAccepted || s.error != AppError.Untrusted) return
-        cancelJobs()
-        signed = null
-        _ui.update { it.copy(state = StartState.Idle, retryLeftS = null, target = it.target?.copy(untrusted = true)) }
-        start()
-    }
-
     /** Ignored unless Idle, so a second tap can never start a second session. */
     fun start() {
         val ui = _ui.value
@@ -288,17 +277,14 @@ class StartViewModel @Inject constructor(
             val name = ui.form.name.trim(' ')
             val body = RemoterJson.encodeToString(
                 SpawnRequest.serializer(),
-                SpawnRequest(target.path, name, mode, trust = target.untrusted, resume = resume?.id, handoff = handoff?.id),
+                SpawnRequest(target.path, name, mode, resume = resume?.id, handoff = handoff?.id),
             ).toByteArray()
             val where = displayPath(target.path)
             startedHandoff = handoff != null
             val prompt = PromptCopy(
                 when {
-                    handoff != null && target.untrusted -> "Trust $where and start $name with a handoff on $host"
                     handoff != null -> "Start $name in $where with a handoff on $host"
-                    resume != null && target.untrusted -> "Trust $where and resume $name on $host"
                     resume != null -> "Resume $name in $where on $host"
-                    target.untrusted -> "Trust $where and start a session on $host"
                     else -> "Start session in $where on $host"
                 },
             )
@@ -322,19 +308,6 @@ class StartViewModel @Inject constructor(
         val s = _ui.value.state
         if (s !is StartState.NotAccepted || s.error != AppError.ConversationOpen || _ui.value.form.resume == null) return
         setHandoff(true)
-        start()
-    }
-
-    /**
-     * Stuck because the laptop's claude didn't trust the folder: start again, trusting it. Retry
-     * alone would only meet the same refusal.
-     */
-    fun trustAndRetry() {
-        val s = _ui.value.state
-        if (s !is StartState.Stuck || s.reason != StuckReason.Untrusted) return
-        cancelJobs()
-        signed = null
-        _ui.update { it.copy(state = StartState.Idle, retryLeftS = null, target = it.target?.copy(untrusted = true)) }
         start()
     }
 

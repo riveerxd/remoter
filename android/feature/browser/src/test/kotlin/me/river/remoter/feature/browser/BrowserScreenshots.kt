@@ -25,7 +25,7 @@ private fun e(name: String, git: Boolean = false, deny: DenyReason? = null, link
 
 private val list = ListResponse(
     "Projects", false, true, true, null,
-    listOf(e("api", git = true), e("remoter", git = true, running = 1), e("Downloads", deny = DenyReason.Untrusted), e(".ssh", deny = DenyReason.Denied), e("work", link = SymlinkKind.Absolute), e("bad�name", bad = true)),
+    listOf(e("api", git = true), e("remoter", git = true, running = 1), e("Downloads"), e(".ssh", deny = DenyReason.Denied), e("work", link = SymlinkKind.Absolute), e("bad�name", bad = true)),
     truncated = false, partial = false,
 )
 

@@ -21,6 +21,7 @@ import me.river.remoter.core.testing.MemoryStore
 import me.river.remoter.core.testing.SchedulerClock
 import me.river.remoter.core.testing.SpawnScript
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
@@ -104,19 +105,20 @@ class StartEdgeCasesTest {
         advanceUntilIdle()
     }
 
-    /** Stuck because claude didn't trust the folder offered only Retry, which met the same refusal. */
     @Test
-    fun stuck_untrusted_starts_again_trusting_the_folder() = runRig { r ->
+    fun stuck_untrusted_retries_as_a_plain_start() = runRig { r ->
         r.api.spawnScript = me.river.remoter.core.testing.SpawnScript.Stuck
         r.vm.open(target)
         r.vm.start()
         advanceUntilIdle()
         assertEquals(me.river.remoter.core.net.StuckReason.Untrusted, (r.state as StartState.Stuck).reason)
         r.api.spawnScript = me.river.remoter.core.testing.SpawnScript.Ready
-        r.vm.trustAndRetry()
+        r.vm.retry()
         runCurrent()
-        assertTrue(r.api.spawnCalls.last().body.decodeToString().contains("\"trust\":true"))
+        assertEquals(2, r.api.spawnCalls.size)
+        assertFalse(r.api.spawnCalls.last().body.decodeToString().contains("trust"))
         advanceUntilIdle()
+        assertTrue(r.state is StartState.Ready)
     }
 
     /**
