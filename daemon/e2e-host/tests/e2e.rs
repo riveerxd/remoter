@@ -266,6 +266,31 @@ scenario!(stuck_and_exited, inner_stuck_and_exited, |lab| {
     });
 });
 
+scenario!(trusted_before_start, inner_trusted_before_start, |lab| {
+    let phone = lab.pair("S25 Ultra");
+    lab.wait_agent_window();
+    lab.block_on(async {
+        let (id, _, last, _) = spawn_and_settle(lab, &phone, "Projects/asks-sim", 20 * S).await;
+        assert_eq!(last.data["state"], "ready", "{last:?}");
+        let mut c = lab.client(&phone).await;
+        let (_, mut watch) = c.stream(&format!("/v1/sessions/{id}/events"), &[]).await;
+        assert_eq!(c.signed(&phone.sign("DELETE", &format!("/v1/sessions/{id}"), b"")).await.status, 202);
+        assert!(watch.closes_within(10 * S).await, "ended");
+
+        let json: serde_json::Value = serde_json::from_slice(&std::fs::read(lab.dir.join("home/.claude.json")).expect("read")).expect("json");
+        let key = lab.dir.join("home/Projects/asks-sim").display().to_string();
+        assert_eq!(json["projects"][key]["hasTrustDialogAccepted"], true);
+
+        // asks anyway: Stuck in seconds, not after the 20 s timeout, and a retry isn't busy
+        let t0 = std::time::Instant::now();
+        let (_, _, last, _) = spawn_and_settle(lab, &phone, "Projects/dialog-sim", 20 * S).await;
+        assert_eq!((&last.data["state"], &last.data["reason"]), (&serde_json::json!("stuck"), &serde_json::json!("untrusted")), "{last:?}");
+        assert!(t0.elapsed() < 10 * S, "{:?}", t0.elapsed());
+        let again = c.signed(&phone.sign("POST", "/v1/sessions", &spawn_body("Projects/dialog-sim", "again"))).await;
+        assert_eq!(again.status, 202, "{again:?}");
+    });
+});
+
 scenario!(session_cap, inner_session_cap, |lab| {
     let phone = lab.pair("S25 Ultra");
     lab.wait_agent_window();

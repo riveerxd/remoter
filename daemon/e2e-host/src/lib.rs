@@ -129,6 +129,19 @@ case "$(basename "$PWD")" in
   untrusted*)
     echo "Error: Workspace not trusted. Please run \`claude\` in $PWD first to review and accept the workspace trust dialog."
     exit 1 ;;
+  asks*)
+    # the dialog as 2.1.295 draws it, unless this exact folder has its own true entry
+    if ! /usr/bin/jq -e --arg p "$PWD" '.projects[$p].hasTrustDialogAccepted == true' "$(dirname "$(dirname "$PWD")")/.claude.json" >/dev/null; then
+      printf ' Accessing workspace:\n\n %s\n\n ❯ No, exit\n   Yes, I trust this folder\n' "$PWD"
+      exec sleep 600
+    fi
+    log "[bridge:init] bridgeId=fake dir=$PWD"
+    log "[bridge:init] Registered, server environmentId=env_01Kd3fPzQw8nVb2sLxRt6uYm"
+    log "[bridge:init] Created initial session session_01Hq7cXv2mTnR4bWkYe9pLsA"
+    exec sleep 600 ;;
+  dialog*)
+    printf ' Accessing workspace:\n\n %s\n\n ❯ No, exit\n   Yes, I trust this folder\n' "$PWD"
+    exec sleep 600 ;;
   resume*)
     # 2.1.292 reattaching a never archived cloud session
     echo "argv: $*"
@@ -153,6 +166,8 @@ pub const FOLDERS: &[&str] = &[
     "Projects/hang",
     "Projects/exit1",
     "Projects/untrusted-sim",
+    "Projects/asks-sim",
+    "Projects/dialog-sim",
     "Projects/plain",
     "Projects/resume-me",
     "Projects/.ssh",
