@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import me.river.remoter.core.net.Account
@@ -107,6 +108,12 @@ class HomeViewModel @Inject constructor(
                 }
             }
         }
+        // a switch while the app is open has to reach the next cold start, not only the next refresh
+        viewModelScope.launch {
+            monitor.health.mapNotNull { it?.direct }.distinctUntilChanged().collect { d ->
+                store.update { st -> st.snapshot?.takeIf { it.direct != d }?.let { st.copy(snapshot = it.copy(direct = d)) } ?: st }
+            }
+        }
         viewModelScope.launch {
             store.state.map { it?.pinned.orEmpty() }.distinctUntilChanged().collect { pins ->
                 _ui.update { u -> u.copy(pinned = pins.map { p -> u.known(p) }.toImmutableList()) }
@@ -155,8 +162,10 @@ class HomeViewModel @Inject constructor(
         }
         if (recent != null) {
             val u = _ui.value
+            // straight from the monitor: on a phone this can run before _ui has caught up with the probe
+            val direct = monitor.health.value?.direct ?: u.direct
             store.update { st ->
-                st.copy(snapshot = HomeSnapshot(u.hostname, recent.take(5), hub.sessions.value.orEmpty(), u.battery, u.onAc, clock.nowMs(), u.direct))
+                st.copy(snapshot = HomeSnapshot(u.hostname, recent.take(5), hub.sessions.value.orEmpty(), u.battery, u.onAc, clock.nowMs(), direct))
             }
         }
     }

@@ -237,6 +237,25 @@ class HomeViewModelTest {
         assertTrue("remembered for the next cold start", r.store.state.value?.snapshot?.direct == true)
     }
 
+    // found on the emulator: switched while the app was open, the next cold start drew the old map
+    @Test
+    fun a_switch_while_open_is_remembered() = runRig { r ->
+        advanceTimeBy(1_000)
+        r.vm.refresh().join()
+        assertFalse(r.store.state.value?.snapshot?.direct == true)
+        r.tunnel = "direct"
+        advanceTimeBy(ConnectionMonitor.INTERVAL_MS + 1_000)
+        assertTrue(r.store.state.value?.snapshot?.direct == true)
+    }
+
+    @Test
+    fun direct_from_the_first_answer_is_saved() = runRig { r ->
+        r.tunnel = "direct"
+        runCurrent()
+        advanceTimeBy(5_000)
+        assertTrue(r.store.state.value?.snapshot?.direct == true)
+    }
+
     @Test
     fun a_cold_start_draws_the_last_known_tunnel() = runRig(down = true, snapshot = HomeSnapshot("r1v3r", emptyList(), emptyList(), 50, true, 0, direct = true)) { r ->
         advanceTimeBy(30_000)

@@ -12,6 +12,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
@@ -94,7 +95,8 @@ class MainActivity : FragmentActivity() {
                             play = intro.value == IntroPhase.Play,
                             onLeave = { entrance.value = true },
                             onDone = { intro.value = IntroPhase.Off },
-                            direct = store.state.value?.snapshot?.direct == true,
+                            // observed: the store can still be loading on the first frame
+                            direct = store.state.collectAsState().value?.snapshot?.direct == true,
                         )
                     }
                 }
