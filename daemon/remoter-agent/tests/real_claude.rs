@@ -119,8 +119,8 @@ fn real_resume() {
     assert!(mine.title.contains(&word), "{:?}", mine.title);
 
     // claude writes an explicit untrusted entry for a folder it ran in without the
-    // dialog, so ask the way the phone's "trust and start" does
-    let req = SpawnRequest { path: FOLDER.into(), name: "resume e2e".into(), mode: SpawnMode::SameDir, trust: true, resume: Some(conv.clone()), handoff: None };
+    // dialog, so this also checks the agent trusts it first
+    let req = SpawnRequest { path: FOLDER.into(), name: "resume e2e".into(), mode: SpawnMode::SameDir, trust: false, resume: Some(conv.clone()), handoff: None };
     let id = s.spawn(&req, None).expect("resume");
     let deadline = Instant::now() + Duration::from_secs(90);
     let ready = loop {
@@ -227,7 +227,7 @@ fn real_handoff() {
     )
     .expect("sessions");
     let before = jsonl_ids();
-    let req = SpawnRequest { path: FOLDER.into(), name: "handoff e2e".into(), mode: SpawnMode::SameDir, trust: true, resume: None, handoff: Some(conv.clone()) };
+    let req = SpawnRequest { path: FOLDER.into(), name: "handoff e2e".into(), mode: SpawnMode::SameDir, trust: false, resume: None, handoff: Some(conv.clone()) };
     let id = s.spawn(&req, None).expect("handoff start");
     let started = Instant::now();
     let deadline = started + Duration::from_secs(300);
@@ -272,4 +272,60 @@ fn real_handoff() {
         std::thread::sleep(Duration::from_millis(250));
     }
     let _ = std::fs::remove_dir_all(&runtime);
+}
+
+/// A folder nothing trusts, not even a parent: interactive claude would stop at
+/// its trust dialog unless the agent trusted the folder first.
+#[test]
+#[ignore = "real claude, real kitty, real ~/.claude: see the file header"]
+fn real_untrusted_folder() {
+    let exec = std::env::current_exe().expect("exe").parent().and_then(Path::parent).expect("target").join("remoter-exec");
+    assert!(exec.exists(), "cargo build -p remoter-exec first");
+    let rel = format!("remoter-trust-{}", std::process::id());
+    let folder = home().join(&rel);
+    std::fs::create_dir_all(&folder).expect("folder");
+    let runtime = PathBuf::from(std::env::var_os("XDG_RUNTIME_DIR").expect("XDG_RUNTIME_DIR")).join(format!("rmt-real{}", std::process::id()));
+    let trust = Trust::new(home().join(".claude.json"));
+    assert!(!trust.is_trusted(&folder), "pick a folder nothing trusts");
+    let s = Sessions::new(
+        SessionsConfig {
+            cwd_deny: vec![".ssh".into(), ".claude".into()],
+            claude_bin: claude(),
+            git_bin: "/usr/bin/git".into(),
+            max_sessions: 8,
+            runtime_base: runtime.clone(),
+            locked_flag: runtime.with_extension("locked"),
+            ready_timeout: Duration::from_secs(90),
+            exited_ttl: Duration::from_secs(3600),
+            history: None,
+            transcripts: None,
+        },
+        Home::open(&home()).expect("home"),
+        trust,
+        Box::new(KittyLauncher { kitty_bin: "/usr/bin/kitty".into(), hyprctl_bin: "/usr/bin/hyprctl".into(), exec_bin: exec, workspace: 9 }),
+    )
+    .expect("sessions");
+
+    let req = SpawnRequest { path: rel, name: "trust e2e".into(), mode: SpawnMode::SameDir, trust: false, resume: None, handoff: None };
+    let id = s.spawn(&req, None).expect("spawn");
+    let deadline = Instant::now() + Duration::from_secs(90);
+    loop {
+        let got = s.get(&id).expect("get");
+        if got.state == SessionState::Ready {
+            break;
+        }
+        assert!(matches!(got.state, SessionState::Starting), "left Starting for {got:?}: {:?}", s.tail(&id));
+        assert!(Instant::now() < deadline, "never ready: {:?}", s.tail(&id));
+        std::thread::sleep(Duration::from_millis(500));
+    }
+    assert!(Trust::new(home().join(".claude.json")).is_trusted_here(&folder));
+
+    s.kill(&id).expect("kill");
+    let deadline = Instant::now() + Duration::from_secs(20);
+    while s.get(&id).is_ok_and(|g| g.state != SessionState::Gone) {
+        assert!(Instant::now() < deadline, "never ended");
+        std::thread::sleep(Duration::from_millis(250));
+    }
+    let _ = std::fs::remove_dir_all(&runtime);
+    let _ = std::fs::remove_dir(&folder);
 }
