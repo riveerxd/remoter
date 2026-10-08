@@ -385,17 +385,43 @@ pub struct Lab {
 impl Lab {
     /// Only inside `World::run_inner`.
     pub fn start() -> Lab {
+        Lab::start_on(false)
+    }
+
+    /// Like [`Lab::start`], but rmt0 is a real WireGuard link with the phone
+    /// as its only peer, dialing in across a veth internet.
+    pub fn start_direct() -> Lab {
+        Lab::start_on(true)
+    }
+
+    fn start_on(direct: bool) -> Lab {
         let dir = PathBuf::from(std::env::var_os(ENV_WORLD).expect("run through World::run_inner"));
         let agent_start: i64 = std::env::var(ENV_AGENT_START).expect("agent start").parse().expect("ms");
         let phone_ns = Command::new("unshare").args(["-n", "--", "sleep", "600"]).stdin(Stdio::null()).spawn().expect("phone ns");
         std::thread::sleep(Duration::from_millis(100));
         let pid = phone_ns.id();
         sh("ip link set lo up");
-        sh(&format!("ip link add rmt0 type veth peer name ph0 netns {pid}"));
-        sh("ip addr add 10.66.66.3/32 dev rmt0 && ip link set rmt0 up && ip route add 10.66.66.2/32 dev rmt0");
-        sh(&format!(
-            "nsenter -t {pid} -n -- sh -ec 'ip link set lo up; ip addr add 10.66.66.2/32 dev ph0; ip link set ph0 up; ip route add 10.66.66.3/32 dev ph0'"
-        ));
+        if direct {
+            let k = dir.join("wgkeys");
+            mkdir_mode(&k, 0o700);
+            let d = k.display();
+            sh(&format!("umask 077; for n in laptop phone; do wg genkey > {d}/$n; wg pubkey < {d}/$n > {d}/$n.pub; done; wg genpsk > {d}/psk"));
+            sh(&format!("ip link add wan0 type veth peer name wan0 netns {pid}"));
+            sh("ip addr add 198.51.100.1/24 dev wan0 && ip link set wan0 up");
+            sh(&format!("ip link add rmt0 type wireguard && wg set rmt0 private-key {d}/laptop listen-port 47913 peer $(cat {d}/phone.pub) preshared-key {d}/psk allowed-ips 10.66.66.2/32"));
+            sh("ip addr add 10.66.66.3/32 dev rmt0 && ip link set rmt0 up && ip route add 10.66.66.2/32 dev rmt0");
+            sh(&format!(
+                "nsenter -t {pid} -n -- sh -ec 'ip link set lo up; ip addr add 198.51.100.2/24 dev wan0; ip link set wan0 up; \
+                 ip link add rmt0 type wireguard; wg set rmt0 private-key {d}/phone peer $(cat {d}/laptop.pub) preshared-key {d}/psk endpoint 198.51.100.1:47913 allowed-ips 10.66.66.3/32 persistent-keepalive 25; \
+                 ip addr add 10.66.66.2/32 dev rmt0; ip link set rmt0 mtu 1280 up; ip route add 10.66.66.3/32 dev rmt0'"
+            ));
+        } else {
+            sh(&format!("ip link add rmt0 type veth peer name ph0 netns {pid}"));
+            sh("ip addr add 10.66.66.3/32 dev rmt0 && ip link set rmt0 up && ip route add 10.66.66.2/32 dev rmt0");
+            sh(&format!(
+                "nsenter -t {pid} -n -- sh -ec 'ip link set lo up; ip addr add 10.66.66.2/32 dev ph0; ip link set ph0 up; ip route add 10.66.66.3/32 dev ph0'"
+            ));
+        }
         let rt = tokio::runtime::Builder::new_multi_thread().enable_all().build().expect("rt");
         let mut lab = Lab { dir, agent_start, pki: Pki::new("testroot0000"), phone_ns, remoterd: None, rt };
         lab.build_root();

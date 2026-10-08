@@ -291,6 +291,33 @@ scenario!(trusted_before_start, inner_trusted_before_start, |lab| {
     });
 });
 
+#[test]
+fn whole_stack_over_wireguard() {
+    World::new("whole_stack_over_wireguard").run_inner("inner_whole_stack_over_wireguard");
+}
+
+#[test]
+#[ignore = "run by its outer test inside the lab"]
+fn inner_whole_stack_over_wireguard() {
+    if std::env::var_os("REMOTER_E2E_WORLD").is_none() {
+        eprintln!("only runs inside the lab");
+        return;
+    }
+    let lab = &Lab::start_direct();
+    let phone = lab.pair("S25 Ultra");
+    lab.wait_agent_window();
+    lab.block_on(async {
+        let mut c = lab.client(&phone).await;
+        let h = c.get("/v1/health").await.json();
+        assert_eq!(h["tunnel"], "direct", "{h}");
+        let (id, _, last, _) = spawn_and_settle(lab, &phone, "Projects/remoter", 20 * S).await;
+        assert_eq!(last.data["state"], "ready", "{last:?}");
+        let (_, mut watch) = c.stream(&format!("/v1/sessions/{id}/events"), &[]).await;
+        assert_eq!(c.signed(&phone.sign("DELETE", &format!("/v1/sessions/{id}"), b"")).await.status, 202);
+        assert!(watch.closes_within(10 * S).await, "ended");
+    });
+}
+
 scenario!(session_cap, inner_session_cap, |lab| {
     let phone = lab.pair("S25 Ultra");
     lab.wait_agent_window();
