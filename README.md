@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/screens/hero.png" width="900" alt="remoter: home with the tunnel map and running sessions, the folder browser, and a live session" />
+<img src="docs/screens/hero.png" width="900" alt="remoter: home with the tunnel map, laptop load and running sessions, the folder browser, and a live session" />
 
 ### Start Claude Code on your laptop from your phone, then carry on in the Claude app.
 
@@ -28,7 +28,7 @@
 
 Pick a folder on your laptop, touch the fingerprint sensor, and a Claude Code
 Remote Control session comes up there a few seconds later. Open it in the Claude
-app and keep going. **Nothing open to the internet, no account, no password.**
+app and keep going. **Nothing answers the internet, no account, no password.**
 The phone reaches the laptop over a WireGuard tunnel, and anything that changes
 something is signed by a key that never leaves the phone's security chip.
 
@@ -76,6 +76,10 @@ the laptop to answer. So remoter marks each folder trusted right before it
 starts a session there. That means the folder's own Claude settings, hooks and
 MCP servers run without asking, so don't start sessions in code you just
 downloaded.
+
+<div align="center">
+  <img src="docs/screens/processes.png" width="640" alt="The process list sorted by CPU, and the sheet for a session's claude with Quit and Kill" />
+</div>
 
 ---
 
