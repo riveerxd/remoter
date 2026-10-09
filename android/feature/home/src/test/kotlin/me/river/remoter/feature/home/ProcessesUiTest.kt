@@ -20,18 +20,18 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
-private fun proc(pid: Int, name: String, cpu: Double, rss: Long, killable: Boolean = true, session: String? = null, user: String = "river") =
-    Proc(pid, 1, 1_000L + pid, user, name, "/usr/bin/$name --flag", cpu, rss, killable, session?.let { ProcSession("rc-$it", it) })
+private fun proc(pid: Int, name: String, cmd: String, cpu: Double, rss: Long, killable: Boolean = true, session: String? = null, user: String = "river") =
+    Proc(pid, 1, 1_000L + pid, user, name, cmd, cpu, rss, killable, session?.let { ProcSession("rc-$it", it) })
 
 internal val procList = listOf(
-    proc(4242, "claude", 104.5, 512_000_000, session = "remoter"),
-    proc(3125, "rustc", 96.3, 1_400_000_000),
-    proc(2210, "firefox", 18.2, 2_400_000_000),
-    proc(4252, "claude", 3.1, 380_000_000, session = "api"),
-    proc(1730, "Hyprland", 4.8, 240_000_000),
-    proc(2050, "java", 2.2, 3_200_000_000),
-    proc(811, "sshd", 0.0, 9_000_000, killable = false, user = "root"),
-    proc(1, "systemd", 0.0, 14_000_000, killable = false, user = "root"),
+    proc(4242, "claude", "claude --remote-control=remoter --permission-mode bypassPermissions", 104.5, 512_000_000, session = "remoter"),
+    proc(3125, "rustc", "rustc --crate-name remoter_agent --edition=2024 remoter-agent/src/lib.rs", 96.3, 1_400_000_000),
+    proc(2210, "firefox", "/usr/lib/firefox/firefox", 18.2, 2_400_000_000),
+    proc(4252, "claude", "claude --remote-control=api --permission-mode bypassPermissions", 3.1, 380_000_000, session = "api"),
+    proc(1730, "Hyprland", "Hyprland", 4.8, 240_000_000),
+    proc(2050, "java", "java -Xmx3g org.gradle.launcher.daemon.bootstrap.GradleDaemon 9.1.0", 2.2, 3_200_000_000),
+    proc(811, "sshd", "sshd: /usr/bin/sshd -D [listener]", 0.0, 9_000_000, killable = false, user = "root"),
+    proc(1, "systemd", "/sbin/init", 0.0, 14_000_000, killable = false, user = "root"),
 )
 
 internal val procsUi = ProcsUi(host = "r1v3r", resources = load, procs = procList.sortedFor(ProcSort.Cpu).toImmutableList(), loaded = true)
