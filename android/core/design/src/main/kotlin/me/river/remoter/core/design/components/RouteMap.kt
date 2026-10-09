@@ -47,12 +47,6 @@ enum class Hop { Live, Pulse, Broken, Idle }
 @Immutable
 data class RouteNode(val glyph: ImageVector, val description: String)
 
-/**
- * Nodes joined by thick lines. Live flows phone to laptop on a 2 s loop,
- * Pulse breathes in `warn`, Broken is dashed `danger`. Reduced motion freezes
- * the flow and the pulse. [ring] draws a progress ring round the last node
- * (the Ready moment), [ringColor] its color.
- */
 @Composable
 fun RouteMap(
     nodes: ImmutableList<RouteNode>,
@@ -80,21 +74,20 @@ fun RouteMap(
         val cy = with(density) { (nodeSize / 2 + 8.dp).toPx() }
         Canvas(Modifier.fillMaxWidth().height(nodeSize + 16.dp)) {
             val lw = lineWidth.toPx()
+            val ringR = node / 2 + 5.dp.toPx()
             hops.indices.forEach { i ->
-                val x0 = node / 2 + gap * i + node / 2
-                val x1 = node / 2 + gap * (i + 1) - node / 2
+                val (x0, x1) = hopSpan(i, nodes.size, node, gap, lw, if (ring > 0f) ringR else null)
                 val a = Offset(x0, cy)
                 val b = Offset(x1, cy)
                 val f = fades.getOrNull(i)
                 val p = f?.progress?.value ?: 1f
-                // A hop that changes (pulsing to live, live to broken) blends the old line out and the
-                // new one in, instead of switching color in one frame.
+                // blend a changed hop instead of switching colour in one frame
                 if (f != null && p < 1f) drawHop(f.from, a, b, lw, 1f - p, c, reduced, flow, pulse)
                 drawHop(f?.to ?: hops[i], a, b, lw, p, c, reduced, flow, pulse)
             }
             if (ring > 0f) {
                 val cx = node / 2 + gap * (nodes.size - 1)
-                val r = node / 2 + 5.dp.toPx()
+                val r = ringR
                 drawArc(
                     ringColor, -90f, 360f * ring, false,
                     topLeft = Offset(cx - r, cy - r), size = androidx.compose.ui.geometry.Size(r * 2, r * 2),
@@ -126,13 +119,23 @@ fun RouteMap(
                     .border(1.dp, c.line, Shapes.pill),
                 contentAlignment = Alignment.Center,
             ) {
-                // A glyph change (the Claude node turning into a check) crossfades in place.
                 androidx.compose.animation.Crossfade(n.glyph, animationSpec = tween(Dur.base, easing = EaseOut), label = "glyph") { g ->
                     Icon(g, n.description, tint = c.text, modifier = Modifier.size(nodeSize * 0.45f))
                 }
             }
         }
     }
+}
+
+/**
+ * Where hop [i] starts and ends. The ring sits apart from the last node, so the
+ * last hop stops at the ring with its round cap, not at the node inside it.
+ */
+internal fun hopSpan(i: Int, count: Int, node: Float, gap: Float, lw: Float, ringR: Float?): Pair<Float, Float> {
+    val x0 = node / 2 + gap * i + node / 2
+    val centre = node / 2 + gap * (i + 1)
+    val x1 = if (ringR != null && i + 1 == count - 1) centre - ringR - lw / 2 else centre - node / 2
+    return x0 to x1
 }
 
 private class HopFade(var from: Hop, var to: Hop, val progress: Animatable<Float, AnimationVector1D>)
@@ -165,9 +168,8 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawHop(
     if (alpha <= 0f) return
     when (hop) {
         Hop.Live -> {
-            // Light volt on white is too faint for a line, so light mode draws it in
-            // `textMuted` (over 3:1, as a graphic needs) and lets the volt dashes carry the
-            // life. Full `text` read as a heavy black bar across the map.
+            // light volt on white is too faint for a line, and full text read as a heavy black
+            // bar. textMuted clears 3:1 and the volt dashes carry the motion
             val base = if (c.isDark) c.volt else c.textMuted
             val dash = if (c.isDark) c.bg.copy(alpha = 0.55f) else c.volt
             drawLine(base, a, b, lw, StrokeCap.Round, alpha = alpha)
