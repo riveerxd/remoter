@@ -253,7 +253,8 @@ fn real_handoff() {
     let deadline = Instant::now() + Duration::from_secs(20);
     loop {
         let screen = s.tail(&id).expect("tail").0.join("\n");
-        if screen.contains(&conv) {
+        // claude wraps its own text to the window, and ws 9 may be crowded
+        if screen.split_whitespace().collect::<String>().contains(&conv) {
             break;
         }
         assert!(Instant::now() < deadline, "{screen}");
