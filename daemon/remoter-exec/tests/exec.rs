@@ -49,6 +49,7 @@ impl Case {
             started: 0,
             argv: vec![fake.display().to_string(), "remote-control".into(), "--name=my proj".into(), "$HOME;x".into()],
             handoff: None,
+            screen: false,
         };
         Case { root, dir, folder, spec }
     }
@@ -452,4 +453,52 @@ fn is_zombie(pid: i32) -> bool {
         .ok()
         .and_then(|s| s.rsplit_once(')').map(|(_, rest)| rest.trim_start().starts_with('Z')))
         .unwrap_or(false)
+}
+
+// Alacritty can't be asked for its text, so remoter-exec renders it
+const PAINTS: &str = r#"[ -t 0 ] && [ -t 1 ] && tty > "$(dirname "$0")/tty"
+printf '\033[2J\033[Hfirst line\033[5;3Hmoved\rX'
+sleep 0.3
+exit 4"#;
+
+#[test]
+fn screen_mode_puts_claude_on_a_pty_and_keeps_the_screen() {
+    let mut c = Case::new(PAINTS);
+    c.spec.screen = true;
+    let child = c.run(&c.write_spec());
+    assert_eq!(c.wait_status(ExecState::Exited).exit_code, Some(4));
+    let tty = std::fs::read_to_string(c.root.join("tty")).expect("claude had no terminal");
+    assert!(tty.starts_with("/dev/pts/"), "{tty}");
+    let screen = std::fs::read_to_string(c.dir.join("screen.txt")).expect("screen.txt");
+    let rows: Vec<&str> = screen.lines().collect();
+    assert_eq!(rows.first(), Some(&"first line"), "{screen:?}");
+    assert_eq!(rows.get(4), Some(&"X moved"), "rendered, not logged: {screen:?}");
+    assert!(!screen.contains('\u{1b}'));
+    let (out, _) = term_and_collect(child);
+    assert!(out.contains("\u{1b}[5;3Hmoved"), "the terminal still gets it all: {out:?}");
+    assert!(out.contains("claude exited with code 4"));
+}
+
+// under 64 KiB: nobody reads the test's stdout pipe until the end
+#[test]
+fn screen_file_stays_bounded() {
+    let mut c = Case::new("i=0; while [ $i -lt 1500 ]; do echo \"line $i of a long session\"; i=$((i+1)); done; exit 0");
+    c.spec.screen = true;
+    let child = c.run(&c.write_spec());
+    c.wait_status(ExecState::Exited);
+    let screen = std::fs::read_to_string(c.dir.join("screen.txt")).expect("screen.txt");
+    assert!(screen.lines().count() <= 200 + 24, "{} lines", screen.lines().count());
+    assert!(!screen.contains("line 0 of"), "the oldest are dropped");
+    assert!(screen.contains("line 1499 of a long session"), "{screen}");
+    drop(term_and_collect(child));
+}
+
+#[test]
+fn without_screen_mode_nothing_is_rendered() {
+    let c = Case::new(PAINTS);
+    let child = c.run(&c.write_spec());
+    c.wait_status(ExecState::Exited);
+    assert!(!c.root.join("tty").exists(), "claude keeps the window's own stdio");
+    assert!(!c.dir.join("screen.txt").exists());
+    drop(term_and_collect(child));
 }

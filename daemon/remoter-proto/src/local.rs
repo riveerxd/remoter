@@ -10,6 +10,8 @@ pub const STATUS_FILE: &str = "status.json";
 pub const DEBUG_FILE: &str = "debug.log";
 pub const ENDING_FILE: &str = "ending";
 pub const KITTY_SOCKET: &str = "kitty.sock";
+/// The rendered screen, for terminals that can't be asked for their text.
+pub const SCREEN_FILE: &str = "screen.txt";
 pub const SPEC_MAX_BYTES: u64 = 64 * 1024;
 
 /// What the agent checked and what remoter-exec must start. The folder path
@@ -36,6 +38,9 @@ pub struct Spec {
     pub argv: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub handoff: Option<HandoffSpec>,
+    /// Run claude on a pty of remoter-exec's own and keep `SCREEN_FILE` current.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub screen: bool,
 }
 
 /// A start from an earlier conversation. remoter-exec runs `summarizer` with `source` on stdin,

@@ -18,6 +18,8 @@ use remoter_proto::api::StuckReason;
 use remoter_proto::local::{self, DEBUG_FILE, ExecState, HANDOFF_FILE, HANDOFF_LEAD, HANDOFF_SOURCE_FILE, SPEC_MAX_BYTES, STATUS_FILE, Spec, Status};
 use remoter_proto::names::is_valid_session_name;
 
+mod mirror;
+
 fn main() -> ExitCode {
     let args: Vec<std::ffi::OsString> = std::env::args_os().skip(1).collect();
     let path = match args.as_slice() {
@@ -73,7 +75,21 @@ fn main() -> ExitCode {
             Ok(())
         });
     }
-    let mut child = match cmd.spawn() {
+    let mut screen = if spec.screen {
+        match mirror::Mirror::attach(&mut cmd, &dir) {
+            Ok(m) => Some(m),
+            Err(e) => {
+                println!("no pty for claude: {e}");
+                write_status(&dir, ExecState::Exited, None, Some(127), None);
+                hold();
+            }
+        }
+    } else {
+        None
+    };
+    let spawned = cmd.spawn();
+    drop(cmd);
+    let mut child = match spawned {
         Ok(c) => c,
         Err(e) => {
             println!("claude didn't start: {e}");
@@ -81,6 +97,11 @@ fn main() -> ExitCode {
             hold();
         }
     };
+    if let Some(m) = screen.as_mut()
+        && let Err(e) = m.start()
+    {
+        println!("can't show claude's screen: {e}");
+    }
     CLAUDE_PID.store(child.id() as i32, Ordering::SeqCst);
     write_status(&dir, ExecState::Running, Some(child.id() as i32), None, None);
     let code = match child.wait() {
@@ -88,6 +109,9 @@ fn main() -> ExitCode {
         Err(_) => 255,
     };
     CLAUDE_PID.store(0, Ordering::SeqCst);
+    if let Some(m) = screen {
+        m.finish();
+    }
     write_status(&dir, ExecState::Exited, None, Some(code), None);
     println!("\nclaude exited with code {code}. This window stays open until the session is ended.");
     hold();
