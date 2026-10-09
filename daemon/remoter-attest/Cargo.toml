@@ -22,6 +22,6 @@ workspace = true
 
 [dev-dependencies]
 # Its own test kit, so the policy tests run in every plain `cargo test`.
-remoter-attest = { version = "1.1.0-dev", path = ".", features = ["testkit"] }
+remoter-attest = { version = "1.1.0", path = ".", features = ["testkit"] }
 p256 = { version = "0.14.0", features = ["ecdsa", "pkcs8"] }
 rcgen = { version = "0.14.10", default-features = false, features = ["crypto", "aws_lc_rs"] }

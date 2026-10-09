@@ -16,8 +16,8 @@ android {
         applicationId = "me.river.remoter"
         minSdk = 34
         targetSdk = 36
-        versionCode = 3
-        versionName = "1.1.0-dev"
+        versionCode = 4
+        versionName = "1.1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
