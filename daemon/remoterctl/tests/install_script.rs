@@ -127,8 +127,12 @@ fn staging_only_with_its_flag_and_its_own_cert() {
 
 /// install.sh's `render`, for the tests.
 fn render(file: &str) -> String {
+    render_for(file, "hyprland")
+}
+
+fn render_for(file: &str, desktop: &str) -> String {
     let t = std::fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../infra/laptop").join(file)).expect("template");
-    t.replace("@HOME@", "/home/river").replace("@USER@", "river").replace("@UID@", "1000").replace("@APP_CERT_SHA256@", &"5a".repeat(32)).replace("@E2E_CERT_SHA256@", &"e2".repeat(32))
+    t.replace("@DESKTOP@", desktop).replace("@HOME@", "/home/river").replace("@USER@", "river").replace("@UID@", "1000").replace("@APP_CERT_SHA256@", &"5a".repeat(32)).replace("@E2E_CERT_SHA256@", &"e2".repeat(32))
 }
 
 #[test]
@@ -159,4 +163,18 @@ fn staging_config_shares_nothing_with_production() {
     assert_ne!(pa.agent_state(), sa.agent_state());
     assert_ne!(pa.runtime_dir, sa.runtime_dir);
     assert_eq!(sd.agent_socket, sa.socket);
+}
+
+#[test]
+fn desktop_is_hyprland_or_i3() {
+    use remoter_agent::config::{AgentConfig, Desktop};
+    let release = "5a".repeat(32);
+    let (ok, _, err) = plan(&["--app-cert-sha256", &release, "--desktop", "sway"]);
+    assert!(!ok && err.contains("hyprland or i3"), "{err}");
+    let (_, out, err) = plan(&["--app-cert-sha256", &release, "--desktop", "i3"]);
+    assert!(out.contains("These run as root"), "{out}\n{err}");
+    for file in ["config.toml.tmpl", "config-staging.toml.tmpl"] {
+        assert_eq!(AgentConfig::parse(&render(file)).expect("parses").desktop, Desktop::Hyprland);
+        assert_eq!(AgentConfig::parse(&render_for(file, "i3")).expect("parses").desktop, Desktop::I3);
+    }
 }
