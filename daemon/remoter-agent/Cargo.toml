@@ -9,8 +9,8 @@ rust-version.workspace = true
 [dependencies]
 getrandom = "0.4.3"
 libc = "0.2.189"
-remoter-auth = { version = "1.2.0-dev", path = "../remoter-auth" }
-remoter-proto = { version = "1.2.0-dev", path = "../remoter-proto" }
+remoter-auth = { version = "1.2.0", path = "../remoter-auth" }
+remoter-proto = { version = "1.2.0", path = "../remoter-proto" }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"
 sha2 = "0.11.0"
@@ -25,4 +25,4 @@ e2e-test = []
 workspace = true
 
 [dev-dependencies]
-remoter-auth = { version = "1.2.0-dev", path = "../remoter-auth", features = ["testkit"] }
+remoter-auth = { version = "1.2.0", path = "../remoter-auth", features = ["testkit"] }
