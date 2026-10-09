@@ -127,7 +127,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn serde_name_matches_as_str_for_every_code() {
+    fn serde_names_match() {
         for code in ErrorCode::ALL {
             let json = serde_json::to_string(&code).expect("serializes");
             assert_eq!(json, format!("\"{}\"", code.as_str()));
@@ -137,7 +137,7 @@ mod tests {
     }
 
     #[test]
-    fn every_status_is_an_error_status() {
+    fn statuses_are_errors() {
         for code in ErrorCode::ALL {
             assert!((400..600).contains(&code.http_status()), "{code:?}");
         }

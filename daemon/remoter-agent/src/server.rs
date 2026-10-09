@@ -421,7 +421,7 @@ mod lock_tests {
     use super::*;
 
     #[test]
-    fn remoterd_lock_becomes_the_agents_own() {
+    fn adopts_remoterd_lock() {
         let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../target/tmp").join(format!("adopt-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&root);
         std::fs::create_dir_all(&root).expect("mk");

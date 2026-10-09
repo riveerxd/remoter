@@ -1,9 +1,6 @@
-//! The string a request signature covers, and strict parsing of the signing headers.
-//!
-//! Both verifiers (remoterd and remoter-agent) and the phone build this from
-//! the same inputs. The request target is taken exactly as it went over the
-//! wire, never decoded and re-encoded, because OkHttp may encode differently
-//! from whatever string the app started with.
+//! The string a request signature covers, and strict parsing of the signing
+//! headers. The target is taken exactly as it went over the wire, never decoded
+//! and re-encoded, because OkHttp may encode it differently from the app.
 
 use sha2::{Digest, Sha256};
 
@@ -22,8 +19,7 @@ const MAX_SIG_DER: usize = 72;
 
 pub struct SignInput<'a> {
     pub method: &'a str,
-    /// Path plus `?query` exactly as on the wire, `?` omitted when there is no
-    /// query.
+    /// Path plus `?query` exactly as on the wire, no `?` without a query.
     pub target: &'a str,
     pub device: &'a str,
     pub timestamp_ms: i64,

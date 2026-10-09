@@ -16,8 +16,7 @@ pub struct AutoLock {
 }
 
 impl AutoLock {
-    /// True when this failure should lock the laptop. Only failures from a
-    /// device that passed mTLS ever get here.
+    /// True when this failure should lock the laptop.
     pub fn record(&mut self, device: &str, w: LockWeight, now: Instant) -> bool {
         match w {
             LockWeight::None => false,
@@ -39,7 +38,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn three_bad_signatures_in_ten_minutes_lock() {
+    fn three_bad_sigs_lock() {
         let t0 = Instant::now();
         let mut a = AutoLock::default();
         assert!(!a.record("A", LockWeight::BadSignature, t0));

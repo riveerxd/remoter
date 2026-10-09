@@ -64,7 +64,7 @@ mod tests {
     }
 
     #[test]
-    fn flags_writable_foreign_missing_and_symlinked_files() {
+    fn flags_loose_trust_files() {
         let root = std::env::temp_dir().join(format!("remoter-trust-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&root);
         std::fs::create_dir_all(&root).expect("mkdir");
@@ -94,7 +94,7 @@ mod tests {
     }
 
     #[test]
-    fn the_state_dir_may_belong_to_the_daemon_itself() {
+    fn state_dir_may_be_daemons() {
         // the first real install refused its own /var/lib/remoterd, which systemd
         // creates owned by remoterd. not under /tmp, its 1777 fails the parent check
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../target").join(format!("remoter-state-{}", std::process::id()));

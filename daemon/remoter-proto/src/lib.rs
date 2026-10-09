@@ -1,8 +1,6 @@
 //! Wire contract shared by remoterd, remoter-agent, remoterctl and the phone.
-//!
-//! Field names here are the JSON names. The Kotlin side is kept in step by the
-//! contract tests, which parse `fixtures/` and rebuild every signed string byte
-//! for byte.
+//! Field names are the JSON names. The Kotlin side stays in step through the
+//! tests over `fixtures/`, which rebuild every signed string byte for byte.
 
 pub mod admin;
 pub mod api;

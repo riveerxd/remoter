@@ -1,6 +1,5 @@
-//! The laptop's load and its processes, read from /proc, and the two signals
-//! the phone can send. CPU only exists as the difference of two readings, so
-//! the last ones stay around between calls.
+//! load and processes from /proc. cpu is a difference of two readings, so the
+//! last one is kept between calls.
 
 use std::collections::HashMap;
 use std::io::Read;
@@ -19,9 +18,8 @@ pub const MAX_PROCS: usize = 800;
 const NAME_MAX: usize = 64;
 const CMD_MAX: usize = 240;
 const CMDLINE_READ: u64 = 4096;
-// two phones polling must not cut one second into slivers, so a reading this young is handed out again
+// two phones polling would otherwise cut a second into slivers
 const REUSE: Duration = Duration::from_secs(1);
-// older than this the last reading says nothing about now, take a fresh pair instead
 const STALE: Duration = Duration::from_secs(10);
 const SETTLE: Duration = Duration::from_millis(250);
 const PF_KTHREAD: u64 = 0x0020_0000;
@@ -68,7 +66,7 @@ fn round1(x: f64) -> f64 {
     (x * 10.0).round() / 10.0
 }
 
-/// Bytes for the fields asked for, from /proc/meminfo's kB.
+/// /proc/meminfo, kB turned into bytes.
 pub fn parse_meminfo(text: &str) -> HashMap<String, u64> {
     text.lines()
         .filter_map(|l| {
@@ -332,9 +330,8 @@ impl Procs {
         (procs, truncated)
     }
 
-    /// Returns what the audit line shows. The pidfd holds on to the process
-    /// the pid named when it was opened, so once its start time checks out the
-    /// signal can only reach that one, whatever reuses the pid afterwards.
+    /// Returns the audit line. The pidfd pins the process, so once the start
+    /// time matches a reused pid can't be hit.
     pub fn signal(&self, pid: i32, start: u64, sig: Signal) -> Result<String, AgentError> {
         let denied = |m: &str| AgentError::new(ErrorCode::ProcessDenied, m.to_owned());
         let gone = || AgentError::new(ErrorCode::NotFound, "no such process");
@@ -485,7 +482,7 @@ mod tests {
     }
 
     #[test]
-    fn sessions_are_found_through_kittys_own_scope() {
+    fn session_through_kitty_scope() {
         let me = uid();
         let f = Fake::new("tag");
         f.add(100, "kitty", 1, me, "rc-01k6b7y3m4n5p6q7r8s9t0v1w2.scope", b"/usr/bin/kitty\0--class\0remoter-rc", 0, 0);
@@ -513,7 +510,7 @@ mod tests {
     }
 
     #[test]
-    fn cpu_counts_against_the_last_reading_of_the_same_process() {
+    fn cpu_per_process() {
         let me = uid();
         let f = Fake::new("cpu");
         f.add(10, "busy", 1, me, "a.scope", b"busy", 0, 0);
@@ -538,7 +535,7 @@ mod tests {
     }
 
     #[test]
-    fn a_stale_start_time_hits_nothing() {
+    fn stale_start_misses() {
         let (mut child, start) = sleeper();
         let r = Procs::system().signal(child.id() as i32, start + 1, Signal::Kill);
         assert_eq!(r.map_err(|e| e.code), Err(ErrorCode::NotFound));
@@ -559,7 +556,7 @@ mod tests {
     }
 
     #[test]
-    fn never_init_itself_or_someone_elses() {
+    fn refuses_init_self_and_root() {
         let p = Procs::system();
         let stat_of = |pid: i32| std::fs::read_to_string(format!("/proc/{pid}/stat")).ok().and_then(|s| parse_stat(&s));
         let start_of = |pid: i32| stat_of(pid).map_or(0, |s| s.start);

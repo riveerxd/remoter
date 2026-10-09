@@ -83,7 +83,7 @@ fn int(v: &Value) -> Option<i64> {
 }
 
 #[test]
-fn google_rooted_vectors_match_the_library() {
+fn vectors_match_library() {
     let roots = google();
     let mut verified = 0;
     let mut not_google = Vec::new();
@@ -171,7 +171,7 @@ fn revoked_serials_are_refused() {
 /// ExtensionTest they're parsed straight from the leaf: their signatures no
 /// longer verify, and chain checks would stop first.
 #[test]
-fn the_librarys_invalid_vectors_are_refused() {
+fn invalid_vectors_refused() {
     for (f, why) in [("tags_not_in_ascending_order.pem", "ascending"), ("malformed_rot_device_locked.pem", "boolean")] {
         let c = pem_chain(&dir().join("invalid").join(f));
         let (_, leaf) = x509_parser::parse_x509_certificate(&c[0]).expect("leaf");
@@ -196,7 +196,7 @@ fn real_s25_chains_pass_pairing() {
 /// testdata/google-roots.json is what Google served on 2026-09-28. A typo in
 /// either pin would quietly lock out every real phone.
 #[test]
-fn both_google_pins_match_the_real_root_list() {
+fn google_pins_match_roots() {
     let json = std::fs::read(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("testdata/google-roots.json")).expect("fixture");
     let all = remoter_attest::Roots::from_json(&json).expect("parses");
     assert_eq!(all.len(), 2);

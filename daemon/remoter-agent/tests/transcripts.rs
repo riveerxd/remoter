@@ -95,7 +95,7 @@ fn capped_with_truncated() {
 }
 
 #[test]
-fn files_that_arent_transcripts_are_skipped() {
+fn skips_non_transcripts() {
     let d = Dirs::new();
     let cwd = "/h/p";
     let dir = d.project(cwd);
@@ -105,7 +105,7 @@ fn files_that_arent_transcripts_are_skipped() {
     std::os::unix::fs::symlink(dir.join(format!("{}.jsonl", id(1))), dir.join(format!("{}.jsonl", id(3)))).expect("ln");
     std::fs::create_dir_all(dir.join(id(1)).join("subagents")).expect("subagents");
     std::fs::write(dir.join(id(1)).join("subagents").join(format!("{}.jsonl", id(4))), format!("{}\n", turn(cwd, "x"))).expect("w");
-    // A FIFO in a transcript's place must not hang the listing.
+    // a FIFO in its place must not hang the listing
     let fifo = dir.join(format!("{}.jsonl", id(5)));
     let c = std::ffi::CString::new(fifo.as_os_str().as_encoded_bytes()).expect("c");
     // SAFETY: a valid C string and mode.
@@ -117,7 +117,7 @@ fn files_that_arent_transcripts_are_skipped() {
 }
 
 #[test]
-fn a_big_transcript_is_read_at_both_ends_only() {
+fn big_transcript_reads_ends() {
     let d = Dirs::new();
     let cwd = "/h/p";
     let path = d.write(cwd, &id(1), &[turn(cwd, "the first ask"), json!({"type":"custom-title","customTitle":"old name"})]);
@@ -153,7 +153,7 @@ fn head_and_tail_join_cleanly() {
 }
 
 #[test]
-fn the_cache_follows_a_growing_transcript() {
+fn cache_follows_growth() {
     let d = Dirs::new();
     let cwd = "/h/p";
     let path = d.write(cwd, &id(1), &[turn(cwd, "first")]);
@@ -179,7 +179,7 @@ fn find_is_this_folder_only() {
 }
 
 #[test]
-fn a_long_folder_is_found_by_its_cut_name() {
+fn long_folder_cut_name() {
     let d = Dirs::new();
     let cwd = format!("/h/{}", "deep/".repeat(50));
     let cwd = cwd.trim_end_matches('/');
@@ -198,7 +198,7 @@ fn my_start() -> String {
 }
 
 #[test]
-fn open_needs_a_live_pid_and_start_time() {
+fn open_needs_live_pid() {
     let d = Dirs::new();
     let sessions = d.root.join("claude/sessions");
     std::fs::create_dir_all(&sessions).expect("mk");

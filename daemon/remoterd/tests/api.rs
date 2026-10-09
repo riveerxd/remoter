@@ -53,7 +53,7 @@ async fn reads_are_limited_to_60_a_minute() {
 }
 
 #[tokio::test]
-async fn list_query_reaches_the_agent_as_raw_bytes() {
+async fn list_query_reaches_agent_raw() {
     let h = start().await;
     let mut c = h.client(&h.a).await;
     let r = c.get("/v1/fs/list?path=Projects%2Fcaf%C3%A9%20x%2Bb%FF&hidden=true").await;
@@ -94,7 +94,7 @@ async fn collect(rx: &mut tokio::sync::mpsc::UnboundedReceiver<Result<String, St
 }
 
 #[tokio::test]
-async fn sse_carries_ids_and_resumes_from_last_event_id() {
+async fn sse_resumes_from_last_event_id() {
     let h = start().await;
     let mut c = h.client(&h.a).await;
     let (status, mut rx) = c.stream("/v1/sessions/rc-x/events", &[]).await;
@@ -111,7 +111,7 @@ async fn sse_carries_ids_and_resumes_from_last_event_id() {
 }
 
 #[tokio::test]
-async fn one_tail_poll_serves_every_subscriber() {
+async fn tail_poll_is_shared() {
     let h = start().await;
     let mut c = h.client(&h.a).await;
     let (_, mut one) = c.stream("/v1/sessions/rc-x/events", &[]).await;
@@ -133,7 +133,7 @@ async fn one_tail_poll_serves_every_subscriber() {
 
 // the tail's own sender used to keep the stream open after the session was gone
 #[tokio::test]
-async fn the_stream_closes_once_the_session_is_gone() {
+async fn stream_closes_when_session_gone() {
     let h = start().await;
     let mut c = h.client(&h.a).await;
     let (_, mut rx) = c.stream("/v1/sessions/rc-gone/events", &[]).await;
@@ -149,7 +149,7 @@ async fn the_stream_closes_once_the_session_is_gone() {
 
 // the poller only sends changes, so a quiet session used to show a blank terminal
 #[tokio::test]
-async fn a_new_subscriber_gets_the_screen_at_once() {
+async fn new_subscriber_gets_screen() {
     let h = start().await;
     let mut c = h.client(&h.a).await;
     let (_, mut first) = c.stream("/v1/sessions/rc-x/events", &[]).await;
@@ -201,7 +201,7 @@ async fn audit_lists_this_devices_actions() {
 }
 
 #[tokio::test]
-async fn procs_is_a_read_and_a_signal_is_signed() {
+async fn signal_needs_signature() {
     let h = start().await;
     let mut c = h.client(&h.a).await;
     assert_eq!(c.get("/v1/procs").await.json()["resources"]["cores"], 8);
@@ -248,7 +248,7 @@ async fn unpair_cuts_the_device_off() {
 }
 
 #[test]
-fn remoterd_refuses_to_start_on_loose_trust_files() {
+fn refuses_loose_trust_files() {
     let dir = std::path::PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(format!("loose-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).expect("mk");
@@ -270,7 +270,7 @@ fn remoterd_refuses_to_start_on_loose_trust_files() {
 }
 
 #[tokio::test]
-async fn sse_pings_every_15_seconds() {
+async fn sse_pings_when_quiet() {
     let h = start().await;
     let mut c = h.client(&h.a).await;
     // quiet screen, or tail events would keep the stream busy
@@ -301,7 +301,7 @@ fn named<'a>(evs: &'a [(String, serde_json::Value)], name: &str) -> Vec<&'a serd
 }
 
 #[tokio::test]
-async fn live_sends_a_snapshot_then_only_what_changed() {
+async fn live_sends_only_changes() {
     let h = start().await;
     h.agent.set_live(vec![summary_json("rc-a", "ready")]);
     let mut c = h.client(&h.a).await;
@@ -340,7 +340,7 @@ async fn live_sends_a_snapshot_then_only_what_changed() {
 }
 
 #[tokio::test]
-async fn live_rides_out_an_agent_restart() {
+async fn live_survives_agent_restart() {
     let h = start().await;
     let mut c = h.client(&h.a).await;
     let (_, mut rx) = c.stream("/v1/live", &[]).await;
@@ -371,7 +371,7 @@ async fn live_pings_every_5_seconds() {
 }
 
 #[tokio::test]
-async fn live_stops_asking_once_the_phone_is_gone() {
+async fn live_stops_when_phone_leaves() {
     let h = start().await;
     let mut c = h.client(&h.a).await;
     let (_, mut rx) = c.stream("/v1/live", &[]).await;

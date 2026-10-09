@@ -152,8 +152,7 @@ impl Home {
         };
         let bytes = rest.as_os_str().as_bytes();
         // may have been renamed to something nasty since we opened it
-        let parsed = parse_rel(bytes)?;
-        Ok(parsed)
+        parse_rel(bytes)
     }
 }
 
@@ -189,7 +188,7 @@ mod tests {
     }
 
     #[test]
-    fn parse_refuses_escapes_and_hostile_bytes() {
+    fn parse_refuses_escapes() {
         assert_eq!(code(b".."), Some(ErrorCode::PathOutsideHome));
         assert_eq!(code(b"Projects/../.."), Some(ErrorCode::PathOutsideHome));
         assert_eq!(code(b"/etc"), Some(ErrorCode::PathOutsideHome));
@@ -205,7 +204,7 @@ mod tests {
 
     // fuzzer: `././~` used to parse to `~`, whose own spelling was then refused
     #[test]
-    fn tilde_is_judged_on_the_first_component() {
+    fn tilde_first_component() {
         assert_eq!(code(b"././~"), Some(ErrorCode::PathOutsideHome));
         assert_eq!(code(b"./~river/x"), Some(ErrorCode::PathOutsideHome));
         assert_eq!(parse_rel(b"Projects/~backup").map(|r| r.as_string()).ok().as_deref(), Some("Projects/~backup"));

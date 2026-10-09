@@ -86,9 +86,8 @@ pub struct Status {
     pub state: ExecState,
     /// claude's pid while it runs.
     pub pid: Option<i32>,
-    /// remoter-exec's own pid. kitty moves its child into a scope of its own
-    /// (`kitty-<pid>-<n>.scope`), so ending a session has to find that scope
-    /// through this pid as well as stopping `rc-<id>.scope`.
+    /// kitty moves its child into `kitty-<pid>-<n>.scope`, so ending a session
+    /// finds that scope through this pid as well as stopping `rc-<id>.scope`.
     pub exec_pid: i32,
     /// Exit code, or 128 plus the signal number when a signal ended it.
     pub exit_code: Option<i32>,

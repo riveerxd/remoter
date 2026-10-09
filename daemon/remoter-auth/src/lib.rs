@@ -52,9 +52,7 @@ impl Rejection {
             Rejection::BadHeaders(_) => ErrorCode::BadRequest,
             Rejection::DeviceMismatch | Rejection::SigInvalid => ErrorCode::SigInvalid,
             Rejection::DeviceUnknown => ErrorCode::DeviceUnknown,
-            // Right after an agent restart the app shows a tiny skew. Close
-            // enough: the request is too old for this verifier, and a fresh
-            // fingerprint goes through.
+            // only seen just after an agent restart, and a fresh fingerprint fixes it
             Rejection::ClockSkew { .. } | Rejection::BeforeStart { .. } => ErrorCode::ClockSkew,
             Rejection::NonceReused => ErrorCode::NonceReused,
             Rejection::Busy => ErrorCode::RateLimited,

@@ -27,7 +27,7 @@ fn writable(p: &Path) -> bool {
 
 #[test]
 #[ignore = "run after install.sh, as your own user"]
-fn your_uid_cannot_write_any_trust_file() {
+fn trust_files_not_writable() {
     // SAFETY: getuid has no preconditions.
     assert_ne!(unsafe { libc::getuid() }, 0, "run this as yourself, not root");
     for f in TRUST_FILES {

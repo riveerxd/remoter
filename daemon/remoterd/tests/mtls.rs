@@ -28,7 +28,7 @@ async fn paired_key_gets_the_right_suites() {
 }
 
 #[tokio::test]
-async fn classical_x25519_still_works_and_nothing_weaker_does() {
+async fn x25519_works_nothing_weaker() {
     let h = start().await;
     let mut p = aws::default_provider();
     p.kx_groups = vec![aws::kx_group::X25519];
@@ -83,14 +83,14 @@ async fn no_resumption_is_offered() {
 }
 
 #[tokio::test]
-async fn wrong_server_key_is_refused_by_the_client_pin() {
+async fn wrong_server_key_refused() {
     let h = start().await;
     let cfg = client_config([0u8; 32], &h.a.cert, &h.a.key, &[&rustls::version::TLS13], aws::default_provider());
     assert!(Client::connect(h.addr, cfg).await.is_err());
 }
 
 #[tokio::test]
-async fn revoke_cuts_live_streams_and_new_connections() {
+async fn revoke_cuts_connections() {
     let h = start().await;
     let mut c = h.client(&h.a).await;
     let (status, mut rx) = c.stream("/v1/sessions/rc-x/events", &[]).await;
@@ -114,7 +114,7 @@ async fn revoke_cuts_live_streams_and_new_connections() {
 }
 
 #[tokio::test]
-async fn handshake_garbage_never_changes_lock_state() {
+async fn handshake_garbage_never_locks() {
     let h = start().await;
     for i in 0..30u8 {
         let mut s = tokio::net::TcpStream::connect(h.addr).await.expect("tcp");

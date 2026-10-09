@@ -3,7 +3,6 @@
 use std::collections::HashMap;
 use std::time::Instant;
 
-
 #[derive(Debug, Clone, Copy)]
 struct Bucket {
     tokens: f64,

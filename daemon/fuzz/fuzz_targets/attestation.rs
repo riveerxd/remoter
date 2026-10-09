@@ -3,10 +3,8 @@
 use libfuzzer_sys::fuzz_target;
 use remoter_attest::{Revoked, Roots, chain, keydesc};
 
-// The key description parser on raw bytes, and the whole chain path on
-// certificates cut from the input. The roots are the real Google ones, so a
-// random chain never verifies; what matters is that nothing panics and no
-// parse ever reads past its input.
+// keydesc on raw bytes, then the chain path on certs cut from the input. No
+// roots, so nothing verifies: this is only about panics and overreads.
 fuzz_target!(|data: &[u8]| {
     if let Ok(kd) = keydesc::parse(data) {
         // tag 0 (KeyMint's INVALID) must never make it through

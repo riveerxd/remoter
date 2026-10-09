@@ -182,6 +182,10 @@ impl AgentConfig {
             ("hyprctl_bin", &self.hyprctl_bin),
             ("i3msg_bin", &self.i3msg_bin),
             ("exec_bin", &self.exec_bin),
+            ("devices", &self.devices),
+            ("lock_dir", &self.lock_dir),
+            ("git_bin", &self.git_bin),
+            ("notify_bin", &self.notify_bin),
         ] {
             if !p.is_absolute() {
                 return Err(format!("{name} must be an absolute path"));
@@ -189,11 +193,6 @@ impl AgentConfig {
         }
         if !(1..=120).contains(&self.clock_window_s) {
             return Err("clock_window_s must be 1 to 120".into());
-        }
-        for (name, p) in [("devices", &self.devices), ("lock_dir", &self.lock_dir), ("git_bin", &self.git_bin), ("notify_bin", &self.notify_bin)] {
-            if !p.is_absolute() {
-                return Err(format!("{name} must be an absolute path"));
-            }
         }
         if self.home == Path::new("/") {
             return Err("home can't be /".into());
@@ -223,7 +222,7 @@ impl AgentConfig {
 mod tests {
     use super::*;
 
-    pub const SAMPLE: &str = r#"
+    const SAMPLE: &str = r#"
 [net]
 listen_device   = "rmt0"
 port            = 8443
@@ -255,7 +254,7 @@ app_package     = "me.river.remoter"
     }
 
     #[test]
-    fn ready_timeout_has_sane_bounds() {
+    fn ready_timeout_bounds() {
         let with = |v: &str| SAMPLE.replace("max_sessions    = 8", &format!("max_sessions    = 8\nready_timeout_s = {v}"));
         assert_eq!(AgentConfig::parse(&with("20")).expect("20 s").ready_timeout_s, 20);
         assert!(AgentConfig::parse(&with("0")).is_err());
@@ -280,7 +279,7 @@ app_package     = "me.river.remoter"
     }
 
     #[test]
-    fn clock_window_comes_from_net_and_is_bounded() {
+    fn clock_window_from_net() {
         assert_eq!(AgentConfig::parse(SAMPLE).expect("parses").clock_window_s, 30);
         let w = SAMPLE.replace("port            = 8443", "port = 8443\nclock_window_s = 45");
         assert_eq!(AgentConfig::parse(&w).expect("parses").clock_window_s, 45);
@@ -289,7 +288,7 @@ app_package     = "me.river.remoter"
     }
 
     #[test]
-    fn desktop_defaults_to_auto_and_takes_either() {
+    fn desktop_choice() {
         use crate::launcher::Wm;
         let set = |line: &str| AgentConfig::parse(&SAMPLE.replace("hyprctl_bin     = \"/usr/bin/hyprctl\"", line));
         let both = Wm::Auto { hyprctl_bin: "/usr/bin/hyprctl".into(), i3msg_bin: "/usr/bin/i3-msg".into() };
@@ -303,7 +302,7 @@ app_package     = "me.river.remoter"
     }
 
     #[test]
-    fn terminal_is_chosen_or_found() {
+    fn terminal_choice() {
         use crate::launcher::Terminal;
         let dir = std::env::temp_dir().join(format!("remoter-term-{}", std::process::id()));
         std::fs::create_dir_all(&dir).expect("mkdir");
@@ -315,19 +314,19 @@ app_package     = "me.river.remoter"
             );
             AgentConfig::parse(&text).expect("parses").terminal()
         };
-        assert_eq!(with(""), Terminal::Kitty(k.clone()), "neither installed: kitty, so doctor names it");
+        assert_eq!(with(""), Terminal::Kitty(k.clone()), "neither installed, so doctor names kitty");
         std::fs::write(&a, "").expect("alacritty");
         assert_eq!(with(""), Terminal::Alacritty(a.clone()));
         assert_eq!(with("terminal = \"kitty\""), Terminal::Kitty(k.clone()));
         std::fs::write(&k, "").expect("kitty");
-        assert_eq!(with(""), Terminal::Kitty(k.clone()), "kitty wins when both are there");
+        assert_eq!(with(""), Terminal::Kitty(k.clone()), "both installed");
         assert_eq!(with("terminal = \"alacritty\""), Terminal::Alacritty(a.clone()));
         let _ = std::fs::remove_dir_all(&dir);
         assert!(AgentConfig::parse(&SAMPLE.replace("max_sessions    = 8", "max_sessions = 8\nterminal = \"xterm\"")).is_err());
     }
 
     #[test]
-    fn missing_agent_table_is_an_error() {
+    fn needs_agent_table() {
         assert!(AgentConfig::parse("[net]\nport = 1\n").is_err());
     }
 }

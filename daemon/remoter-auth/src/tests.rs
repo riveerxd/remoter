@@ -39,7 +39,7 @@ fn wrong_key_is_sig_invalid() {
 }
 
 #[test]
-fn right_key_for_another_device_is_refused() {
+fn other_devices_key_refused() {
     let (_, b, d) = setup();
     // B signs correctly as B, but the connection proved A.
     let h = b.sign("POST", "/v1/fs/mkdir", b"{}", NOW, &[1; 16]);
@@ -56,7 +56,7 @@ fn unknown_device_is_device_unknown() {
 }
 
 #[test]
-fn changed_body_path_query_or_method_is_sig_invalid() {
+fn changed_request_is_sig_invalid() {
     let (a, _, d) = setup();
     let h = a.sign("POST", "/v1/fs/mkdir?x=1", b"{\"a\":1}", NOW, &[1; 16]);
     let v = fresh();
@@ -68,7 +68,7 @@ fn changed_body_path_query_or_method_is_sig_invalid() {
 }
 
 #[test]
-fn okhttp_encoded_target_verifies_exactly_as_sent() {
+fn encoded_target_verifies_as_sent() {
     let (a, _, d) = setup();
     let target = "/v1/fs/mkdir?path=Projects%2Fx%20y%2Fcaf%C3%A9&q=a%2Bb%26c%3Dd%23e";
     let h = a.sign("POST", target, b"{}", NOW, &[1; 16]);
@@ -81,7 +81,7 @@ fn okhttp_encoded_target_verifies_exactly_as_sent() {
 }
 
 #[test]
-fn timestamp_window_is_thirty_seconds_each_way() {
+fn timestamp_window_30s() {
     let (a, _, d) = setup();
     let v = fresh();
     for (i, off) in [-30_000i64, 30_000].into_iter().enumerate() {
@@ -96,7 +96,7 @@ fn timestamp_window_is_thirty_seconds_each_way() {
 }
 
 #[test]
-fn same_nonce_same_request_replays_the_stored_answer() {
+fn same_request_replays_answer() {
     let (a, _, d) = setup();
     let v = fresh();
     let h = a.sign("POST", "/v1/sessions", b"{}", NOW, &[3; 16]);
@@ -109,7 +109,7 @@ fn same_nonce_same_request_replays_the_stored_answer() {
 }
 
 #[test]
-fn nonce_reuse_on_another_request_locks() {
+fn nonce_reuse_locks() {
     let (a, _, d) = setup();
     let v = fresh();
     let h1 = a.sign("POST", "/v1/sessions", b"{\"a\":1}", NOW, &[4; 16]);
@@ -132,7 +132,7 @@ fn two_empty_deletes_one_nonce() {
 }
 
 #[test]
-fn nonce_is_only_looked_at_after_the_signature() {
+fn nonce_checked_after_signature() {
     let (a, b, d) = setup();
     let v = fresh();
     let good = a.sign("POST", "/v1/sessions", b"{}", NOW, &[6; 16]);
@@ -220,7 +220,7 @@ fn device_file_rejects_bad_records() {
 /// Phone clock 30 s ahead signs `ts = start + 20 s`, the old agent runs it, then
 /// a new one starts at `start` with an empty store and must refuse it.
 #[test]
-fn restart_refuses_what_the_old_agent_could_run() {
+fn restart_refuses_old_window() {
     let (a, _, d) = setup();
     let start = NOW - 1_000;
     let v = Verifier::for_agent(30_000, start, 1000);

@@ -114,7 +114,7 @@ fn field<'a>(text: &'a str, key: &str) -> &'a str {
 }
 
 #[test]
-fn direct_makes_a_switched_off_profile_and_a_matching_qr() {
+fn direct_profile_and_qr() {
     let lab = Lab::new();
     let out = lab.run("install-tunnel.sh", &["--direct", "home.example.net", "47913"], "y\n\n");
     assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
@@ -145,7 +145,7 @@ fn direct_makes_a_switched_off_profile_and_a_matching_qr() {
 }
 
 #[test]
-fn direct_brackets_an_ipv6_endpoint_and_picks_a_free_high_port() {
+fn direct_ipv6_and_free_port() {
     let lab = Lab::new();
     let out = lab.run("install-tunnel.sh", &["--direct", "2a02:830a:f044:2600::fbfb"], "y\n\n");
     assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
@@ -182,7 +182,7 @@ fn direct_stops_at_no() {
 }
 
 #[test]
-fn use_switches_one_off_then_the_other_on() {
+fn use_switches_profiles() {
     let lab = Lab::new();
     lab.write("connections", "rmt0\nrmt0-direct\n");
     let out = lab.run("install-tunnel.sh", &["--use", "direct"], "");

@@ -28,7 +28,7 @@ fn plant(path: &Path, text: &[u8], mode: u32) {
 }
 
 #[test]
-fn a_swapped_symlink_never_gets_chmodded_or_written() {
+fn swapped_symlink_untouched() {
     let d = dir("unpaired-race");
     let victim = d.join("victim");
     plant(&victim, b"secret\n", 0o600);

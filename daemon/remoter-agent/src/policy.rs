@@ -32,7 +32,7 @@ mod tests {
     }
 
     #[test]
-    fn every_deny_entry_is_caught_at_any_depth() {
+    fn denied_at_any_depth() {
         for d in deny() {
             assert_eq!(reason(&d), Some(DenyReason::Denied), "{d}");
             assert_eq!(reason(&format!("{d}/inner")), Some(DenyReason::Denied), "{d}/inner");
@@ -41,7 +41,7 @@ mod tests {
     }
 
     #[test]
-    fn similar_names_are_not_caught() {
+    fn similar_names_pass() {
         for ok in [".ssh-notes", "ssh", "Projects/.sshx", "my.config", ".local2", "Projects/remoter"] {
             assert_eq!(reason(ok), None, "{ok}");
         }

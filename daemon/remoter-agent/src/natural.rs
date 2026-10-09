@@ -54,7 +54,7 @@ mod tests {
     }
 
     #[test]
-    fn huge_numbers_do_not_overflow() {
+    fn huge_numbers() {
         assert_eq!(cmp("x99999999999999999999999", "x100000000000000000000000"), Ordering::Less);
     }
 }

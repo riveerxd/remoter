@@ -408,7 +408,7 @@ fn remoter_agent_clear(lab: &Lab) {
     }
 }
 
-scenario!(bad_signatures_lock_and_garbage_does_not, inner_bad_signatures_lock_and_garbage_does_not, |lab| {
+scenario!(bad_signatures_lock, inner_bad_signatures_lock, |lab| {
     let phone = lab.pair("S25 Ultra");
     lab.wait_agent_window();
     // junk from strangers never locks

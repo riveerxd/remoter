@@ -39,9 +39,8 @@ pub fn session_name_from_folder(folder: &str) -> String {
     if out.is_empty() { "session".to_owned() } else { out }
 }
 
-/// True when a directory entry's raw name bytes can't be shown faithfully, so
-/// the entry is listed as `unsupported` and nothing may act on it. That keeps
-/// what the fingerprint prompt shows equal to what gets signed.
+/// A name that can't be shown faithfully is listed as `unsupported` and nothing
+/// acts on it, so the fingerprint prompt always shows what gets signed.
 pub fn is_unsupported_name(raw: &[u8]) -> bool {
     let Ok(s) = std::str::from_utf8(raw) else {
         return true;
@@ -49,9 +48,8 @@ pub fn is_unsupported_name(raw: &[u8]) -> bool {
     s.chars().any(is_hostile_char)
 }
 
-/// Text read off the laptop for display only, such as a past conversation's title: hostile
-/// characters and line breaks become spaces, runs of space fold into one, and it stops at
-/// `max` characters.
+/// One display line: hostile characters and line breaks become single spaces,
+/// cut at `max` characters.
 pub fn display_text(raw: &str, max: usize) -> String {
     let mut out = String::new();
     let mut n = 0;
@@ -86,7 +84,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn display_text_is_one_clean_line() {
+    fn display_text_one_line() {
         assert_eq!(display_text("  fix\n\tthe   banner  ", 80), "fix the banner");
         assert_eq!(display_text("a\u{202e}b\u{200b}c\u{7}d", 80), "a b c d");
         assert_eq!(display_text("abcdef", 3), "abc");
@@ -116,7 +114,7 @@ mod tests {
     }
 
     #[test]
-    fn session_name_from_folder_is_always_valid() {
+    fn folder_session_name_valid() {
         for folder in ["remoter", "C#{x}", "--rf", "  ", "🚀 launch", "a$HOME", "ß", &"y".repeat(80), "my folder "] {
             let n = session_name_from_folder(folder);
             assert!(is_valid_session_name(&n), "{folder:?} -> {n:?}");

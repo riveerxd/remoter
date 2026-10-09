@@ -155,8 +155,7 @@ pub fn i3_assign_line(workspace: u32) -> String {
     format!("assign [class=\"^{WINDOW_CLASS}$\"] number {workspace}")
 }
 
-/// `text` is what `i3-msg -t get_config` printed: the loaded config, includes
-/// already pasted in. Any `assign` or `for_window` naming the class will do.
+/// `text` is `i3-msg -t get_config` output, includes already expanded.
 pub fn i3_places_windows(text: &str) -> bool {
     text.lines().map(str::trim).any(|l| (l.starts_with("assign ") || l.starts_with("for_window ")) && l.contains(WINDOW_CLASS))
 }
@@ -322,7 +321,7 @@ mod tests {
     }
 
     #[test]
-    fn scope_argv_turns_off_expansion() {
+    fn scope_no_expansion() {
         let a = scope_prefix("rc-x");
         assert!(a.contains(&"--expand-environment=no".to_owned()));
         assert_eq!(a.last().map(String::as_str), Some("--"));
@@ -351,7 +350,7 @@ mod tests {
     }
 
     #[test]
-    fn auto_desktop_follows_the_login() {
+    fn auto_follows_login() {
         let auto = Wm::Auto { hyprctl_bin: "/h".into(), i3msg_bin: "/i".into() };
         let only = |vars: &'static [&'static str]| move |v: &str| vars.contains(&v);
         assert_eq!(auto.resolve(only(&["HYPRLAND_INSTANCE_SIGNATURE", "DISPLAY", "WAYLAND_DISPLAY"])), Some(Wm::Hyprland { hyprctl_bin: "/h".into() }));

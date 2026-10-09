@@ -20,10 +20,6 @@ use crate::transcripts::{Transcripts, condense, is_uuid};
 use crate::trust::Trust;
 use crate::{AgentError, policy, sys};
 
-/// `--debug-file` lines, in the order they appear.
-pub const LINE_CLAUDE: &str = "[bridge:init] bridgeId=";
-pub const LINE_REGISTERED: &str = "[bridge:init] Registered,";
-pub const LINE_READY: &str = "[bridge:init] Created initial session";
 /// untrusted folder, claude exits 1 after this
 pub const TEXT_UNTRUSTED: &str = "Workspace not trusted";
 /// `--worktree` says this instead when only an ancestor is trusted (2.1.286).
@@ -49,8 +45,7 @@ struct WorktreeFile {
 }
 
 pub const TAIL_LINES: usize = 40;
-// 90s: a start is ~2s, but claude once took 30s just loading CA certs. Real
-// failures show up on screen in seconds anyway, this is only for true hangs.
+// a start is ~2s but claude once took 30s loading CA certs. real failures show on screen in seconds
 pub const READY_TIMEOUT: Duration = Duration::from_secs(90);
 const KILL_GRACE: Duration = Duration::from_secs(3);
 const SCOPE_WAIT: Duration = Duration::from_secs(3);
@@ -721,8 +716,8 @@ impl Inner {
         }
     }
 
-    /// A claude at the trust dialog waits for someone at the laptop. End it, so the
-    /// phone hears Untrusted now rather than Timeout in 90 s, and a retry isn't busy.
+    /// claude at the trust dialog waits for a key. End it so the phone hears
+    /// Untrusted now rather than Timeout later, and a retry isn't busy.
     fn stop_at_trust_dialog(&self, id: &str, look: bool) {
         let dir = self.cfg.runtime_base.join(id);
         let flag = dir.join(TRUST_DIALOG_FILE);
@@ -1095,7 +1090,7 @@ mod tests {
 
     // used to show up as a bare "exited 1"
     #[test]
-    fn second_remote_control_is_folder_busy() {
+    fn exit_reasons() {
         assert_eq!(exit_reason("folder already served: This folder is already served by another Claude Code on this device. Stop it first."), Some(StuckReason::FolderBusy));
         assert_eq!(exit_reason("Workspace not trusted, run claude here once"), Some(StuckReason::Untrusted));
         assert_eq!(exit_reason("some other crash"), None);
@@ -1103,7 +1098,7 @@ mod tests {
 
     /// claude 2.1.286 in a folder trusted only through its parent, started with `--worktree`.
     #[test]
-    fn worktree_trust_refusal_is_untrusted() {
+    fn worktree_untrusted() {
         let screen = "Error creating worktree: Workspace trust not yet accepted. Run `claude` once in this directory and accept the trust dialog, then retry with --worktree";
         assert_eq!(exit_reason(screen), Some(StuckReason::Untrusted));
     }
@@ -1121,7 +1116,7 @@ mod tests {
     }
 
     #[test]
-    fn worktree_name_only_from_claudes_worktree_dir() {
+    fn worktree_names() {
         let repo = Path::new("/h/Projects/remoter");
         let name = |p: &str| worktree_name(repo, Path::new(p));
         assert_eq!(name("/h/Projects/remoter/.claude/worktrees/bright-otter-3f2a").as_deref(), Some("bright-otter-3f2a"));
@@ -1142,7 +1137,7 @@ mod tests {
     }
 
     #[test]
-    fn spawns_an_interactive_claude() {
+    fn interactive_argv_shape() {
         let a = interactive_argv("/usr/bin/claude", "my proj", None, None);
         assert_eq!(a, ["/usr/bin/claude", "--remote-control=my proj", "--name=my proj", "--permission-mode", "bypassPermissions"]);
         assert!(!a.iter().any(|x| x == "remote-control"), "server mode shows no chat in the window");
@@ -1150,7 +1145,7 @@ mod tests {
     }
 
     #[test]
-    fn resume_adds_only_the_uuid() {
+    fn resume_uuid_only() {
         let id = "c82d8b5c-edd4-453e-8d59-4748ff325c03";
         let a = interactive_argv("/usr/bin/claude", "fix", None, Some(id));
         assert_eq!(a, ["/usr/bin/claude", "--remote-control=fix", "--name=fix", "--permission-mode", "bypassPermissions", "--resume", id]);
@@ -1164,7 +1159,7 @@ mod tests {
     const REATTACH: &str = "2026-10-07T10:57:27.477Z [DEBUG] [bridge:repl] Reattaching to persisted bridge session cse_01Pm4tWq9zHc2vNe7gRb5kDy at seq 0 (fresh-mint fallback, restored_owner_match)\n2026-10-07T10:57:27.962Z [DEBUG] [remote-bridge] Reattaching to session cse_01Pm4tWq9zHc2vNe7gRb5kDy\n2026-10-07T10:57:29.376Z [DEBUG] [bridge:repl] handleStateChange state=connected detail=\"undefined\" kind=undefined cancelled=false outboundOnly=false\n";
 
     #[test]
-    fn reattached_resume_ready_and_link() {
+    fn reattach_ready() {
         assert!(debug_registered(REATTACH));
         assert!(debug_ready(REATTACH), "no Created session line on a reattach");
         assert_eq!(parse_link(REATTACH).map(|l| l.session_url).as_deref(), Some("https://claude.ai/code/session_01Pm4tWq9zHc2vNe7gRb5kDy"));

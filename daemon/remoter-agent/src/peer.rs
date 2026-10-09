@@ -37,7 +37,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn peer_of_a_socketpair_is_us() {
+    fn socketpair_peer_is_us() {
         let (a, _b) = std::os::unix::net::UnixStream::pair().expect("pair");
         // SAFETY: getuid has no preconditions.
         assert_eq!(peer_uid(&a).expect("cred"), unsafe { libc::getuid() });

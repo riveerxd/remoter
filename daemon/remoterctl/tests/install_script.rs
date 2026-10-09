@@ -10,7 +10,7 @@ fn script() -> PathBuf {
 }
 
 #[test]
-fn never_builds_with_features_and_checks_the_marker() {
+fn no_features_and_marker_checked() {
     let s = std::fs::read_to_string(script()).expect("install.sh");
     assert!(!s.contains("--features"), "no feature flags in the installer");
     assert!(!s.replace("remoter-e2e-test-build-marker", "").contains("e2e-test"), "the e2e feature is never named, let alone enabled");
@@ -108,7 +108,7 @@ fn plan(args: &[&str]) -> (bool, String, String) {
 }
 
 #[test]
-fn staging_only_with_its_flag_and_its_own_cert() {
+fn staging_needs_flag_and_own_cert() {
     let release = "5a".repeat(32);
     let e2e = "e2".repeat(32);
     let (_, plain, _) = plan(&["--app-cert-sha256", &release]);
@@ -142,7 +142,7 @@ fn render_for(file: &str, desktop: &str, terminal: &str) -> String {
 }
 
 #[test]
-fn staging_config_shares_nothing_with_production() {
+fn staging_shares_nothing() {
     let (p, s) = (render("config.toml.tmpl"), render("config-staging.toml.tmpl"));
     assert!(!p.contains('@') && !s.contains('@'), "every placeholder is filled");
     let (pd, sd) = (remoterd::config::Config::parse(&p).expect("production parses"), remoterd::config::Config::parse(&s).expect("staging parses"));

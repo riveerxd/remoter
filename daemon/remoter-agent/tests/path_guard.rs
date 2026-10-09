@@ -85,7 +85,7 @@ fn open_code(h: &Home, p: &str) -> Result<String, ErrorCode> {
 }
 
 #[test]
-fn dotdot_and_absolute_input_are_refused() {
+fn refuses_dotdot_and_absolute() {
     let w = World::new("dotdot");
     let h = w.guard();
     assert_eq!(open_code(&h, ".."), Err(ErrorCode::PathOutsideHome));
@@ -104,7 +104,7 @@ fn encoded_dots_stay_literal() {
 }
 
 #[test]
-fn escaping_symlinks_are_refused_by_the_kernel() {
+fn refuses_escaping_symlinks() {
     let w = World::new("escape");
     let h = w.guard();
     assert_eq!(open_code(&h, "link_abs_etc"), Err(ErrorCode::PathOutsideHome));
@@ -116,7 +116,7 @@ fn escaping_symlinks_are_refused_by_the_kernel() {
 
 /// openat2 alone, without the fd path check behind it: every escape is EXDEV.
 #[test]
-fn kernel_lookup_alone_refuses_every_escape() {
+fn kernel_alone_refuses_escapes() {
     let w = World::new("kernel");
     let h = w.guard();
     for p in ["link_abs_etc", "link_rel_out", "link_rel_out/secret", "link_river2", "link_abs_river2", "link_abs_inside"] {
@@ -139,7 +139,7 @@ fn relative_symlink_resolves_to_real_path() {
 }
 
 #[test]
-fn absolute_symlink_inside_home_is_refused_and_flagged() {
+fn absolute_symlink_flagged() {
     let w = World::new("absin");
     let h = w.guard();
     assert_eq!(open_code(&h, "link_abs_inside"), Err(ErrorCode::PathOutsideHome));
@@ -162,7 +162,7 @@ fn absolute_symlink_inside_home_is_refused_and_flagged() {
 }
 
 #[test]
-fn home_itself_opens_but_never_allows_a_spawn() {
+fn home_never_spawns() {
     let w = World::new("home");
     let h = w.guard();
     assert_eq!(open_code(&h, ""), Ok(String::new()));
@@ -177,7 +177,7 @@ fn home_itself_opens_but_never_allows_a_spawn() {
 }
 
 #[test]
-fn hostile_input_bytes_are_refused() {
+fn refuses_hostile_bytes() {
     for (raw, code) in [
         (&b"a\0b"[..], ErrorCode::PathUnsupported),
         (&b"bad\xffname"[..], ErrorCode::PathUnsupported),
@@ -190,7 +190,7 @@ fn hostile_input_bytes_are_refused() {
 }
 
 #[test]
-fn listing_marks_unsafe_names_unsupported_and_unactionable() {
+fn unsafe_names_unsupported() {
     let w = World::new("names");
     let h = w.guard();
     let t = w.trust();
@@ -207,7 +207,7 @@ fn listing_marks_unsafe_names_unsupported_and_unactionable() {
 }
 
 #[test]
-fn deny_list_blocks_spawn_not_lookalikes() {
+fn deny_list_not_lookalikes() {
     let w = World::new("deny");
     let h = w.guard();
     // trust everything so only the deny list decides
@@ -289,7 +289,7 @@ fn not_found_and_not_a_directory() {
 
 /// 10k lookups while another thread atomically swaps a folder for a symlink out of home.
 #[test]
-fn race_swapping_dir_for_symlink_never_escapes() {
+fn swap_race_never_escapes() {
     let w = World::new("race");
     std::fs::create_dir_all(w.home.join("swap/inner")).expect("mkdir");
     symlink(w.root.join("outside"), w.home.join("alt_abs")).expect("ln");
@@ -338,7 +338,7 @@ fn cpath(p: &Path) -> std::ffi::CString {
 }
 
 #[test]
-fn search_walks_breadth_first_within_limits() {
+fn search_limits() {
     let w = World::new("search");
     for d in ["a/b/c/target4", "a/b/c/d/target5", "Projects/node_modules/target_skip", "Projects/remoter-two"] {
         std::fs::create_dir_all(w.home.join(d)).expect("mkdir");

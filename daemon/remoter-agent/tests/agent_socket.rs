@@ -211,7 +211,7 @@ fn uid() -> u32 {
 }
 
 #[test]
-fn a_peer_that_isnt_remoterd_gets_nothing() {
+fn stranger_gets_nothing() {
     let w = World::start(uid() + 4242);
     let out = w.raw(br#"{"op":"status"}"#);
     assert!(out.is_empty(), "stranger got a reply");
@@ -231,7 +231,7 @@ fn a_peer_that_isnt_remoterd_gets_nothing() {
 }
 
 #[test]
-fn valid_signature_runs_once_and_replays() {
+fn runs_once_and_replays() {
     let w = World::start(uid());
     let body = World::mkdir_body("made");
     let h = w.a.sign("POST", "/v1/fs/mkdir", &body, local::now_ms(), &[2; 16]);
@@ -244,7 +244,7 @@ fn valid_signature_runs_once_and_replays() {
 }
 
 #[test]
-fn every_forgery_is_refused_by_the_agent_itself() {
+fn refuses_forgeries() {
     let w = World::start(uid());
     let now = local::now_ms();
     let body = World::mkdir_body("forged");
@@ -274,7 +274,7 @@ fn every_forgery_is_refused_by_the_agent_itself() {
 }
 
 #[test]
-fn okhttp_style_encoded_target_verifies_as_sent() {
+fn encoded_target_verifies() {
     let w = World::start(uid());
     let body = World::mkdir_body("enc");
     let target = "/v1/fs/mkdir?path=Projects%2Fx%20y%2Fcaf%C3%A9";
@@ -283,7 +283,7 @@ fn okhttp_style_encoded_target_verifies_as_sent() {
 }
 
 #[test]
-fn nonce_reuse_is_refused_including_two_empty_deletes() {
+fn refuses_nonce_reuse() {
     let w = World::start(uid());
     let now = local::now_ms();
     let b1 = World::mkdir_body("n1");
@@ -306,7 +306,7 @@ fn nonce_reuse_is_refused_including_two_empty_deletes() {
 }
 
 #[test]
-fn locked_flag_beats_a_valid_signature() {
+fn lock_beats_signature() {
     let w = World::start(uid());
     std::fs::write(&w.locked, b"").expect("lock");
     let body = World::mkdir_body("while-locked");
@@ -326,7 +326,7 @@ fn sleeper() -> (std::process::Child, u64) {
 }
 
 #[test]
-fn a_signal_needs_the_signature_and_an_unlocked_laptop() {
+fn signal_needs_signature_and_unlock() {
     use std::os::unix::process::ExitStatusExt;
     let w = World::start(uid());
     let (mut child, start) = sleeper();
@@ -359,7 +359,7 @@ fn procs_lists_this_machine() {
 }
 
 #[test]
-fn unpaired_devices_are_unknown_to_the_agent() {
+fn unpaired_is_unknown() {
     let w = World::start(uid());
     std::fs::write(&w.unpaired, format!(r#"{{"devices":["{A}"]}}"#)).expect("w");
     let body = World::mkdir_body("after-unpair");
@@ -371,7 +371,7 @@ fn unpaired_devices_are_unknown_to_the_agent() {
 }
 
 #[test]
-fn view_tokens_still_come_from_a_signed_request() {
+fn view_token_signed() {
     let w = World::start(uid());
     let id = "rc-01k6b7y3m4n5p6q7r8s9t0v1w2";
     let r = w.call(&AgentRequest::Session { id: id.into() });
@@ -420,7 +420,7 @@ fn garbage_and_oversized_requests() {
 }
 
 #[test]
-fn live_holds_until_the_wait_runs_out() {
+fn live_holds_for_wait() {
     let w = World::start(uid());
     let live = |after, wait_ms| match w.call(&AgentRequest::Live { after, wait_ms }) {
         AgentReply::Ok(v) => serde_json::from_value::<LiveReply>(v).expect("live reply"),
@@ -436,7 +436,7 @@ fn live_holds_until_the_wait_runs_out() {
 
 #[cfg(feature = "e2e-test")]
 #[test]
-fn signed_spawn_notifies_and_tail_needs_no_token() {
+fn spawn_notifies() {
     let exec = std::env::current_exe().expect("exe").parent().and_then(Path::parent).expect("t").join("remoter-exec");
     assert!(exec.exists(), "build remoter-exec first");
     let fake = "#!/bin/sh\nfor last; do :; done\necho '[bridge:init] Created initial session session_01Hq7cXv2mTnR4bWkYe9pLsA' >> \"$last\"\necho hello from fake\nexec sleep 600\n";
@@ -472,7 +472,7 @@ fn signed_spawn_notifies_and_tail_needs_no_token() {
 
 #[cfg(feature = "e2e-test")]
 #[test]
-fn history_needs_no_token_and_a_resume_says_so() {
+fn history_and_resume() {
     use remoter_proto::api::HistoryResponse;
     let exec = std::env::current_exe().expect("exe").parent().and_then(Path::parent).expect("t").join("remoter-exec");
     assert!(exec.exists(), "build remoter-exec first");
@@ -514,7 +514,7 @@ fn history_needs_no_token_and_a_resume_says_so() {
 
 // empty replay store after a restart: anything the old process could have run is refused
 #[test]
-fn fresh_agent_refuses_requests_dated_ahead() {
+fn fresh_agent_refuses_ahead() {
     let (w, _) = World::start_with(uid(), Box::new(NoLaunch), None, 0);
     let body = World::mkdir_body("replayed");
     for (why, off, n) in [("dated 20 s ahead", 20_000i64, 60u8), ("dated now", 0, 61)] {
@@ -528,7 +528,7 @@ fn fresh_agent_refuses_requests_dated_ahead() {
 
 // once the agent saw remoterd's flag it keeps its own lock until root clears both
 #[test]
-fn agent_stays_locked_after_remoterd_clears_its_flag() {
+fn stays_locked_after_remoterd_clears() {
     let w = World::start(uid());
     std::fs::write(&w.locked, b"").expect("lock");
     let b1 = World::mkdir_body("one");
@@ -548,7 +548,7 @@ fn agent_stays_locked_after_remoterd_clears_its_flag() {
 
 // counted by the agent too, so a remoterd that doesn't count can't dodge the lock
 #[test]
-fn agent_locks_itself_on_bad_signatures() {
+fn locks_on_bad_signatures() {
     let w = World::start(uid());
     let body = World::mkdir_body("after-bad");
     for n in 0..3u8 {
@@ -570,7 +570,7 @@ fn agent_locks_itself_on_bad_signatures() {
 
 // recorded in agent state, which remoterd can't write
 #[test]
-fn unpair_is_verified_and_recorded_by_the_agent() {
+fn unpair_recorded() {
     let w = World::start(uid());
     let forged = w.a.sign_as(A, &w.b.sig, "DELETE", "/v1/devices/self", b"", local::now_ms(), &[90; 16]);
     assert_eq!(code(&w.mutate(A, "DELETE", "/v1/devices/self", &forged, b"")), Some(ErrorCode::SigInvalid));
@@ -590,7 +590,7 @@ fn threads() -> usize {
 
 // one byte every 500ms used to keep a connection and its thread alive forever
 #[test]
-fn a_trickling_connection_is_cut_at_its_deadline() {
+fn trickle_cut_at_deadline() {
     let w = World::start(uid());
     let mut s = UnixStream::connect(&w.socket).expect("connect");
     let t0 = std::time::Instant::now();
@@ -606,8 +606,7 @@ fn a_trickling_connection_is_cut_at_its_deadline() {
     assert!(out.is_empty(), "{:?}", String::from_utf8_lossy(&out));
 }
 
-// Threads are counted for the whole process, so this runs in a process of its
-// own: other tests here start threads of their own and used to tip it over.
+// threads are counted per process and the other tests here start their own, so it runs alone
 #[test]
 fn a_flood_of_idle_connections_is_capped() {
     let out = std::process::Command::new(std::env::current_exe().expect("exe"))

@@ -14,7 +14,7 @@ fn body(n: &str) -> Vec<u8> {
 }
 
 #[tokio::test]
-async fn valid_request_runs_once_and_retry_replays() {
+async fn retry_replays() {
     let h = start().await;
     let mut c = h.client(&h.a).await;
     let b = body("x");
@@ -64,7 +64,7 @@ async fn forgeries_stop_at_remoterd() {
 }
 
 #[tokio::test]
-async fn okhttp_encoded_target_passes_as_sent() {
+async fn encoded_target_passes() {
     let h = start().await;
     let mut c = h.client(&h.a).await;
     let target = "/v1/fs/mkdir?path=Projects%2Fx%20y%2Fcaf%C3%A9&q=a%2Bb%26c%3Dd%23e";
@@ -74,7 +74,7 @@ async fn okhttp_encoded_target_passes_as_sent() {
 }
 
 #[tokio::test]
-async fn nonce_reuse_locks_at_once_and_reads_keep_working() {
+async fn nonce_reuse_locks() {
     let h = start().await;
     let mut c = h.client(&h.a).await;
     let t = now();
@@ -108,7 +108,7 @@ async fn two_empty_deletes_with_one_nonce() {
 }
 
 #[tokio::test]
-async fn three_bad_signatures_lock_and_bad_headers_never_count() {
+async fn three_bad_sigs_lock() {
     let h = start().await;
     let mut c = h.client(&h.a).await;
     let b = body("x");
@@ -158,7 +158,7 @@ async fn agent_down_is_not_cached() {
 }
 
 #[tokio::test]
-async fn spawn_rate_limit_and_mutation_rate_limit() {
+async fn spawn_and_mutation_limits() {
     let h = start().await;
     let mut c = h.client(&h.a).await;
     let spawn = br#"{"path":"Projects/remoter","name":"x","mode":"same-dir"}"#;

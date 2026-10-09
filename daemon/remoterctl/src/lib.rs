@@ -114,8 +114,6 @@ pub fn finish_pairing(
     Ok(())
 }
 
-/// Drops an id from an unpaired list once the device file no longer has it.
-///
 /// The agent's list sits in a dir your uid owns and this runs as root, so
 /// nothing follows a link: `O_NOFOLLOW` read, plain files only, mode set on the
 /// new fd before the rename. main.rs also drops to the agent's user for that one.
@@ -271,9 +269,7 @@ fn std_b64(b: &[u8]) -> String {
     s
 }
 
-/// Google's root list and revocation status, over HTTPS with the web PKI.
-/// Any failure is an error: nothing pairs or re-attests on stale or partial
-/// data.
+/// Any failure is an error: nothing pairs or re-attests on partial data.
 pub fn fetch_attestation_data() -> Result<(String, String), String> {
     let rt = tokio::runtime::Builder::new_current_thread().enable_all().build().map_err(|e| e.to_string())?;
     rt.block_on(async {
@@ -298,14 +294,13 @@ pub fn fetch_attestation_data() -> Result<(String, String), String> {
         };
         let roots = get(ROOTS_URL).await?;
         let status = get(STATUS_URL).await?;
-        // Checked here too, so a bad download is reported before remoterd
-        // sees it.
-        remoter_attest_check(&roots, &status)?;
+        // checked here too, so a bad download fails before remoterd sees it
+        check_download(&roots, &status)?;
         Ok((roots, status))
     })
 }
 
-fn remoter_attest_check(roots: &str, status: &str) -> Result<(), String> {
+fn check_download(roots: &str, status: &str) -> Result<(), String> {
     let v: serde_json::Value = serde_json::from_str(roots).map_err(|e| format!("roots: {e}"))?;
     if v.as_array().is_none_or(|a| a.is_empty()) {
         return Err("roots: not a non-empty list".into());
@@ -322,15 +317,16 @@ fn remoter_attest_check(roots: &str, status: &str) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+    use remoter_proto::admin::PairStatus;
+
     #[test]
     fn pairing_qr_draws_the_quiet_zone() {
-        let qr = super::pairing_qr("remoter://pair?x=1").expect("qr");
+        let qr = pairing_qr("remoter://pair?x=1").expect("qr");
         let top = qr.lines().next().expect("a line");
         // The quiet zone is light, so on a dark terminal it must be drawn, not left blank.
         assert!(top.chars().all(|c| c == '\u{2588}'), "top row was {top:?}");
     }
-
-    use remoter_proto::admin::PairStatus;
 
     fn record(id: &str) -> DeviceRecord {
         // A record add_device accepts, so every case below really writes.
@@ -347,7 +343,7 @@ mod tests {
     }
 
     #[test]
-    fn a_failed_confirm_leaves_no_device_behind() {
+    fn failed_confirm_leaves_nothing() {
         const ID: &str = "01K6B7Y3M4N5P6Q7R8S9T0V1W2";
         // The window closed while the code was being typed.
         let f = devices_file("late");
@@ -378,8 +374,6 @@ mod tests {
         assert_eq!(list_devices(&f).expect("read").len(), 1);
     }
 
-    use super::*;
-
     #[test]
     fn typed_codes() {
         assert!(code_matches("481207", "481207"));
@@ -391,7 +385,7 @@ mod tests {
     }
 
     #[test]
-    fn device_file_edits_are_checked_before_writing() {
+    fn device_edits_checked_before_write() {
         let dir = std::env::temp_dir().join(format!("remoterctl-dev-{}", std::process::id()));
         std::fs::create_dir_all(&dir).expect("mk");
         let f = dir.join("devices.json");

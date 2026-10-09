@@ -115,7 +115,7 @@ fn add_device(h: &Harness, c: &PairCandidate, id: &str) {
 const NEW: &str = "01K6B7Y3M4N5P6Q7R8S9T0V1WA";
 
 #[tokio::test]
-async fn pairs_end_to_end_then_uses_the_paired_keys() {
+async fn pairs_end_to_end() {
     let h = start().await;
     let sock = start_admin(&h, uid()).await;
     let link = open_window(&sock, 60).await;
@@ -159,7 +159,7 @@ async fn pairs_end_to_end_then_uses_the_paired_keys() {
 }
 
 #[tokio::test]
-async fn one_attempt_only_and_the_port_closes() {
+async fn one_attempt_only() {
     let h = start().await;
     let sock = start_admin(&h, uid()).await;
     let link = open_window(&sock, 60).await;
@@ -255,7 +255,7 @@ async fn lock_off_goes_through_the_admin_socket() {
 }
 
 #[tokio::test]
-async fn daily_reattestation_gates_mutations_until_it_passes() {
+async fn reattestation_gates_mutations() {
     let h = start().await;
     // A's boot key is a1f309ce, swap in the test kit's so the throwaway key matches
     let mut f: DeviceFile = serde_json::from_slice(&std::fs::read(h.dir.join("devices.json")).expect("r")).expect("p");

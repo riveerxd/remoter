@@ -430,7 +430,7 @@ mod tests {
     }
 
     #[test]
-    fn uuids_only_in_canonical_lowercase() {
+    fn lowercase_uuids_only() {
         assert!(is_uuid("c82d8b5c-edd4-453e-8d59-4748ff325c03"));
         for bad in [
             "C82D8B5C-EDD4-453E-8D59-4748FF325C03",
@@ -487,7 +487,7 @@ mod tests {
     }
 
     #[test]
-    fn nothing_to_resume_is_left_out() {
+    fn skips_empty() {
         let meta_only = lines(&[
             serde_json::json!({"type":"custom-title","customTitle":"remoter","sessionId":"x"}),
             serde_json::json!({"type":"system","cwd":"/h/p","subtype":"x"}),
@@ -502,7 +502,7 @@ mod tests {
     }
 
     #[test]
-    fn prompts_skip_tool_results_meta_and_wrapped_commands() {
+    fn prompt_skips_wrapped() {
         let head = lines(&[
             serde_json::json!({"type":"user","cwd":"/h/p","isMeta":true,"message":{"content":[{"type":"text","text":"Base directory for this skill"}]}}),
             serde_json::json!({"type":"user","cwd":"/h/p","message":{"content":[{"type":"tool_result","content":"secret file"}]}}),
@@ -513,7 +513,7 @@ mod tests {
     }
 
     #[test]
-    fn hostile_text_is_cleaned_and_capped() {
+    fn hostile_text_cleaned() {
         let long = "x".repeat(500);
         let head = lines(&[
             user("hi"),
@@ -526,7 +526,7 @@ mod tests {
     }
 
     #[test]
-    fn condensed_is_the_talk_without_the_tools() {
+    fn condense_drops_tools() {
         let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../target/tmp").join(format!("condense-{}", std::process::id()));
         std::fs::create_dir_all(&dir).expect("mk");
         let p = dir.join("t.jsonl");
@@ -568,7 +568,7 @@ mod tests {
     }
 
     #[test]
-    fn a_cut_last_line_in_the_head_is_ignored() {
+    fn cut_head_line_ignored() {
         let mut head = lines(&[user("first")]);
         head.extend_from_slice(br#"{"type":"custom-title","customTitle":"half"#);
         assert_eq!(parse_parts(&head, false, b"").expect("parsed").title, "first");

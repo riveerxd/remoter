@@ -99,8 +99,7 @@ impl Drop for Case {
     }
 }
 
-/// A running remoter-exec that is killed if the test fails first, so a
-/// failing test can't leave a held window process behind.
+/// Killed on drop, so a failing test can't leave a held process behind.
 struct Held(Child);
 
 impl Drop for Held {
@@ -155,8 +154,7 @@ fn runs_claude_in_folder_and_holds() {
 }
 
 impl Case {
-    /// A start with a handoff: `summarizer` is a shell script body, and the condensed
-    /// conversation sits where the agent puts it.
+    /// `summarizer` is a shell script body.
     fn with_handoff(mut self, summarizer: &str) -> Case {
         let s = self.root.join("summarizer");
         std::fs::write(&s, format!("#!/bin/sh\n{summarizer}\n")).expect("summarizer");
@@ -206,7 +204,7 @@ fn failed_handoff_is_stuck() {
 }
 
 #[test]
-fn a_handoff_source_from_elsewhere_is_refused() {
+fn refuses_foreign_handoff_source() {
     let mut c = Case::new(DUMP).with_handoff("touch \"$(dirname \"$0\")/summarized\"\necho hi");
     if let Some(h) = c.spec.handoff.as_mut() {
         h.source = c.root.join("elsewhere.txt").display().to_string();
@@ -252,13 +250,12 @@ fn swapped_folder_is_stuck() {
 }
 
 #[test]
-fn folder_replaced_by_a_symlink_is_stuck() {
+fn folder_symlink_swap() {
     let c = Case::new(DUMP);
     let spec = c.write_spec();
     std::fs::rename(&c.folder, c.root.join("moved")).expect("mv");
     symlink(c.root.join("moved"), &c.folder).expect("ln");
-    // The symlink lands on the same inode, which is the folder the agent
-    // checked, so this one is allowed to run.
+    // same inode as the folder the agent checked, so this one may run
     let child = c.run(&spec);
     assert_eq!(c.wait_status(ExecState::Exited).exit_code, Some(3));
     term_and_collect(child);
@@ -288,8 +285,7 @@ fn assert_refused(c: &Case, args: &[&std::ffi::OsStr], why: &str) {
     let mut held = Held(
         Command::new(EXEC).args(args).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::piped()).spawn().expect("exec"),
     );
-    // A spec that wrongly passes gets held open forever, so this waits with
-    // a deadline and fails rather than hanging the suite.
+    // a spec that wrongly passes is held forever, so fail on a deadline instead of hanging
     let deadline = Instant::now() + Duration::from_secs(5);
     let status = loop {
         if let Some(st) = held.0.try_wait().expect("try_wait") {
@@ -313,7 +309,7 @@ fn refused_with(mutate: impl FnOnce(&mut Case) -> PathBuf, why: &str) {
 }
 
 #[test]
-fn refuses_every_untrusted_spec() {
+fn refuses_untrusted_specs() {
     refused_with(
         |c| {
             let p = c.write_spec();
@@ -424,11 +420,10 @@ fn refuses_bad_command_lines() {
     assert_refused(&c, &["--other".as_ref(), spec.as_os_str()], "wrong flag");
 }
 
-/// kitty moves its child into a scope of its own some time after starting it,
-/// so claude can end up in either scope. Whatever the cgroups say, closing
-/// the window (SIGHUP) or ending the session (SIGTERM) must take claude with it.
+/// kitty moves its child into its own scope later, so claude may sit in
+/// either. SIGHUP or SIGTERM must take it down regardless.
 #[test]
-fn ending_remoter_exec_takes_claude_with_it() {
+fn ending_takes_claude() {
     for sig in [libc::SIGTERM, libc::SIGHUP] {
         let c = Case::new("trap '' INT HUP TERM\nwhile :; do sleep 1; done");
         let mut held = c.run(&c.write_spec());
@@ -462,7 +457,7 @@ sleep 0.3
 exit 4"#;
 
 #[test]
-fn screen_mode_puts_claude_on_a_pty_and_keeps_the_screen() {
+fn screen_mode_uses_pty() {
     let mut c = Case::new(PAINTS);
     c.spec.screen = true;
     let child = c.run(&c.write_spec());
@@ -494,7 +489,7 @@ fn screen_file_stays_bounded() {
 }
 
 #[test]
-fn without_screen_mode_nothing_is_rendered() {
+fn no_screen_mode_no_render() {
     let c = Case::new(PAINTS);
     let child = c.run(&c.write_spec());
     c.wait_status(ExecState::Exited);

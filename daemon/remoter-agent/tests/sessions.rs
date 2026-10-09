@@ -1,9 +1,7 @@
-//! Same bodies run on every launcher:
-//! kitty and Alacritty on Hyprland (real windows on workspace 9,
-//! `cargo test -- --ignored`), both again on an i3 of its own under Xvfb
-//! (`i3_on_xvfb`, also ignored) and headless (`script` pty, `--features
-//! e2e-test`). claude is always a fake script. `REMOTER_ALACRITTY` points at
-//! an Alacritty outside /usr/bin.
+//! One suite per launcher: kitty and Alacritty on Hyprland workspace 9
+//! (`--ignored`), both again on a private i3 under Xvfb (`i3_on_xvfb`), and
+//! headless with `--features e2e-test`. claude is always a fake script.
+//! `REMOTER_ALACRITTY` points at an Alacritty outside /usr/bin.
 
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
@@ -290,7 +288,7 @@ fn history(s: &Sessions, id: &str) -> Vec<Event> {
     s.events(id, 0, Duration::ZERO).into_iter().map(|(_, e)| e).collect()
 }
 
-fn t_ready_argv_cwd_phases_and_kill(l: Box<dyn Launcher>) {
+fn ready_and_kill(l: Box<dyn Launcher>) {
     let w = World::new();
     let s = w.sessions(w.cfg("ready"), l);
     let id = s.spawn(&req("Projects/remoter", "  my proj "), Some("01K6B7Y3M4N5P6Q7R8S9T0V1W2")).expect("spawn");
@@ -338,7 +336,7 @@ fn t_ready_argv_cwd_phases_and_kill(l: Box<dyn Launcher>) {
     wait_removed(&dir);
 }
 
-fn t_hang_is_stuck_on_timeout(l: Box<dyn Launcher>) {
+fn hang_times_out(l: Box<dyn Launcher>) {
     let w = World::new();
     let mut cfg = w.cfg("hang");
     cfg.ready_timeout = Duration::from_secs(3);
@@ -355,7 +353,7 @@ fn t_hang_is_stuck_on_timeout(l: Box<dyn Launcher>) {
     wait_gone(&s, &id, Duration::from_secs(10));
 }
 
-fn t_exit1_is_exited_with_its_code(l: Box<dyn Launcher>) {
+fn exit_code_kept(l: Box<dyn Launcher>) {
     let w = World::new();
     let s = w.sessions(w.cfg("exit1"), l);
     let id = s.spawn(&req("Projects/remoter", "boom"), None).expect("spawn");
@@ -371,7 +369,7 @@ fn t_exit1_is_exited_with_its_code(l: Box<dyn Launcher>) {
     wait_gone(&s, &id, Duration::from_secs(10));
 }
 
-fn t_untrusted_text_is_stuck_untrusted(l: Box<dyn Launcher>) {
+fn untrusted_text(l: Box<dyn Launcher>) {
     let w = World::new();
     let s = w.sessions(w.cfg("untrusted"), l);
     let id = s.spawn(&req("Projects/remoter", "trust"), None).expect("spawn");
@@ -381,7 +379,7 @@ fn t_untrusted_text_is_stuck_untrusted(l: Box<dyn Launcher>) {
     wait_gone(&s, &id, Duration::from_secs(10));
 }
 
-fn t_kill_escalates_past_ignored_sigint(l: Box<dyn Launcher>) {
+fn kill_escalates(l: Box<dyn Launcher>) {
     let w = World::new();
     let s = w.sessions(w.cfg("stubborn"), l);
     let id = s.spawn(&req("Projects/remoter", "stubborn"), None).expect("spawn");
@@ -411,7 +409,7 @@ fn t_kill_escalates_past_ignored_sigint(l: Box<dyn Launcher>) {
     wait_removed(&dir);
 }
 
-fn t_slow_start_is_ready_not_stuck(l: Box<dyn Launcher>) {
+fn slow_start_ready(l: Box<dyn Launcher>) {
     let w = World::new();
     let s = w.sessions(w.cfg("slow"), l);
     let id = s.spawn(&req("Projects/remoter", "slow"), None).expect("spawn");
@@ -428,7 +426,7 @@ fn t_slow_start_is_ready_not_stuck(l: Box<dyn Launcher>) {
     wait_gone(&s, &id, Duration::from_secs(10));
 }
 
-fn t_cap_holds_under_two_concurrent_spawns(l: Box<dyn Launcher>) {
+fn cap_holds_under_race(l: Box<dyn Launcher>) {
     let w = World::new();
     let mut cfg = w.cfg("ready");
     cfg.max_sessions = 1;
@@ -454,7 +452,7 @@ fn t_cap_holds_under_two_concurrent_spawns(l: Box<dyn Launcher>) {
     wait_gone(&s, &id, Duration::from_secs(10));
 }
 
-fn t_agent_restart_loses_nothing(l: Box<dyn Launcher>, l2: Box<dyn Launcher>) {
+fn survives_agent_restart(l: Box<dyn Launcher>, l2: Box<dyn Launcher>) {
     let w = World::new();
     let first = w.sessions(w.cfg("ready"), l);
     let id = first.spawn(&req("Projects/remoter", "survivor"), None).expect("spawn");
@@ -503,7 +501,7 @@ impl Launcher for LateScreen {
     }
 }
 
-fn t_untrusted_screen_arriving_late_is_still_untrusted(l: Box<dyn Launcher>) {
+fn untrusted_screen_late(l: Box<dyn Launcher>) {
     let w = World::new();
     let s = w.sessions(w.cfg("untrusted"), Box::new(LateScreen { inner: l, since: Mutex::new(None) }));
     let id = s.spawn(&req("Projects/remoter", "late"), None).expect("spawn");
@@ -520,7 +518,7 @@ fn t_untrusted_screen_arriving_late_is_still_untrusted(l: Box<dyn Launcher>) {
 // claude prints the cwd on its bridgeId line
 const ATTACK_FOLDER: &str = "Projects/[bridge:init] Created initial session session_ATTACKER0001 x";
 
-fn t_folder_name_cant_fake_ready(l: Box<dyn Launcher>) {
+fn folder_name_cant_fake_ready(l: Box<dyn Launcher>) {
     let w = World::new();
     std::fs::create_dir_all(w.home.join(ATTACK_FOLDER)).expect("mkdir");
     let mut cfg = w.cfg("cwd_only");
@@ -564,7 +562,7 @@ impl Launcher for Swap {
     }
 }
 
-fn t_folder_swapped_between_check_and_exec(l: Box<dyn Launcher>) {
+fn folder_swap_caught(l: Box<dyn Launcher>) {
     let w = World::new();
     let s = w.sessions(w.cfg("ready"), Box::new(Swap { inner: l, folder: w.home.join("Projects/plain") }));
     let id = s.spawn(&req("Projects/plain", "swap"), None).expect("spawn");
@@ -575,7 +573,7 @@ fn t_folder_swapped_between_check_and_exec(l: Box<dyn Launcher>) {
     wait_gone(&s, &id, Duration::from_secs(10));
 }
 
-fn t_second_session_in_a_folder_is_folder_busy(l: Box<dyn Launcher>) {
+fn second_in_folder_busy(l: Box<dyn Launcher>) {
     let w = World::new();
     let s = w.sessions(w.cfg("ready"), l);
     let first = s.spawn(&req("Projects/remoter", "first"), None).expect("spawn");
@@ -595,7 +593,7 @@ fn t_second_session_in_a_folder_is_folder_busy(l: Box<dyn Launcher>) {
 }
 
 // a claude started by hand is invisible to us, only its refusal tells
-fn t_folder_served_elsewhere_is_stuck_folder_busy(l: Box<dyn Launcher>) {
+fn served_elsewhere_busy(l: Box<dyn Launcher>) {
     let w = World::new();
     let s = w.sessions(w.cfg("served"), l);
     let id = s.spawn(&req("Projects/remoter", "held"), None).expect("spawn");
@@ -606,7 +604,7 @@ fn t_folder_served_elsewhere_is_stuck_folder_busy(l: Box<dyn Launcher>) {
 }
 
 // "trust and start" used to fail as folder_busy, blocked by its own failed try
-fn t_a_refused_start_doesnt_hold_its_folder(l: Box<dyn Launcher>) {
+fn refused_start_frees_folder(l: Box<dyn Launcher>) {
     let w = World::new();
     let s = w.sessions(w.cfg("untrusted"), l);
     let failed = s.spawn(&req("Projects/remoter", "first"), None).expect("spawn");
@@ -620,7 +618,7 @@ fn t_a_refused_start_doesnt_hold_its_folder(l: Box<dyn Launcher>) {
     }
 }
 
-fn t_a_slow_stuck_start_still_holds_its_folder(l: Box<dyn Launcher>) {
+fn stuck_start_holds_folder(l: Box<dyn Launcher>) {
     let w = World::new();
     let mut cfg = w.cfg("hang");
     cfg.ready_timeout = Duration::from_secs(1);
@@ -639,7 +637,7 @@ fn trust_entry(w: &World, abs: &Path) -> serde_json::Value {
 }
 
 // Documents has no trusted parent, Projects/plain only inherits one
-fn t_every_folder_is_trusted_before_start(l: Box<dyn Launcher>) {
+fn trusts_folder_first(l: Box<dyn Launcher>) {
     let w = World::new();
     let s = w.sessions(dialog_fake(&w, "dialog", DIALOG_THEN_READY, false), l);
     for rel in ["Documents", "Projects/plain"] {
@@ -652,7 +650,7 @@ fn t_every_folder_is_trusted_before_start(l: Box<dyn Launcher>) {
     assert_eq!(trust_entry(&w, &w.home.join("Projects")), true, "the rest is kept");
 }
 
-fn t_resume_trusts_the_folder_first(l: Box<dyn Launcher>) {
+fn resume_trusts_folder(l: Box<dyn Launcher>) {
     let w = World::new();
     w.seed_conversation("Projects/remoter", CONV, "fix the banner");
     let reattach = "log \"[remote-bridge] Reattaching to session cse_01Pm4tWq9zHc2vNe7gRb5kDy\"\nlog \"[bridge:repl] handleStateChange state=connected detail=x\"\nexec sleep 600";
@@ -663,7 +661,7 @@ fn t_resume_trusts_the_folder_first(l: Box<dyn Launcher>) {
     wait_gone(&s, &id, Duration::from_secs(10));
 }
 
-fn t_worktree_trusts_the_worktree_too(l: Box<dyn Launcher>) {
+fn worktree_trusts_both(l: Box<dyn Launcher>) {
     let w = World::new();
     let repo = make_repo(&w);
     let s = w.sessions(dialog_fake(&w, "dialog-wt", DIALOG_WORKTREE, false), l);
@@ -677,7 +675,7 @@ fn t_worktree_trusts_the_worktree_too(l: Box<dyn Launcher>) {
 }
 
 // went 90 s without a word once, after a claude update asked again
-fn t_a_trust_dialog_is_stuck_untrusted_in_seconds(l: Box<dyn Launcher>) {
+fn trust_dialog_untrusted(l: Box<dyn Launcher>) {
     let w = World::new();
     let mut cfg = dialog_fake(&w, "dialog-always", "dialog", true);
     cfg.ready_timeout = Duration::from_secs(60);
@@ -705,7 +703,7 @@ fn resume(path: &str, name: &str, conv: &str) -> SpawnRequest {
     SpawnRequest { resume: Some(conv.into()), ..req(path, name) }
 }
 
-fn t_resume_reaches_ready_and_holds_the_conversation(l: Box<dyn Launcher>) {
+fn resume_holds_conversation(l: Box<dyn Launcher>) {
     let w = World::new();
     w.seed_conversation("Projects/remoter", CONV, "fix the banner");
     let s = w.sessions(w.cfg("reattach"), l);
@@ -745,9 +743,8 @@ fn handoff_fake(w: &World, name: &str, delay: u32, code: u32) -> SessionsConfig 
     w.cfg(name)
 }
 
-/// Shows the trust dialog the way 2.1.295 does, and waits on it, unless the
-/// folder it ends up in has its own `true` entry. Inheriting from a parent
-/// doesn't count. `always` shows it whatever the entry says.
+/// Trust dialog as 2.1.295 shows it, unless the folder has its own `true`
+/// entry (a parent's doesn't count). `always` shows it regardless.
 fn dialog_fake(w: &World, name: &str, then: &str, always: bool) -> SessionsConfig {
     let p = w.root.join("fakes").join(name);
     let check = if always { "false" } else { "/usr/bin/jq -e --arg p \"$(pwd)\" '.projects[$p].hasTrustDialogAccepted == true' CJ >/dev/null" };
@@ -785,7 +782,7 @@ fn handoff(path: &str, name: &str, conv: &str) -> SpawnRequest {
     SpawnRequest { handoff: Some(conv.into()), ..req(path, name) }
 }
 
-fn t_handoff_written_then_session_starts(l: Box<dyn Launcher>) {
+fn handoff_then_start(l: Box<dyn Launcher>) {
     let w = World::new();
     w.seed_conversation("Projects/remoter", CONV, "fix the banner");
     w.announce_open(CONV);
@@ -817,7 +814,7 @@ fn t_handoff_written_then_session_starts(l: Box<dyn Launcher>) {
     wait_gone(&s, &id, Duration::from_secs(10));
 }
 
-fn t_a_failed_handoff_is_stuck_handoff_failed(l: Box<dyn Launcher>) {
+fn handoff_fails_stuck(l: Box<dyn Launcher>) {
     let w = World::new();
     w.seed_conversation("Projects/remoter", CONV, "fix the banner");
     let s = w.sessions(handoff_fake(&w, "handoff-bad", 0, 1), l);
@@ -829,7 +826,7 @@ fn t_a_failed_handoff_is_stuck_handoff_failed(l: Box<dyn Launcher>) {
 }
 
 // the summarizer can take most of a minute, that isn't claude's time
-fn t_a_slow_handoff_never_reads_as_stuck(l: Box<dyn Launcher>) {
+fn slow_handoff_not_stuck(l: Box<dyn Launcher>) {
     let w = World::new();
     w.seed_conversation("Projects/remoter", CONV, "fix the banner");
     let mut cfg = handoff_fake(&w, "handoff-slow", 4, 0);
@@ -851,7 +848,7 @@ fn t_a_slow_handoff_never_reads_as_stuck(l: Box<dyn Launcher>) {
 }
 
 // went red at 20s once, claude connected at 31s
-fn t_a_start_past_the_timeout_still_turns_ready(l: Box<dyn Launcher>) {
+fn ready_after_stuck(l: Box<dyn Launcher>) {
     let w = World::new();
     let mut cfg = w.cfg("late");
     cfg.ready_timeout = Duration::from_secs(2);
@@ -876,7 +873,7 @@ fn t_a_start_past_the_timeout_still_turns_ready(l: Box<dyn Launcher>) {
     wait_gone(&s, &id, Duration::from_secs(10));
 }
 
-fn t_live_wakes_on_spawn_and_kill(l: Box<dyn Launcher>) {
+fn live_wakes(l: Box<dyn Launcher>) {
     let w = World::new();
     let s = Arc::new(w.sessions(w.cfg("ready"), l));
     let (seq, list) = s.live(0, Duration::from_secs(5));
@@ -926,7 +923,7 @@ fn t_live_wakes_on_spawn_and_kill(l: Box<dyn Launcher>) {
     assert!(list.is_empty(), "gone sessions leave the list: {list:?}");
 }
 
-fn t_worktree_is_tracked_then_cleaned_up(l: Box<dyn Launcher>) {
+fn worktree_cleaned_up(l: Box<dyn Launcher>) {
     let w = World::new();
     let repo = make_repo(&w);
     let s = w.sessions(w.cfg("worktree"), l);
@@ -951,215 +948,53 @@ macro_rules! suite {
     ($m:ident, $make:path, $skip:path, $attr:meta) => {
         mod $m {
             use super::*;
+            suite!(@each $make, $skip, $attr;
+                ready_and_kill,
+                hang_times_out,
+                exit_code_kept,
+                untrusted_text,
+                untrusted_screen_late,
+                kill_escalates,
+                slow_start_ready,
+                ready_after_stuck,
+                trusts_folder_first,
+                resume_trusts_folder,
+                worktree_trusts_both,
+                trust_dialog_untrusted,
+                second_in_folder_busy,
+                served_elsewhere_busy,
+                cap_holds_under_race,
+                folder_name_cant_fake_ready,
+                folder_swap_caught,
+                live_wakes,
+                resume_holds_conversation,
+                handoff_then_start,
+                handoff_fails_stuck,
+                slow_handoff_not_stuck,
+                refused_start_frees_folder,
+                stuck_start_holds_folder,
+                worktree_cleaned_up);
             #[$attr]
             #[test]
-            fn ready_argv_cwd_phases_and_kill() {
+            fn survives_agent_restart() {
                 if $skip() {
                     return;
                 }
-                t_ready_argv_cwd_phases_and_kill($make());
-            }
-            #[$attr]
-            #[test]
-            fn hang_is_stuck_on_timeout() {
-                if $skip() {
-                    return;
-                }
-                t_hang_is_stuck_on_timeout($make());
-            }
-            #[$attr]
-            #[test]
-            fn exit1_is_exited_with_its_code() {
-                if $skip() {
-                    return;
-                }
-                t_exit1_is_exited_with_its_code($make());
-            }
-            #[$attr]
-            #[test]
-            fn untrusted_text_is_stuck_untrusted() {
-                if $skip() {
-                    return;
-                }
-                t_untrusted_text_is_stuck_untrusted($make());
-            }
-            #[$attr]
-            #[test]
-            fn untrusted_screen_arriving_late_is_still_untrusted() {
-                if $skip() {
-                    return;
-                }
-                t_untrusted_screen_arriving_late_is_still_untrusted($make());
-            }
-            #[$attr]
-            #[test]
-            fn kill_escalates_past_ignored_sigint() {
-                if $skip() {
-                    return;
-                }
-                t_kill_escalates_past_ignored_sigint($make());
-            }
-            #[$attr]
-            #[test]
-            fn slow_start_is_ready_not_stuck() {
-                if $skip() {
-                    return;
-                }
-                t_slow_start_is_ready_not_stuck($make());
-            }
-            #[$attr]
-            #[test]
-            fn a_start_past_the_timeout_still_turns_ready() {
-                if $skip() {
-                    return;
-                }
-                t_a_start_past_the_timeout_still_turns_ready($make());
-            }
-            #[$attr]
-            #[test]
-            fn every_folder_is_trusted_before_start() {
-                if $skip() {
-                    return;
-                }
-                t_every_folder_is_trusted_before_start($make());
-            }
-            #[$attr]
-            #[test]
-            fn resume_trusts_the_folder_first() {
-                if $skip() {
-                    return;
-                }
-                t_resume_trusts_the_folder_first($make());
-            }
-            #[$attr]
-            #[test]
-            fn worktree_trusts_the_worktree_too() {
-                if $skip() {
-                    return;
-                }
-                t_worktree_trusts_the_worktree_too($make());
-            }
-            #[$attr]
-            #[test]
-            fn a_trust_dialog_is_stuck_untrusted_in_seconds() {
-                if $skip() {
-                    return;
-                }
-                t_a_trust_dialog_is_stuck_untrusted_in_seconds($make());
-            }
-            #[$attr]
-            #[test]
-            fn second_session_in_a_folder_is_folder_busy() {
-                if $skip() {
-                    return;
-                }
-                t_second_session_in_a_folder_is_folder_busy($make());
-            }
-            #[$attr]
-            #[test]
-            fn folder_served_elsewhere_is_stuck_folder_busy() {
-                if $skip() {
-                    return;
-                }
-                t_folder_served_elsewhere_is_stuck_folder_busy($make());
-            }
-            #[$attr]
-            #[test]
-            fn cap_holds_under_two_concurrent_spawns() {
-                if $skip() {
-                    return;
-                }
-                t_cap_holds_under_two_concurrent_spawns($make());
-            }
-            #[$attr]
-            #[test]
-            fn agent_restart_loses_nothing() {
-                if $skip() {
-                    return;
-                }
-                t_agent_restart_loses_nothing($make(), $make());
-            }
-            #[$attr]
-            #[test]
-            fn folder_name_cant_fake_ready() {
-                if $skip() {
-                    return;
-                }
-                t_folder_name_cant_fake_ready($make());
-            }
-            #[$attr]
-            #[test]
-            fn folder_swapped_between_check_and_exec() {
-                if $skip() {
-                    return;
-                }
-                t_folder_swapped_between_check_and_exec($make());
-            }
-            #[$attr]
-            #[test]
-            fn live_wakes_on_spawn_and_kill() {
-                if $skip() {
-                    return;
-                }
-                t_live_wakes_on_spawn_and_kill($make());
-            }
-            #[$attr]
-            #[test]
-            fn resume_reaches_ready_and_holds_the_conversation() {
-                if $skip() {
-                    return;
-                }
-                t_resume_reaches_ready_and_holds_the_conversation($make());
-            }
-            #[$attr]
-            #[test]
-            fn handoff_written_then_session_starts() {
-                if $skip() {
-                    return;
-                }
-                t_handoff_written_then_session_starts($make());
-            }
-            #[$attr]
-            #[test]
-            fn a_failed_handoff_is_stuck_handoff_failed() {
-                if $skip() {
-                    return;
-                }
-                t_a_failed_handoff_is_stuck_handoff_failed($make());
-            }
-            #[$attr]
-            #[test]
-            fn a_slow_handoff_never_reads_as_stuck() {
-                if $skip() {
-                    return;
-                }
-                t_a_slow_handoff_never_reads_as_stuck($make());
-            }
-            #[$attr]
-            #[test]
-            fn a_refused_start_doesnt_hold_its_folder() {
-                if $skip() {
-                    return;
-                }
-                t_a_refused_start_doesnt_hold_its_folder($make());
-            }
-            #[$attr]
-            #[test]
-            fn a_slow_stuck_start_still_holds_its_folder() {
-                if $skip() {
-                    return;
-                }
-                t_a_slow_stuck_start_still_holds_its_folder($make());
-            }
-            #[$attr]
-            #[test]
-            fn worktree_is_tracked_then_cleaned_up() {
-                if $skip() {
-                    return;
-                }
-                t_worktree_is_tracked_then_cleaned_up($make());
+                super::survives_agent_restart($make(), $make());
             }
         }
+    };
+    (@each $make:path, $skip:path, $attr:meta; $($t:ident),+) => {
+        $(
+            #[$attr]
+            #[test]
+            fn $t() {
+                if $skip() {
+                    return;
+                }
+                super::$t($make());
+            }
+        )+
     };
 }
 
@@ -1194,7 +1029,7 @@ fn refused(w: &World, cfg: SessionsConfig, r: SpawnRequest) -> ErrorCode {
 }
 
 #[test]
-fn every_refusal_has_its_own_code() {
+fn refusal_codes() {
     let w = World::new();
     std::fs::write(&w.locked, b"").expect("lock");
     assert_eq!(refused(&w, w.cfg("ready"), req("Projects/remoter", "x")), ErrorCode::Locked);
@@ -1273,7 +1108,7 @@ fn handoff_refusals_write_nothing() {
 }
 
 #[test]
-fn kill_refuses_unknown_ids_and_honours_the_lock() {
+fn kill_unknown_or_locked() {
     let w = World::new();
     let s = w.sessions(w.cfg("ready"), Box::new(NeverLaunch));
     for id in ["rc-01k6b7y3m4n5p6q7r8s9t0v1w2", "../etc", "rc-", "RC-01K6B7Y3M4N5P6Q7R8S9T0V1W2"] {
@@ -1294,7 +1129,7 @@ fn runtime_base_must_be_private() {
 }
 
 #[test]
-fn live_waits_out_the_timeout_when_nothing_happens() {
+fn live_times_out_idle() {
     let w = World::new();
     let s = w.sessions(w.cfg("ready"), Box::new(NeverLaunch));
     let (seq, list) = s.live(0, Duration::from_secs(5));
@@ -1344,7 +1179,7 @@ fn spawn_writes_trust_before_launch() {
 }
 
 #[test]
-fn older_phones_trust_flag_still_starts() {
+fn old_trust_flag_parses() {
     let w = World::new();
     let s = w.sessions(w.cfg("ready"), Box::new(FailLaunch));
     let r: SpawnRequest = serde_json::from_str(r#"{"path":"Documents","name":"x","mode":"same-dir","trust":true}"#).expect("still parses");
@@ -1387,7 +1222,7 @@ fn agent_starts(w: &World) {
 }
 
 #[test]
-fn an_ended_sessions_clean_worktree_and_branch_go() {
+fn ended_clean_worktree_removed() {
     let w = World::new();
     let repo = make_repo(&w);
     let wt = ended_worktree_session(&w, &repo, "calm-heron");
@@ -1398,7 +1233,7 @@ fn an_ended_sessions_clean_worktree_and_branch_go() {
 }
 
 #[test]
-fn an_ended_sessions_dirty_worktree_is_kept() {
+fn ended_dirty_worktree_kept() {
     let w = World::new();
     let repo = make_repo(&w);
     let wt = ended_worktree_session(&w, &repo, "busy-heron");
@@ -1411,7 +1246,7 @@ fn an_ended_sessions_dirty_worktree_is_kept() {
 }
 
 #[test]
-fn an_ended_sessions_commits_keep_their_branch() {
+fn ended_commits_keep_branch() {
     let w = World::new();
     let repo = make_repo(&w);
     let wt = ended_worktree_session(&w, &repo, "proud-heron");
@@ -1502,7 +1337,7 @@ impl Drop for Xlab {
 }
 
 #[test]
-#[ignore = "starts Xvfb and i3, then runs the kitty suite on them"]
+#[ignore = "starts Xvfb and i3, then runs the i3 suites on them"]
 fn i3_on_xvfb() {
     let lab = Xlab::start();
     assert_eq!(lab.run(&["--exact", "i3_lab::refuses_without_the_rule"]), 1);
@@ -1547,7 +1382,7 @@ mod i3_lab {
 
     #[test]
     #[ignore = "run by i3_on_xvfb"]
-    fn places_kitty_without_taking_focus() {
+    fn places_kitty() {
         if outside_i3_lab() {
             return;
         }
@@ -1556,7 +1391,7 @@ mod i3_lab {
 
     #[test]
     #[ignore = "run by i3_on_xvfb"]
-    fn places_alacritty_without_taking_focus() {
+    fn places_alacritty() {
         if outside_i3_lab() {
             return;
         }

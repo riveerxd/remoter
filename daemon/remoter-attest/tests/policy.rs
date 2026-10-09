@@ -43,7 +43,7 @@ fn policy_fail(r: Result<remoter_attest::Attested, Error>, rule: &str) {
 }
 
 #[test]
-fn baseline_passes_for_each_role_and_shape() {
+fn baseline_passes() {
     let t = T::new("testroot0000");
     for shape in [Shape::Remote, Shape::Factory] {
         let o = ChainOpts { shape, ..Default::default() };
@@ -104,7 +104,7 @@ fn six_month_patch_window_edges() {
 }
 
 #[test]
-fn unlocked_device_required_list_follows_the_config() {
+fn unlocked_list_follows_config() {
     let t = T::new("testroot0000");
     let sw_only = Spec { unlocked_in_hardware: false, unlocked_in_software: true, ..Spec::sig(C) };
     let chain = t.pki.chain(&sw_only, &key(), &ChainOpts::default());
@@ -170,7 +170,7 @@ fn chain_rules() {
 }
 
 #[test]
-fn expiry_is_forgiven_only_on_a_legacy_factory_chain() {
+fn expiry_forgiven_on_legacy_factory_only() {
     let expired = |shape| ChainOpts { shape, expired_intermediate: true, ..Default::default() };
     let legacy = T::new(remoter_attest::chain::LEGACY_ROOT_SERIAL);
     assert!(legacy.run(&Spec::sig(C), Role::Sig, &ChainOpts { root_serial_attr: remoter_attest::chain::LEGACY_ROOT_SERIAL.into(), ..expired(Shape::Factory) }).is_ok(), "legacy factory");
@@ -195,7 +195,7 @@ fn tag_order_and_unknown_tags() {
 }
 
 #[test]
-fn pairing_needs_both_keys_from_one_phone() {
+fn pair_needs_one_phone() {
     let t = T::new("testroot0000");
     let o = ChainOpts::default();
     let tls = t.pki.chain(&Spec::tls(C), &key(), &o);
@@ -206,8 +206,7 @@ fn pairing_needs_both_keys_from_one_phone() {
     policy_fail(check_pair(&tls, &other_phone, C, &policy(), &t.roots, &Revoked::default(), NOW).map(|p| p.0), "one device");
     let other_hash = t.pki.chain(&Spec { boot_hash: Some(vec![0x78; 32]), ..Spec::sig(C) }, &key(), &o);
     policy_fail(check_pair(&tls, &other_hash, C, &policy(), &t.roots, &Revoked::default(), NOW).map(|p| p.0), "one device");
-    // The roles are enforced: a sig chain in the tls slot passes, a tls chain
-    // in the sig slot doesn't.
+    // a tls chain in the sig slot fails
     assert!(check_pair(&tls, &tls, C, &policy(), &t.roots, &Revoked::default(), NOW).is_err());
 }
 

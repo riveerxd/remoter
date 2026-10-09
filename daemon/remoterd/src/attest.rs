@@ -168,7 +168,7 @@ mod tests {
     }
 
     #[test]
-    fn challenges_are_single_use_and_expire() {
+    fn challenges_single_use() {
         let dir = std::env::temp_dir().join(format!("remoter-attest-state-{}", std::process::id()));
         std::fs::create_dir_all(&dir).expect("mk");
         let mut s = AttestState::open(&dir, 7, remoter_attest::GOOGLE_ROOT_SPKI_SHA256.to_vec());

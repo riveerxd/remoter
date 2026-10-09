@@ -208,7 +208,7 @@ mod tests {
     }
 
     #[test]
-    fn rotation_carries_the_chain_across_files() {
+    fn rotation_keeps_chain() {
         let (f, mut a) = fresh("rot", 400);
         for n in 0..20 {
             a.append(entry(n)).expect("append");

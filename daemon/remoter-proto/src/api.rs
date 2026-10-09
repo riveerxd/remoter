@@ -255,9 +255,8 @@ pub struct SessionSummary {
     /// Where "Open Claude" goes once the session is ready, taken from what
     /// `remote-control` itself reported. `None` until then.
     pub claude: Option<ClaudeLink>,
-    /// The name of the worktree claude made for a worktree session, once it
-    /// is running in it. Left off the wire when there is none, so a phone
-    /// built before the field existed still reads every other session.
+    /// Once claude runs in it. Left off the wire when absent, so older phones
+    /// still read the session.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub worktree: Option<String>,
 }
@@ -527,7 +526,7 @@ mod tests {
     }
 
     #[test]
-    fn claude_link_accepts_only_known_shapes() {
+    fn claude_link_shapes() {
         let l = ClaudeLink::from_parts("session_01Hq7cXv2mTnR4bWkYe9pLsA", Some("env_01Kd3fPzQw8nVb2sLxRt6uYm")).expect("valid");
         assert_eq!(l.session_url, "https://claude.ai/code/session_01Hq7cXv2mTnR4bWkYe9pLsA");
         assert_eq!(l.environment_url.as_deref(), Some("https://claude.ai/code?environment=env_01Kd3fPzQw8nVb2sLxRt6uYm"));

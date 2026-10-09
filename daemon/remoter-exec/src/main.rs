@@ -1,10 +1,7 @@
-//! remoter-exec: runs inside a session's window, before claude.
-//!
-//! It takes one thing, `--spec <path>`, and trusts the spec only if it sits in
-//! a 0700 dir and is a 0600 file, both owned by us. It moves into the folder
-//! the agent checked, proves by dev and inode that it is the same folder, and
-//! only then starts claude. When claude exits it records why and holds the
-//! window open until the session is ended, with no shell left behind.
+//! Runs in a session's window before claude. The spec is trusted only as a
+//! 0600 file in a 0700 dir, both ours. Starts claude once dev and inode prove
+//! it is in the folder the agent checked, and keeps the window open after
+//! claude exits, with no shell behind it.
 
 use std::io::{Read, Write};
 use std::os::unix::ffi::OsStrExt;
@@ -32,8 +29,7 @@ fn main() -> ExitCode {
     };
     let dir = PathBuf::from(&spec.dir);
 
-    // Ctrl-C in the window reaches the whole foreground group. It is meant
-    // for claude; this process has to outlive claude to report on it.
+    // Ctrl-C reaches the whole foreground group, and this has to outlive claude to report on it
     // SAFETY: setting a disposition has no memory safety preconditions.
     unsafe { libc::signal(libc::SIGINT, libc::SIG_IGN) };
 
@@ -43,8 +39,7 @@ fn main() -> ExitCode {
         hold();
     }
 
-    // The name passed the session name rules, so it has no control bytes that
-    // could end the escape early.
+    // session names have no control bytes, so this can't end the escape early
     print!("\x1b]2;{}\x07", spec.name);
     let _ = std::io::stdout().flush();
 
@@ -67,8 +62,8 @@ fn main() -> ExitCode {
 
     let mut cmd = Command::new(&argv[0]);
     cmd.args(&argv[1..]).arg("--debug-file").arg(dir.join(DEBUG_FILE)).env("REMOTER_ID", &spec.id);
-    // SAFETY: only async signal safe calls between fork and exec. An ignored
-    // signal stays ignored across exec, so claude must get SIGINT back.
+    // SAFETY: only async signal safe calls between fork and exec. an ignored
+    // signal stays ignored across exec, so claude gets SIGINT back here.
     unsafe {
         cmd.pre_exec(|| {
             libc::signal(libc::SIGINT, libc::SIG_DFL);
@@ -122,7 +117,6 @@ const HANDOFF_DEADLINE: std::time::Duration = std::time::Duration::from_secs(240
 /// Its answer goes on claude's argv, and one argument tops out at 128 KiB.
 const HANDOFF_MAX: usize = 32 * 1024;
 
-/// Runs the summarizer over the condensed conversation and keeps what it wrote.
 /// Also printed in the window, so you can see what the new session was told.
 fn handoff(dir: &Path, h: &remoter_proto::local::HandoffSpec) -> Result<String, String> {
     if Path::new(&h.source) != dir.join(HANDOFF_SOURCE_FILE) {
@@ -150,7 +144,7 @@ fn handoff(dir: &Path, h: &remoter_proto::local::HandoffSpec) -> Result<String, 
     }
     let mut child = cmd.spawn().map_err(|e| format!("summarizer didn't start: {e}"))?;
     CLAUDE_PID.store(child.id() as i32, Ordering::SeqCst);
-    // Read on threads so a chatty summarizer can't fill a pipe and stall while we wait.
+    // on threads, or a chatty summarizer fills a pipe and stalls
     let mut out_pipe = child.stdout.take().ok_or("no stdout")?;
     let mut err_pipe = child.stderr.take().ok_or("no stderr")?;
     let out = std::thread::spawn(move || {
@@ -199,10 +193,9 @@ fn handoff(dir: &Path, h: &remoter_proto::local::HandoffSpec) -> Result<String, 
 /// claude's pid while it runs, 0 otherwise. Read from the signal handler.
 static CLAUDE_PID: AtomicI32 = AtomicI32::new(0);
 
-/// Ending the session (SIGTERM) or closing the window (SIGHUP) takes claude
-/// down with this process. kitty moves its child into a scope of its own some
-/// time after starting it, so claude may sit in either scope, and neither
-/// scope stop alone is sure to reach it.
+/// SIGTERM (session ended) or SIGHUP (window closed) takes claude down too.
+/// kitty moves its child into its own scope a while after starting it, so
+/// stopping one scope may miss claude.
 extern "C" fn on_end(sig: libc::c_int) {
     let pid = CLAUDE_PID.load(Ordering::SeqCst);
     // SAFETY: kill, signal and raise are async signal safe.
@@ -220,8 +213,7 @@ fn refuse(why: &str) -> ExitCode {
     ExitCode::from(2)
 }
 
-/// Waits for the SIGTERM that ending the session sends. The default action
-/// for SIGTERM and SIGHUP ends the process, which is what we want.
+/// Until the SIGTERM that ending the session sends.
 fn hold() -> ! {
     loop {
         // SAFETY: pause has no preconditions.
@@ -240,7 +232,7 @@ fn same_folder(spec: &Spec) -> bool {
     if std::env::set_current_dir(&spec.cwd).is_err() {
         return false;
     }
-    // "." after the chdir, not the path again: this is the folder we are in.
+    // "." rather than the path again, so it's the folder we are actually in
     match std::fs::metadata(".") {
         Ok(m) => m.dev() == spec.dev && m.ino() == spec.ino,
         Err(_) => false,
@@ -266,7 +258,7 @@ fn load_spec(path: &Path) -> Result<Spec, String> {
         .custom_flags(libc::O_NOFOLLOW | libc::O_CLOEXEC)
         .open(path)
         .map_err(|e| format!("spec: {e}"))?;
-    // Checked on the open fd, so a swap after the open can't change the answer.
+    // on the open fd, so a swap after the open can't change the answer
     let m = f.metadata().map_err(|e| format!("spec: {e}"))?;
     if !m.is_file() || m.uid() != uid() || m.mode() & 0o7777 != 0o600 || m.nlink() != 1 {
         return Err("spec must be a 0600 file owned by this user".into());

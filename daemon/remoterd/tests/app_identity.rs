@@ -33,7 +33,7 @@ fn attest(pki: &Pki, roots: &Roots, policy: &remoter_attest::Policy, package: &s
 }
 
 #[test]
-fn each_config_pairs_only_its_own_build() {
+fn each_config_pairs_own_build() {
     let pki = Pki::new("testroot0000");
     let roots = Roots::from_json(&pki.roots_json()).expect("roots");
     let production = policy("config.toml.tmpl");

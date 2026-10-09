@@ -62,10 +62,7 @@ impl Trust {
     fn projects(&self) -> HashMap<String, bool> {
         let meta = std::fs::metadata(&self.file).ok();
         let key = meta.as_ref().and_then(|m| Some((m.modified().ok()?, m.len())));
-        let mut guard = match self.cache.lock() {
-            Ok(g) => g,
-            Err(poisoned) => poisoned.into_inner(),
-        };
+        let mut guard = self.cache.lock().unwrap_or_else(|p| p.into_inner());
         if let (Some((mtime, len)), Some((cm, cl, map))) = (key, guard.as_ref())
             && mtime == *cm
             && len == *cl
@@ -127,20 +124,20 @@ mod tests {
         let (t, dir) = trust_with(
             r#"{"projects":{"/h":{"hasTrustDialogAccepted":false},"/h/Projects":{"hasTrustDialogAccepted":true},"/h/Projects/remoter":{"hasTrustDialogAccepted":false},"/h/Projects/nokey":{}}}"#,
         );
-        assert!(t.is_trusted(Path::new("/h/Projects/spike-a")), "inherits from Projects");
+        assert!(t.is_trusted(Path::new("/h/Projects/app")), "inherits from Projects");
         assert!(t.is_trusted(Path::new("/h/Projects")), "exact entry");
         assert!(!t.is_trusted(Path::new("/h/Projects/remoter/child")), "explicit false blocks inheritance");
         assert!(!t.is_trusted(Path::new("/h/Projects/nokey/x")), "entry without the key counts as false");
         assert!(!t.is_trusted(Path::new("/h/Documents")), "home is false");
         assert!(!t.is_trusted(Path::new("/elsewhere")), "no entry at all");
         assert!(t.is_trusted_here(Path::new("/h/Projects")));
-        assert!(!t.is_trusted_here(Path::new("/h/Projects/spike-a")), "inherited is not its own");
+        assert!(!t.is_trusted_here(Path::new("/h/Projects/app")), "inherited is not its own");
         assert!(!t.is_trusted_here(Path::new("/h/Projects/remoter")), "an explicit false");
         std::fs::remove_dir_all(dir).ok();
     }
 
     #[test]
-    fn missing_or_broken_file_trusts_nothing() {
+    fn bad_file_trusts_nothing() {
         let t = Trust::new(PathBuf::from("/nonexistent/remoter/claude.json"));
         assert!(!t.is_trusted(Path::new("/h/Projects/x")));
         let (t, dir) = trust_with("{not json");
@@ -149,7 +146,7 @@ mod tests {
     }
 
     #[test]
-    fn grant_trusts_the_folder_and_keeps_everything_else() {
+    fn grant_keeps_the_rest() {
         let (t, dir) = trust_with(r#"{"numStartups":7,"projects":{"/h/p":{"hasTrustDialogAccepted":true},"/h/p/x":{"hasTrustDialogAccepted":false,"history":[1]}},"oauth":{"k":"v"}}"#);
         assert!(!t.is_trusted(Path::new("/h/p/x/sub")), "an explicit false blocks the trusted parent");
         t.grant(Path::new("/h/p/x")).expect("grant");

@@ -1,10 +1,6 @@
-//! What remoterd and remoter-agent say over `/run/remoter/agent.sock`. One
-//! request per connection: remoterd writes a JSON request and shuts down its
-//! write side, the agent answers with one JSON reply and closes.
-//!
-//! remoterd forwards mutations untouched (method, raw target, headers, body)
-//! so the agent can verify the phone's signature itself. It never forwards a
-//! decision the agent would have to trust.
+//! remoterd to remoter-agent over `/run/remoter/agent.sock`, one JSON request
+//! and one reply per connection. Mutations are forwarded untouched so the agent
+//! verifies the phone's signature itself instead of trusting remoterd.
 
 use serde::{Deserialize, Serialize};
 
