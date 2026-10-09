@@ -6,6 +6,9 @@ use std::os::unix::fs::MetadataExt;
 use std::path::Path;
 use std::process::{Command, Stdio};
 
+use remoter_agent::config::Desktop;
+use remoter_agent::launcher::{i3_assign_line, i3_places_windows};
+
 pub struct Check {
     pub name: String,
     pub ok: bool,
@@ -111,13 +114,49 @@ pub fn run(i: &Inputs<'_>) -> Vec<Check> {
     let mut v = Vec::new();
 
     let env = out("systemctl", &["--user", "show-environment"]).unwrap_or_default();
-    let has = |k: &str| env.lines().any(|l| l.starts_with(&format!("{k}=")));
-    v.push(check(
-        "kitty and Hyprland reachable from the user manager",
-        has("WAYLAND_DISPLAY") && has("HYPRLAND_INSTANCE_SIGNATURE") && i.agent.kitty_bin.exists(),
-        format!("kitty {}, WAYLAND_DISPLAY {}, HYPRLAND_INSTANCE_SIGNATURE {}", i.agent.kitty_bin.exists(), has("WAYLAND_DISPLAY"), has("HYPRLAND_INSTANCE_SIGNATURE")),
-        "log in to Hyprland (it exports both into the user manager) and install kitty",
-    ));
+    let get = |k: &str| env.lines().find_map(|l| l.strip_prefix(&format!("{k}=")));
+    let has = |k: &str| get(k).is_some();
+    match i.agent.desktop {
+        Desktop::Hyprland => v.push(check(
+            "kitty and Hyprland reachable from the user manager",
+            has("WAYLAND_DISPLAY") && has("HYPRLAND_INSTANCE_SIGNATURE") && i.agent.kitty_bin.exists(),
+            format!("kitty {}, WAYLAND_DISPLAY {}, HYPRLAND_INSTANCE_SIGNATURE {}", i.agent.kitty_bin.exists(), has("WAYLAND_DISPLAY"), has("HYPRLAND_INSTANCE_SIGNATURE")),
+            "log in to Hyprland (it exports both into the user manager) and install kitty",
+        )),
+        Desktop::I3 => {
+            // asked the way the agent asks: with the user manager's DISPLAY, not this shell's
+            let config = get("DISPLAY").and_then(|d| {
+                let o = Command::new(&i.agent.i3msg_bin)
+                    .args(["-t", "get_config"])
+                    .env("DISPLAY", d)
+                    .env_remove("WAYLAND_DISPLAY")
+                    .env_remove("I3SOCK")
+                    .stdin(Stdio::null())
+                    .stderr(Stdio::null())
+                    .output()
+                    .ok()?;
+                o.status.success().then(|| String::from_utf8_lossy(&o.stdout).into_owned())
+            });
+            v.push(check(
+                "kitty and i3 reachable from the user manager",
+                config.is_some() && i.agent.kitty_bin.exists(),
+                format!("kitty {}, DISPLAY {}, i3 answered {}", i.agent.kitty_bin.exists(), has("DISPLAY"), config.is_some()),
+                "put `exec --no-startup-id systemctl --user import-environment DISPLAY XAUTHORITY` in the i3 config, log in again, and install kitty",
+            ));
+            let line = i3_assign_line(i.agent.workspace);
+            let placed = config.as_deref().is_some_and(i3_places_windows);
+            v.push(check(
+                &format!("i3 sends session windows to workspace {}", i.agent.workspace),
+                placed,
+                match (&config, placed) {
+                    (None, _) => "i3 didn't answer",
+                    (Some(_), true) => "the loaded config has a rule for remoter-rc",
+                    (Some(_), false) => "no assign for remoter-rc in the loaded config",
+                },
+                &format!("add `{line}` to the i3 config, then `i3-msg reload`"),
+            ));
+        }
+    }
 
     let target = std::fs::canonicalize(&i.agent.claude_bin);
     v.push(check(
