@@ -84,7 +84,7 @@ some update. Versions are what I saw it on.
   `~/.claude/sessions/<pid>.json` (pid alive and `procStart` matching
   `/proc/<pid>/stat`) and refuses with `conversation_open`.
 
-## kitty and Hyprland
+## kitty, Hyprland and i3
 
 - kitty expands `$VAR` in the child's argv. Nothing user controlled goes on
   kitty's command line, only the session id and a path to a 0600 spec file
@@ -95,7 +95,17 @@ some update. Versions are what I saw it on.
   before every spawn, since a Hyprland reload drops it.
 - The user manager already has `WAYLAND_DISPLAY` and
   `HYPRLAND_INSTANCE_SIGNATURE`, so the agent as a user service can reach both.
-- Sessions die when Hyprland exits or you log out. That's accepted.
+- i3 has no runtime window rules, so on i3 the `assign` line lives in your
+  config. The agent reads the loaded config through `i3-msg -t get_config`
+  before every spawn and refuses with `spawn_failed` when the line is missing,
+  rather than drop a window on whatever workspace is in front of you.
+- i3 doesn't fill the user manager's environment the way Hyprland does, hence
+  the `import-environment DISPLAY XAUTHORITY` line. kitty is started with
+  `WAYLAND_DISPLAY` removed, since one left over from a Wayland login would win
+  over `DISPLAY`.
+- The i3 path is tested against a real i3 on its own Xvfb (`i3_on_xvfb`), which
+  runs the whole kitty session suite there.
+- Sessions die when the window manager exits or you log out. That's accepted.
 
 ## NoNewPrivileges
 

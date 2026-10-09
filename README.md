@@ -66,8 +66,8 @@ browses its folders, and starting a session takes one tap and one finger.
   <img src="docs/screens/start.png" width="640" alt="The start sheet with previous sessions, and a session coming up" />
 </div>
 
-Sessions open as kitty windows on Hyprland workspace 9, each in its own systemd
-scope. They don't steal focus, and restarting remoter never kills them. When
+Sessions open as kitty windows on workspace 9 of Hyprland or i3, each in its
+own systemd scope. They don't steal focus, and restarting remoter never kills them. When
 you get back to the laptop, they're just there.
 
 Claude Code asks before it works in a folder it doesn't trust, and nobody is at
@@ -168,7 +168,7 @@ conversation, and why nothing you type ever ends up on kitty's command line.
 
 ## Install
 
-You need a laptop running a systemd user session with Hyprland and kitty, a VPS
+You need a laptop running a systemd user session with Hyprland or i3 and kitty, a VPS
 you can ssh into with sudo (or a home router you can forward a port on, see
 below), and an Android 14+ phone with StrongBox.
 
@@ -189,6 +189,13 @@ below), and an Android 14+ phone with StrongBox.
 
    ```bash
    infra/laptop/install.sh --app-cert-sha256 <your release cert digest>
+   ```
+
+   On i3, add `--desktop i3`, and put these two lines in the i3 config:
+
+   ```
+   exec --no-startup-id systemctl --user import-environment DISPLAY XAUTHORITY
+   assign [class="^remoter-rc$"] number 9
    ```
 
 4. **Pair.** Run `sudo remoterctl pair --name phone`, scan the QR with the app,
@@ -276,7 +283,7 @@ screenshots in light and dark, at 100% and 200% font size.
 
 ## Known limitations
 
-- Sessions die when Hyprland exits or you log out.
+- Sessions die when the window manager exits or you log out.
 - One laptop, one phone. A second phone can pair, but nothing is designed
   around it.
 - No CI. The test commands above are run by hand.
