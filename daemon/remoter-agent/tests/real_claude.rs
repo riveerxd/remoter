@@ -1,6 +1,7 @@
 //! Real claude, real kitty on workspace 9, your real `~/.claude`. Run from a
 //! desktop session, outside any claude, one at a time (`REMOTER_ALACRITTY`
-//! set to its binary runs them in Alacritty instead):
+//! set to its binary runs them in Alacritty instead, `REMOTER_TMUX=1` in a
+//! detached tmux session):
 //!
 //!     cargo build -p remoter-exec
 //!     env -u CLAUDECODE -u CLAUDE_CODE_CHILD_SESSION ... \
@@ -15,7 +16,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use remoter_agent::guard::{Home, parse_rel};
-use remoter_agent::launcher::{Terminal, WindowLauncher, Wm};
+use remoter_agent::launcher::{Launcher, Terminal, TmuxLauncher, WindowLauncher, Wm};
 use remoter_agent::sessions::{Sessions, SessionsConfig};
 use remoter_agent::transcripts::{Transcripts, project_dir_name};
 use remoter_agent::trust::Trust;
@@ -24,7 +25,10 @@ use remoter_proto::api::{SessionState, SpawnMode, SpawnRequest};
 
 const FOLDER: &str = "Projects/spike-a";
 
-fn window(exec_bin: PathBuf) -> Box<WindowLauncher> {
+fn window(exec_bin: PathBuf) -> Box<dyn Launcher> {
+    if std::env::var_os("REMOTER_TMUX").is_some() {
+        return Box::new(TmuxLauncher { tmux_bin: "/usr/bin/tmux".into(), socket: "remoter-test".into(), exec_bin });
+    }
     let terminal = std::env::var_os("REMOTER_ALACRITTY").map_or_else(|| Terminal::Kitty("/usr/bin/kitty".into()), |a| Terminal::Alacritty(a.into()));
     Box::new(WindowLauncher { terminal, wm: Wm::Hyprland { hyprctl_bin: "/usr/bin/hyprctl".into() }, exec_bin, workspace: 9 })
 }

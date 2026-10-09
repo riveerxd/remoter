@@ -118,6 +118,29 @@ some update. Versions are what I saw it on.
   `kitty_bin` exists, else Alacritty.
 - Sessions die when the window manager exits or you log out. That's accepted.
 
+## tmux
+
+- One tmux server for all sessions, `tmux -L remoter`, so you attach once and
+  move between them with your usual keys. It runs as its own transient user
+  service, `remoter-tmux.service`, started on the first spawn. Restarting the
+  agent leaves it and its sessions alone.
+- A pane is a child of the tmux server, which would put claude in the
+  server's cgroup and break ending and watching a session by its scope. So the
+  pane runs `systemd-run --scope --unit=rc-<id>` itself, and claude ends up in
+  the session's scope like it does in a window.
+- The server is started with `NoNewPrivileges=yes`. Window sessions inherit
+  that flag from the agent's unit, panes forked by a server the user manager
+  started would not.
+- Every tmux call from the agent passes `-N`, so a dead server is never
+  restarted by accident inside the agent's own cgroup.
+- tmux reads any argument that ends in `;` as a command separator, even after
+  `--`. The pane's argv is only plain paths, and the agent refuses one with a
+  trailing `;` anyway.
+- The screen comes from `capture-pane -J`, which joins wrapped rows back into
+  lines the way kitty's `get-text` does.
+- Your own `~/.tmux.conf` applies. If it sets `remain-on-exit`, ending a
+  session also kills its tmux session so a dead pane doesn't hang around.
+
 ## Processes
 
 - CPU only exists as the difference between two readings of `/proc`, so the

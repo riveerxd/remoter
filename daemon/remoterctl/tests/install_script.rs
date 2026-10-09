@@ -127,13 +127,14 @@ fn staging_needs_flag_and_own_cert() {
 
 /// install.sh's `render`, for the tests.
 fn render(file: &str) -> String {
-    render_for(file, "auto", "auto")
+    render_for(file, "auto", "auto", "window")
 }
 
-fn render_for(file: &str, desktop: &str, terminal: &str) -> String {
+fn render_for(file: &str, desktop: &str, terminal: &str, open_in: &str) -> String {
     let t = std::fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../infra/laptop").join(file)).expect("template");
     t.replace("@DESKTOP@", desktop)
         .replace("@TERMINAL@", terminal)
+        .replace("@OPEN_IN@", open_in)
         .replace("@HOME@", "/home/river")
         .replace("@USER@", "river")
         .replace("@UID@", "1000")
@@ -169,6 +170,7 @@ fn staging_shares_nothing() {
     assert_ne!(pa.agent_state(), sa.agent_state());
     assert_ne!(pa.runtime_dir, sa.runtime_dir);
     assert_eq!(sd.agent_socket, sa.socket);
+    assert_ne!(pa.tmux_socket, sa.tmux_socket, "tmux server is shared");
 }
 
 #[test]
@@ -184,7 +186,19 @@ fn desktop_and_terminal_choices() {
     for file in ["config.toml.tmpl", "config-staging.toml.tmpl"] {
         let auto = AgentConfig::parse(&render(file)).expect("parses");
         assert_eq!((auto.desktop, auto.terminal), (Desktop::Auto, TerminalChoice::Auto));
-        let set = AgentConfig::parse(&render_for(file, "i3", "alacritty")).expect("parses");
+        let set = AgentConfig::parse(&render_for(file, "i3", "alacritty", "window")).expect("parses");
         assert_eq!((set.desktop, set.terminal), (Desktop::I3, TerminalChoice::Alacritty));
+    }
+}
+
+#[test]
+fn open_in_choice() {
+    use remoter_agent::config::{AgentConfig, OpenIn};
+    let release = "5a".repeat(32);
+    let (ok, _, err) = plan(&["--app-cert-sha256", &release, "--open-in", "screen"]);
+    assert!(!ok && err.contains("window or tmux"), "{err}");
+    for file in ["config.toml.tmpl", "config-staging.toml.tmpl"] {
+        assert_eq!(AgentConfig::parse(&render(file)).expect("parses").open_in, OpenIn::Window);
+        assert_eq!(AgentConfig::parse(&render_for(file, "auto", "auto", "tmux")).expect("parses").open_in, OpenIn::Tmux);
     }
 }

@@ -11,6 +11,13 @@ pub struct AgentConfig {
     pub home: PathBuf,
     pub claude_bin: PathBuf,
     #[serde(default)]
+    pub open_in: OpenIn,
+    #[serde(default = "d_tmux")]
+    pub tmux_bin: PathBuf,
+    /// `tmux -L <this> attach` to see the sessions
+    #[serde(default = "d_tmux_socket")]
+    pub tmux_socket: String,
+    #[serde(default)]
     pub terminal: TerminalChoice,
     #[serde(default = "d_kitty")]
     pub kitty_bin: PathBuf,
@@ -61,6 +68,15 @@ pub struct AgentConfig {
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "lowercase")]
+pub enum OpenIn {
+    #[default]
+    Window,
+    /// no window, a detached tmux session you can attach to
+    Tmux,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum Desktop {
     #[default]
     Auto,
@@ -83,6 +99,13 @@ fn d_kitty() -> PathBuf {
 }
 fn d_alacritty() -> PathBuf {
     "/usr/bin/alacritty".into()
+}
+
+fn d_tmux() -> PathBuf {
+    "/usr/bin/tmux".into()
+}
+fn d_tmux_socket() -> String {
+    "remoter".into()
 }
 
 fn d_hyprctl() -> PathBuf {
@@ -181,6 +204,7 @@ impl AgentConfig {
             ("alacritty_bin", &self.alacritty_bin),
             ("hyprctl_bin", &self.hyprctl_bin),
             ("i3msg_bin", &self.i3msg_bin),
+            ("tmux_bin", &self.tmux_bin),
             ("exec_bin", &self.exec_bin),
             ("devices", &self.devices),
             ("lock_dir", &self.lock_dir),
@@ -202,6 +226,13 @@ impl AgentConfig {
         }
         if self.max_sessions == 0 || self.max_sessions > 32 {
             return Err("max_sessions must be 1 to 32".into());
+        }
+        // tmux puts it in a path and a unit name
+        if self.tmux_socket.is_empty()
+            || self.tmux_socket.len() > 32
+            || !self.tmux_socket.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-')
+        {
+            return Err("tmux_socket must be 1 to 32 letters, digits, _ or -".into());
         }
         if !(5..=600).contains(&self.ready_timeout_s) {
             return Err("ready_timeout_s must be 5 to 600".into());
@@ -251,6 +282,15 @@ app_package     = "me.river.remoter"
         assert_eq!(c.claude_bin, PathBuf::from("/home/river/.local/bin/claude"));
         assert_eq!(c.cwd_deny.len(), 6);
         assert_eq!(c.ready_timeout_s, 90, "default");
+        assert_eq!(c.open_in, OpenIn::Window);
+        assert_eq!(c.tmux_socket, "remoter");
+    }
+
+    #[test]
+    fn open_in_tmux() {
+        let c = AgentConfig::parse(&SAMPLE.replace("workspace       = 9", "workspace       = 9\nopen_in = \"tmux\"\ntmux_socket = \"rmt-2\"")).expect("parses");
+        assert_eq!(c.open_in, OpenIn::Tmux);
+        assert_eq!(c.tmux_socket, "rmt-2");
     }
 
     #[test]
@@ -269,7 +309,11 @@ app_package     = "me.river.remoter"
             ("max_sessions    = 8", "max_sessions    = 0"),
             ("\".ssh\", ", "\".ssh/keys\", "),
             ("trusted_roots   = [\"Projects\"]", "trusted_roots   = [\"..\"]"),
-            ("workspace       = 9", "workspace       = 9\ntmux_bin = \"/usr/bin/tmux\""),
+            ("workspace       = 9", "workspace       = 9\ntmux_session = \"x\""),
+            ("workspace       = 9", "workspace       = 9\nopen_in = \"screen\""),
+            ("workspace       = 9", "workspace       = 9\ntmux_socket = \"a/b\""),
+            ("workspace       = 9", "workspace       = 9\ntmux_socket = \"\""),
+            ("workspace       = 9", "workspace       = 9\ntmux_bin = \"tmux\""),
         ];
         for (from, to) in cases {
             let text = SAMPLE.replace(from, to);

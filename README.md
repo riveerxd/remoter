@@ -71,6 +71,10 @@ Sessions open as kitty or Alacritty windows on workspace 9 of Hyprland or i3,
 each in its own systemd scope. They don't steal focus, and restarting remoter
 never kills them. When you get back to the laptop, they're just there.
 
+Or no window at all: with `open_in = "tmux"` each session is a detached tmux
+session, and `tmux -L remoter attach` shows them when you want to look. That
+needs no desktop, so sessions start even when nobody is logged in.
+
 Claude Code asks before it works in a folder it doesn't trust, and nobody is at
 the laptop to answer. So remoter marks each folder trusted right before it
 starts a session there. That means the folder's own Claude settings, hooks and
@@ -200,8 +204,9 @@ a port on, see below), and an Android 14+ phone with StrongBox.
    It works out the desktop and the terminal on every start: Hyprland if
    you're logged in to it, else i3; kitty if it's installed, else Alacritty.
    `--desktop hyprland|i3` and `--terminal kitty|alacritty` pin either one
-   (`desktop` and `terminal` in `/etc/remoter/config.toml` later). On i3, put
-   these two lines in the i3 config:
+   (`desktop` and `terminal` in `/etc/remoter/config.toml` later).
+   `--open-in tmux` skips the window and runs sessions in tmux instead (3.2 or
+   newer). On i3, put these two lines in the i3 config:
 
    ```
    exec --no-startup-id systemctl --user import-environment DISPLAY XAUTHORITY

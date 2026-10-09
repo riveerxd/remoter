@@ -782,6 +782,7 @@ impl Inner {
         while Instant::now() < deadline && units.iter().any(present) {
             std::thread::sleep(Duration::from_millis(100));
         }
+        self.launcher.ended(id);
     }
 }
 

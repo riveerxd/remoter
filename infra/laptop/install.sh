@@ -4,11 +4,16 @@
 #
 #   install.sh --app-cert-sha256 <SHA-256 of the release signing cert>
 #              [--desktop auto|hyprland|i3] [--terminal auto|kitty|alacritty]
+#              [--open-in window|tmux]
 #              [--with-staging --e2e-cert-sha256 <SHA-256 of the e2e cert>]
 #
 # --desktop and --terminal pick where session windows open. auto, the
 # default, decides on every start: Hyprland if you're logged in to it, else i3;
 # kitty if it's installed, else Alacritty.
+#
+# --open-in tmux opens no window at all: sessions run detached in one tmux
+# server, `tmux -L remoter attach` to look at them. Needs no desktop, so
+# sessions start even when nobody is logged in.
 #
 # --with-staging also installs the staging instance the device e2e suite runs
 # against (ports 9443/9444, /etc/remoter/staging), off unless asked for.
@@ -30,6 +35,7 @@ e2e_digest=""
 staging=0
 desktop=auto
 terminal=auto
+open_in=window
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --app-cert-sha256) digest="${2:-}"; shift 2 ;;
@@ -37,11 +43,14 @@ while [[ $# -gt 0 ]]; do
         --with-staging) staging=1; shift ;;
         --desktop) desktop="${2:-}"; shift 2 ;;
         --terminal) terminal="${2:-}"; shift 2 ;;
+        --open-in) open_in="${2:-}"; shift 2 ;;
         *) die "unknown argument $1" ;;
     esac
 done
 [[ "$desktop" =~ ^(auto|hyprland|i3)$ ]] || die "--desktop is auto, hyprland or i3"
 [[ "$terminal" =~ ^(auto|kitty|alacritty)$ ]] || die "--terminal is auto, kitty or alacritty"
+[[ "$open_in" =~ ^(window|tmux)$ ]] || die "--open-in is window or tmux"
+[[ "$open_in" != tmux ]] || command -v tmux >/dev/null || die "--open-in tmux needs tmux installed"
 plain="${digest//:/}"
 [[ "$plain" =~ ^[0-9A-Fa-f]{64}$ ]] || die "--app-cert-sha256 needs the 64 hex digits of the release signing cert (keytool -list -v)"
 e2e_plain="${e2e_digest//:/}"
@@ -70,6 +79,7 @@ render() {
     text="${text//@UID@/"$uid"}"
     text="${text//@DESKTOP@/"$desktop"}"
     text="${text//@TERMINAL@/"$terminal"}"
+    text="${text//@OPEN_IN@/"$open_in"}"
     text="${text//@APP_CERT_SHA256@/"$plain"}"
     text="${text//@E2E_CERT_SHA256@/"$e2e_plain"}"
     printf '%s\n' "$text"

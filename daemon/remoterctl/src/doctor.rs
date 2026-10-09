@@ -6,6 +6,7 @@ use std::os::unix::fs::MetadataExt;
 use std::path::Path;
 use std::process::{Command, Stdio};
 
+use remoter_agent::config::OpenIn;
 use remoter_agent::launcher::{Terminal, Wm, i3_assign_line, i3_places_windows};
 
 pub struct Check {
@@ -87,6 +88,18 @@ pub fn outer_dev(route: &str) -> Option<&str> {
     words.next()
 }
 
+/// `-D` (a server in the foreground) came in 3.2.
+pub fn tmux_new_enough(version: &str) -> bool {
+    let Some(v) = version.split_whitespace().nth(1) else {
+        return false;
+    };
+    let v = v.strip_prefix("next-").unwrap_or(v);
+    let mut parts = v.split('.');
+    let major: u32 = parts.next().and_then(|m| m.parse().ok()).unwrap_or(0);
+    let minor: u32 = parts.next().map(|m| m.trim_end_matches(|c: char| c.is_ascii_alphabetic())).and_then(|m| m.parse().ok()).unwrap_or(0);
+    (major, minor) >= (3, 2)
+}
+
 pub fn handshake_fresh(wg_latest: &str, now: u64) -> bool {
     wg_latest.lines().filter_map(|l| l.split_whitespace().nth(1)?.parse::<u64>().ok()).any(|t| t > 0 && now.saturating_sub(t) < 180)
 }
@@ -115,62 +128,75 @@ pub fn run(i: &Inputs<'_>) -> Vec<Check> {
     let env = out("systemctl", &["--user", "show-environment"]).unwrap_or_default();
     let get = |k: &str| env.lines().find_map(|l| l.strip_prefix(&format!("{k}=")));
     let has = |k: &str| get(k).is_some();
-    let (term_name, term_bin) = match i.agent.terminal() {
-        Terminal::Kitty(b) => ("kitty", b),
-        Terminal::Alacritty(b) => ("Alacritty", b),
-    };
-    v.push(check(
-        &format!("{term_name} installed"),
-        term_bin.exists(),
-        term_bin.display().to_string(),
-        "install kitty or Alacritty, or point kitty_bin or alacritty_bin in /etc/remoter/config.toml at it",
-    ));
-    match i.agent.wm().resolve(has) {
-        Some(Wm::Hyprland { .. }) => v.push(check(
-            "Hyprland reachable from the user manager",
-            has("WAYLAND_DISPLAY") && has("HYPRLAND_INSTANCE_SIGNATURE"),
-            format!("WAYLAND_DISPLAY {}, HYPRLAND_INSTANCE_SIGNATURE {}", has("WAYLAND_DISPLAY"), has("HYPRLAND_INSTANCE_SIGNATURE")),
-            "log in to Hyprland, it exports both into the user manager",
-        )),
-        Some(Wm::I3 { i3msg_bin }) => {
-            // asked the way the agent asks: with the user manager's DISPLAY, not this shell's
-            let config = get("DISPLAY").and_then(|d| {
-                let o = Command::new(&i3msg_bin)
-                    .args(["-t", "get_config"])
-                    .env("DISPLAY", d)
-                    .env_remove("WAYLAND_DISPLAY")
-                    .env_remove("I3SOCK")
-                    .stdin(Stdio::null())
-                    .stderr(Stdio::null())
-                    .output()
-                    .ok()?;
-                o.status.success().then(|| String::from_utf8_lossy(&o.stdout).into_owned())
-            });
-            v.push(check(
-                "i3 reachable from the user manager",
-                config.is_some(),
-                format!("DISPLAY {}, i3 answered {}", has("DISPLAY"), config.is_some()),
-                "put `exec --no-startup-id systemctl --user import-environment DISPLAY XAUTHORITY` in the i3 config and log in again",
-            ));
-            let line = i3_assign_line(i.agent.workspace);
-            let placed = config.as_deref().is_some_and(i3_places_windows);
-            v.push(check(
-                &format!("i3 sends session windows to workspace {}", i.agent.workspace),
-                placed,
-                match (&config, placed) {
-                    (None, _) => "i3 didn't answer",
-                    (Some(_), true) => "the loaded config has a rule for remoter-rc",
-                    (Some(_), false) => "no assign for remoter-rc in the loaded config",
-                },
-                &format!("add `{line}` to the i3 config, then `i3-msg reload`"),
-            ));
+    if i.agent.open_in == OpenIn::Tmux {
+        let version = out(&i.agent.tmux_bin.to_string_lossy(), &["-V"]);
+        v.push(check(
+            "tmux 3.2 or newer installed",
+            version.as_deref().is_some_and(tmux_new_enough),
+            match &version {
+                Some(said) => format!("{}, attach with `tmux -L {} attach`", said.trim(), i.agent.tmux_socket),
+                None => format!("{} didn't run", i.agent.tmux_bin.display()),
+            },
+            "install tmux, or point tmux_bin in /etc/remoter/config.toml at it",
+        ));
+    } else {
+        let (term_name, term_bin) = match i.agent.terminal() {
+            Terminal::Kitty(b) => ("kitty", b),
+            Terminal::Alacritty(b) => ("Alacritty", b),
+        };
+        v.push(check(
+            &format!("{term_name} installed"),
+            term_bin.exists(),
+            term_bin.display().to_string(),
+            "install kitty or Alacritty, or point kitty_bin or alacritty_bin in /etc/remoter/config.toml at it",
+        ));
+        match i.agent.wm().resolve(has) {
+            Some(Wm::Hyprland { .. }) => v.push(check(
+                "Hyprland reachable from the user manager",
+                has("WAYLAND_DISPLAY") && has("HYPRLAND_INSTANCE_SIGNATURE"),
+                format!("WAYLAND_DISPLAY {}, HYPRLAND_INSTANCE_SIGNATURE {}", has("WAYLAND_DISPLAY"), has("HYPRLAND_INSTANCE_SIGNATURE")),
+                "log in to Hyprland, it exports both into the user manager",
+            )),
+            Some(Wm::I3 { i3msg_bin }) => {
+                // asked the way the agent asks: with the user manager's DISPLAY, not this shell's
+                let config = get("DISPLAY").and_then(|d| {
+                    let o = Command::new(&i3msg_bin)
+                        .args(["-t", "get_config"])
+                        .env("DISPLAY", d)
+                        .env_remove("WAYLAND_DISPLAY")
+                        .env_remove("I3SOCK")
+                        .stdin(Stdio::null())
+                        .stderr(Stdio::null())
+                        .output()
+                        .ok()?;
+                    o.status.success().then(|| String::from_utf8_lossy(&o.stdout).into_owned())
+                });
+                v.push(check(
+                    "i3 reachable from the user manager",
+                    config.is_some(),
+                    format!("DISPLAY {}, i3 answered {}", has("DISPLAY"), config.is_some()),
+                    "put `exec --no-startup-id systemctl --user import-environment DISPLAY XAUTHORITY` in the i3 config and log in again",
+                ));
+                let line = i3_assign_line(i.agent.workspace);
+                let placed = config.as_deref().is_some_and(i3_places_windows);
+                v.push(check(
+                    &format!("i3 sends session windows to workspace {}", i.agent.workspace),
+                    placed,
+                    match (&config, placed) {
+                        (None, _) => "i3 didn't answer",
+                        (Some(_), true) => "the loaded config has a rule for remoter-rc",
+                        (Some(_), false) => "no assign for remoter-rc in the loaded config",
+                    },
+                    &format!("add `{line}` to the i3 config, then `i3-msg reload`"),
+                ));
+            }
+            _ => v.push(check(
+                "a desktop the agent can open windows on",
+                false,
+                "the user manager has neither HYPRLAND_INSTANCE_SIGNATURE nor DISPLAY",
+                "log in to Hyprland or i3; on i3, import DISPLAY into the user manager (see the README)",
+            )),
         }
-        _ => v.push(check(
-            "a desktop the agent can open windows on",
-            false,
-            "the user manager has neither HYPRLAND_INSTANCE_SIGNATURE nor DISPLAY",
-            "log in to Hyprland or i3; on i3, import DISPLAY into the user manager (see the README)",
-        )),
     }
 
     let target = std::fs::canonicalize(&i.agent.claude_bin);
@@ -270,6 +296,13 @@ mod tests {
         assert_eq!(outer_dev("1.1.1.1 dev wg0 table 51820 src 10.8.0.2 uid 1000"), Some("wg0"));
         assert_eq!(outer_dev(""), None);
         assert_eq!(outer_dev("RTNETLINK answers: Network is unreachable dev"), None);
+    }
+
+    #[test]
+    fn tmux_versions() {
+        for (said, ok) in [("tmux 3.8", true), ("tmux 3.2", true), ("tmux 3.3a", true), ("tmux next-3.6", true), ("tmux 3.1c", false), ("tmux 2.9", false), ("tmux", false), ("", false)] {
+            assert_eq!(tmux_new_enough(said), ok, "{said}");
+        }
     }
 
     #[test]

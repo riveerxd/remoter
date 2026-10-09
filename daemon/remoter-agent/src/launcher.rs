@@ -1,4 +1,5 @@
-//! Opens a session's window: kitty or Alacritty, on Hyprland or i3. Headless only with `e2e-test`.
+//! Opens a session's window: kitty or Alacritty, on Hyprland or i3. Or no
+//! window, a detached tmux session. Headless only with `e2e-test`.
 
 use std::path::Path;
 use std::process::{Command, Stdio};
@@ -21,6 +22,9 @@ pub trait Launcher: Send + Sync {
     fn renders_screen(&self) -> bool {
         false
     }
+
+    /// After its scope is gone.
+    fn ended(&self, _id: &str) {}
 }
 
 /// kitty expands `$VAR` in its child's argv, so paths stick to a boring
@@ -239,6 +243,124 @@ impl Launcher for WindowLauncher {
     }
 }
 
+/// One tmux server for all sessions, as its own user service. Each pane runs
+/// systemd-run itself, so claude still ends up in `rc-<id>.scope`.
+pub struct TmuxLauncher {
+    pub tmux_bin: std::path::PathBuf,
+    pub socket: String,
+    pub exec_bin: std::path::PathBuf,
+}
+
+/// The size a pane gets while nobody is attached.
+const TMUX_COLS: &str = "160";
+const TMUX_ROWS: &str = "48";
+
+impl TmuxLauncher {
+    pub fn unit(&self) -> String {
+        format!("{}-tmux.service", self.socket)
+    }
+
+    fn tmux(&self) -> Command {
+        let mut c = Command::new(&self.tmux_bin);
+        // -N: never start a server from here, it would land in the agent's cgroup
+        c.args(["-L", &self.socket, "-N"]).stdin(Stdio::null());
+        c
+    }
+
+    fn up(&self) -> bool {
+        self.tmux().arg("list-sessions").stdout(Stdio::null()).stderr(Stdio::null()).status().is_ok_and(|s| s.success())
+    }
+
+    fn wait_up(&self) -> bool {
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(3);
+        loop {
+            if self.up() {
+                return true;
+            }
+            if std::time::Instant::now() > deadline {
+                return false;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        }
+    }
+
+    /// `tmux new-session`'s arguments. tmux ends a command at any argument
+    /// that ends in `;`, even after `--`, so those are refused.
+    pub fn new_session_args(&self, id: &str, dir: &Path) -> Option<Vec<std::ffi::OsString>> {
+        let mut a: Vec<std::ffi::OsString> =
+            ["new-session", "-d", "-s", id, "-x", TMUX_COLS, "-y", TMUX_ROWS, "--", "systemd-run"].into_iter().map(Into::into).collect();
+        a.extend(scope_prefix(id).into_iter().map(Into::into));
+        a.push(self.exec_bin.clone().into());
+        a.push("--spec".into());
+        a.push(dir.join(SPEC_FILE).into());
+        a.iter().all(|x| !x.as_encoded_bytes().ends_with(b";")).then_some(a)
+    }
+}
+
+impl Launcher for TmuxLauncher {
+    fn prepare(&self) -> Result<(), AgentError> {
+        if self.up() {
+            return Ok(());
+        }
+        let unit = self.unit();
+        let systemctl = |verb: &str| Command::new("systemctl").args(["--user", verb, &unit]).stdin(Stdio::null()).output();
+        // someone else may have just started it and it isn't listening yet
+        if systemctl("is-active").is_ok_and(|o| o.status.success()) && self.wait_up() {
+            return Ok(());
+        }
+        let _ = systemctl("stop");
+        let _ = systemctl("reset-failed");
+        let out = Command::new("systemd-run")
+            // a window session inherits this from remoter-agent.service, a pane would not
+            .args(["--user", "--quiet", "--collect", "--expand-environment=no", "-p", "NoNewPrivileges=yes", &format!("--unit={unit}"), "--"])
+            .arg(&self.tmux_bin)
+            // -D keeps the server in the foreground and alive with no sessions
+            .args(["-L", &self.socket, "-D"])
+            .stdin(Stdio::null())
+            .output()
+            .map_err(|e| AgentError::new(ErrorCode::SpawnFailed, format!("systemd-run: {e}")))?;
+        // losing a race to start it is fine, as long as it answers
+        if self.wait_up() {
+            return Ok(());
+        }
+        let said = String::from_utf8_lossy(&out.stderr);
+        Err(AgentError::new(ErrorCode::SpawnFailed, format!("tmux server in {unit} never answered: {}", said.trim())))
+    }
+
+    fn launch(&self, id: &str, dir: &Path) -> Result<(), AgentError> {
+        if !is_plain_path(dir) || !is_plain_path(&self.exec_bin) {
+            return Err(AgentError::new(ErrorCode::SpawnFailed, "runtime or exec path has odd characters"));
+        }
+        let args = self.new_session_args(id, dir).ok_or_else(|| AgentError::new(ErrorCode::SpawnFailed, "an argument ends in ;"))?;
+        let out = self
+            .tmux()
+            .args(args)
+            .output()
+            .map_err(|e| AgentError::new(ErrorCode::SpawnFailed, format!("tmux: {e}")))?;
+        if !out.status.success() {
+            return Err(AgentError::new(ErrorCode::SpawnFailed, format!("tmux said {:?}", String::from_utf8_lossy(&out.stderr).trim())));
+        }
+        Ok(())
+    }
+
+    fn screen(&self, dir: &Path) -> Option<String> {
+        let id = dir.file_name()?.to_str()?;
+        let out = self
+            .tmux()
+            // -J joins wrapped rows back into lines, like kitty's get-text
+            .args(["capture-pane", "-p", "-J", "-S", "-200", "-t", &format!("={id}:")])
+            .stderr(Stdio::null())
+            .output()
+            .ok()?;
+        out.status.success().then(|| String::from_utf8_lossy(&out.stdout).into_owned())
+    }
+
+    fn ended(&self, id: &str) {
+        // only matters with remain-on-exit, otherwise the pane closed with the scope
+        let _ = self.tmux().args(["kill-session", "-t", &format!("={id}")]).stderr(Stdio::null()).output();
+    }
+}
+
 /// A test checks the release binary doesn't contain this.
 #[cfg(feature = "e2e-test")]
 pub const E2E_MARKER: &str = "remoter-e2e-test-build-marker";
@@ -332,6 +454,25 @@ mod tests {
     fn window_rule_text() {
         let k = WindowLauncher { terminal: Terminal::Kitty("/k".into()), wm: Wm::Hyprland { hyprctl_bin: "/h".into() }, exec_bin: "/e".into(), workspace: 9 };
         assert_eq!(k.window_rule(), "match:class ^(remoter-rc)$, workspace 9 silent");
+    }
+
+    #[test]
+    fn tmux_new_session_args() {
+        let t = TmuxLauncher { tmux_bin: "/usr/bin/tmux".into(), socket: "remoter".into(), exec_bin: "/usr/local/bin/remoter-exec".into() };
+        assert_eq!(t.unit(), "remoter-tmux.service");
+        let a: Vec<String> = t
+            .new_session_args("rc-01", Path::new("/run/user/1000/remoter/rc-01"))
+            .expect("args")
+            .into_iter()
+            .map(|x| x.into_string().expect("utf8"))
+            .collect();
+        assert_eq!(
+            a.join(" "),
+            "new-session -d -s rc-01 -x 160 -y 48 -- systemd-run --user --scope --quiet --collect --expand-environment=no --unit=rc-01 -- \
+             /usr/local/bin/remoter-exec --spec /run/user/1000/remoter/rc-01/spec.json"
+        );
+        let semi = TmuxLauncher { exec_bin: "/opt/x;".into(), ..t };
+        assert!(semi.new_session_args("rc-01", Path::new("/run/r")).is_none());
     }
 
     #[test]

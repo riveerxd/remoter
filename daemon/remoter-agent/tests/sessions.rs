@@ -1,6 +1,7 @@
 //! One suite per launcher: kitty and Alacritty on Hyprland workspace 9
 //! (`--ignored`), both again on a private i3 under Xvfb (`i3_on_xvfb`), and
-//! headless with `--features e2e-test`. claude is always a fake script.
+//! detached in tmux when it's installed, and headless with `--features
+//! e2e-test`. claude is always a fake script.
 //! `REMOTER_ALACRITTY` points at an Alacritty outside /usr/bin.
 
 use std::os::unix::fs::PermissionsExt;
@@ -11,7 +12,7 @@ use std::time::{Duration, Instant};
 
 use remoter_agent::AgentError;
 use remoter_agent::guard::Home;
-use remoter_agent::launcher::{Launcher, Terminal, WindowLauncher, Wm};
+use remoter_agent::launcher::{Launcher, Terminal, TmuxLauncher, WindowLauncher, Wm};
 use remoter_agent::sessions::{Sessions, SessionsConfig, active_scopes};
 use remoter_agent::transcripts::{Transcripts, project_dir_name};
 use remoter_agent::trust::Trust;
@@ -204,6 +205,15 @@ fn alacritty() -> Box<dyn Launcher> {
 
 fn alacritty_i3() -> Box<dyn Launcher> {
     window(alacritty_bin(), i3())
+}
+
+// its own server, so the real one's sessions never show up here
+fn tmux() -> Box<dyn Launcher> {
+    Box::new(TmuxLauncher { tmux_bin: "/usr/bin/tmux".into(), socket: "remoter-test".into(), exec_bin: exec_bin() })
+}
+
+fn no_tmux() -> bool {
+    !Path::new("/usr/bin/tmux").exists()
 }
 
 fn never() -> bool {
@@ -1002,8 +1012,59 @@ suite!(kitty_ws9, kitty, never, ignore = "opens real kitty windows on Hyprland w
 suite!(kitty_i3, kitty_i3, outside_i3_lab, ignore = "run by i3_on_xvfb");
 suite!(alacritty_ws9, alacritty, never, ignore = "opens real Alacritty windows on Hyprland workspace 9: cargo test -- --ignored");
 suite!(alacritty_i3, alacritty_i3, outside_i3_lab, ignore = "run by i3_on_xvfb");
+suite!(tmux_detached, tmux, no_tmux, allow(unused_attributes));
 #[cfg(feature = "e2e-test")]
 suite!(headless_pty, headless, never, allow(unused_attributes));
+
+fn tmux_sessions(sock: &str) -> String {
+    let out = std::process::Command::new("/usr/bin/tmux").args(["-L", sock, "-N", "list-sessions", "-F", "#{session_name}"]).output().expect("tmux");
+    String::from_utf8_lossy(&out.stdout).into_owned()
+}
+
+// a window session inherits NoNewPrivileges from the agent's unit, a pane
+// forked by a server the user manager started would not
+#[test]
+fn tmux_keeps_no_new_privs() {
+    if no_tmux() {
+        return;
+    }
+    let w = World::new();
+    let s = w.sessions(w.cfg("ready"), tmux());
+    let id = s.spawn(&req("Projects/remoter", "nnp"), None).expect("spawn");
+    wait_state(&s, &id, SessionState::Ready, Duration::from_secs(15));
+    let status: remoter_proto::local::Status =
+        serde_json::from_slice(&std::fs::read(w.dir_of(&id).join(remoter_proto::local::STATUS_FILE)).expect("status")).expect("json");
+    let proc_status = std::fs::read_to_string(format!("/proc/{}/status", status.pid.expect("pid"))).expect("proc");
+    let server = std::fs::read_to_string(format!("/proc/{}/status", server_pid("remoter-test"))).expect("server");
+    s.kill(&id).expect("kill");
+    wait_gone(&s, &id, Duration::from_secs(10));
+    assert!(proc_status.contains("NoNewPrivs:\t1"));
+    assert!(server.contains("NoNewPrivs:\t1"));
+}
+
+fn server_pid(sock: &str) -> i32 {
+    let out = std::process::Command::new("/usr/bin/tmux").args(["-L", sock, "-N", "display-message", "-p", "#{pid}"]).output().expect("tmux");
+    String::from_utf8_lossy(&out.stdout).trim().parse().expect("server pid")
+}
+
+#[test]
+fn tmux_session_attachable_until_killed() {
+    if no_tmux() {
+        return;
+    }
+    let w = World::new();
+    let s = w.sessions(w.cfg("ready"), tmux());
+    let id = s.spawn(&req("Projects/remoter", "attach"), None).expect("spawn");
+    wait_state(&s, &id, SessionState::Ready, Duration::from_secs(15));
+    assert!(tmux_sessions("remoter-test").lines().any(|l| l == id));
+    s.kill(&id).expect("kill");
+    wait_gone(&s, &id, Duration::from_secs(10));
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while tmux_sessions("remoter-test").lines().any(|l| l == id) {
+        assert!(Instant::now() < deadline, "tmux session outlived the kill");
+        std::thread::sleep(Duration::from_millis(100));
+    }
+}
 
 // refusals, no launch needed, run in every build
 

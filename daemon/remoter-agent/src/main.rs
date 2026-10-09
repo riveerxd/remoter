@@ -4,9 +4,9 @@ use std::process::ExitCode;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use remoter_agent::config::AgentConfig;
+use remoter_agent::config::{AgentConfig, OpenIn};
 use remoter_agent::guard::Home;
-use remoter_agent::launcher::{WindowLauncher, Launcher};
+use remoter_agent::launcher::{Launcher, TmuxLauncher, WindowLauncher};
 use remoter_agent::notify::{Notifier, NotifySend};
 use remoter_agent::recent::History;
 use remoter_agent::server::{AgentCtx, serve};
@@ -50,6 +50,9 @@ fn launcher(cfg: &AgentConfig) -> Box<dyn Launcher> {
     #[cfg(feature = "e2e-test")]
     if std::env::var_os("REMOTER_E2E_HEADLESS").is_some() {
         return Box::new(remoter_agent::launcher::HeadlessLauncher { exec_bin: cfg.exec_bin.clone() });
+    }
+    if cfg.open_in == OpenIn::Tmux {
+        return Box::new(TmuxLauncher { tmux_bin: cfg.tmux_bin.clone(), socket: cfg.tmux_socket.clone(), exec_bin: cfg.exec_bin.clone() });
     }
     Box::new(WindowLauncher {
         terminal: cfg.terminal(),
