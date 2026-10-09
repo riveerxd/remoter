@@ -246,6 +246,47 @@
     "device_id": "01K6B7Y3M4N5P6Q7R8S9T0V1W2",
     "hostname": "r1v3r"
   },
+  "procs": {
+    "procs": [
+      {
+        "cmd": "claude --remote-control=remoter --permission-mode bypassPermissions",
+        "cpu_pct": 104.5,
+        "killable": true,
+        "name": "claude",
+        "pid": 4242,
+        "ppid": 4240,
+        "rss": 512000000,
+        "session": {
+          "id": "rc-01k6b7y3m4n5p6q7r8s9t0v1w2",
+          "name": "remoter"
+        },
+        "start": 17006290,
+        "user": "river"
+      },
+      {
+        "cmd": "sshd: /usr/bin/sshd -D",
+        "cpu_pct": 0.0,
+        "killable": false,
+        "name": "sshd",
+        "pid": 811,
+        "ppid": 1,
+        "rss": 9000000,
+        "start": 2301,
+        "user": "root"
+      }
+    ],
+    "resources": {
+      "cores": 16,
+      "cpu_pct": 23.4,
+      "disk_free": 412418985984,
+      "disk_total": 999142281216,
+      "mem_available": 19843563520,
+      "mem_total": 33324118016,
+      "swap_free": 17179865088,
+      "swap_total": 17179865088
+    },
+    "truncated": false
+  },
   "recent": {
     "entries": [
       {
@@ -256,6 +297,16 @@
       }
     ],
     "typical_start_ms": 6100
+  },
+  "resources": {
+    "cores": 16,
+    "cpu_pct": 23.4,
+    "disk_free": 412418985984,
+    "disk_total": 999142281216,
+    "mem_available": 19843563520,
+    "mem_total": 33324118016,
+    "swap_free": 17179865088,
+    "swap_total": 17179865088
   },
   "resume_request": {
     "mode": "same-dir",
@@ -340,6 +391,10 @@
         "state": "exited"
       }
     ]
+  },
+  "signal_request": {
+    "signal": "term",
+    "start": 17006290
   },
   "spawn": {
     "id": "rc-01k6b7y3m4n5p6q7r8s9t0v1w2",

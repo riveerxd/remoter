@@ -75,6 +75,7 @@ data class HomeNav(
     val onSession: (SessionSummary) -> Unit,
     val onOpenWireGuard: () -> Unit,
     val onOpenClaude: (SessionSummary) -> Unit = {},
+    val onProcesses: () -> Unit = {},
 )
 
 internal const val UndoMs = 5_000L
@@ -115,6 +116,7 @@ fun HomeScreen(vm: HomeViewModel, nav: HomeNav, entrance: Boolean) {
         onReorder = { sheet = HomeSheet.Reorder },
         onNew = { sheet = HomeSheet.New },
         onOpenClaude = nav.onOpenClaude,
+        onLoad = nav.onProcesses,
     )
     Box(Modifier.fillMaxSize()) {
         HomeContent(ui, callbacks, entrance)
@@ -155,7 +157,7 @@ fun HomeScreen(vm: HomeViewModel, nav: HomeNav, entrance: Boolean) {
                     })
                 }
                 HomeSheet.Reorder -> Reorder(ui, vm::move) { sheet = null }
-                HomeSheet.Map -> MapDetails(ui)
+                HomeSheet.Map -> MapDetails(ui, onProcesses = { sheet = null; nav.onProcesses() })
                 HomeSheet.New -> NewSession(ui, callbacks)
             }
         }
@@ -267,7 +269,7 @@ private fun DragDots(color: Color) {
 }
 
 @Composable
-internal fun MapDetails(ui: HomeUi) {
+internal fun MapDetails(ui: HomeUi, onProcesses: () -> Unit = {}) {
     val c = Remoter.colors
     val t = Remoter.type
     Text("Connection", style = t.title, color = c.text)
@@ -293,6 +295,11 @@ internal fun MapDetails(ui: HomeUi) {
             },
         )
         ui.lastRequestId?.let { RequestId(it) }
+        // home drops the load card at big fonts, this is where it is then
+        ui.resources?.takeIf { ui.link is Link.Up }?.let { r ->
+            Fact("Load", r.gauges().joinToString(" · ") { it.short })
+            QuietButton("Processes", onProcesses)
+        }
         // the phone's WireGuard app looks the home address up once per tunnel start
         if (ui.direct && ui.link is Link.LaptopDown) {
             Text(

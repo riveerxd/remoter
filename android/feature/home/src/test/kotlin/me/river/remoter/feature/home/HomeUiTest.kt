@@ -1,5 +1,6 @@
 package me.river.remoter.feature.home
 
+import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
@@ -14,6 +15,10 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+
+private fun clickLabelled(label: String) = androidx.compose.ui.test.SemanticsMatcher("click label $label") {
+    it.config.getOrNull(androidx.compose.ui.semantics.SemanticsActions.OnClick)?.label == label
+}
 
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = "w411dp-h891dp-xxhdpi")
@@ -42,6 +47,37 @@ class HomeUiTest {
         compose.onNodeWithText("Start again").assertExists()
         compose.onNodeWithText("api").performClick()
         assertEquals("Projects/api", started?.path)
+    }
+
+    @Test
+    fun the_load_card_opens_processes() {
+        var opened = 0
+        show(homeStates.getValue("up_load"), HomeCallbacks(onLoad = { opened++ }))
+        compose.onNodeWithContentDescription("CPU 23 percent busy", substring = true).assertIsDisplayed()
+        compose.onNodeWithContentDescription("Memory 40 percent used", substring = true).assertExists()
+        compose.onNodeWithContentDescription("Disk 58 percent used, 384 GB free", substring = true).assertExists()
+        compose.onNode(clickLabelled("Show processes")).performClick()
+        assertEquals(1, opened)
+    }
+
+    @Test
+    fun connection_details_carry_the_load_too() {
+        var opened = 0
+        compose.setContent {
+            RemoterTheme(dark = true, reducedMotion = true) {
+                androidx.compose.foundation.layout.Column { MapDetails(homeStates.getValue("up_load"), onProcesses = { opened++ }) }
+            }
+        }
+        compose.onNodeWithText("CPU 23% · Memory 40% · Disk 58%").assertExists()
+        compose.onNodeWithText("Processes").performClick()
+        assertEquals(1, opened)
+    }
+
+    @Test
+    fun no_load_card_while_the_laptop_is_away() {
+        show(homeStates.getValue("laptop_down_load"))
+        compose.onNodeWithContentDescription("CPU", substring = true).assertDoesNotExist()
+        compose.onNode(clickLabelled("Show processes")).assertDoesNotExist()
     }
 
     @Test

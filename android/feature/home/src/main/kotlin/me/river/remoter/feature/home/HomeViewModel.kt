@@ -62,6 +62,8 @@ data class HomeUi(
     val undoUnpin: Pair<Int, String>? = null,
     /** The phone dials the laptop itself, no hub in between. */
     val direct: Boolean = false,
+    /** Null until the live stream sends some, and from a laptop too old to. */
+    val resources: me.river.remoter.core.net.Resources? = null,
 )
 
 private const val RetryHoldMs = 600L
@@ -107,6 +109,9 @@ class HomeViewModel @Inject constructor(
                     )
                 }
             }
+        }
+        viewModelScope.launch {
+            monitor.resources.collect { r -> _ui.update { it.copy(resources = r) } }
         }
         // a switch while the app is open has to reach the next cold start, not only the next refresh
         viewModelScope.launch {

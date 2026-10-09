@@ -223,6 +223,53 @@ data class AuditEntry(
 @Serializable
 data class AuditPage(val entries: List<AuditEntry>, @SerialName("next_before") val nextBefore: Long?)
 
+/** What the laptop has left, pushed as `resources` on the live stream. Sizes are bytes. */
+@Serializable
+data class Resources(
+    @SerialName("cpu_pct") val cpuPct: Double,
+    val cores: Int,
+    @SerialName("mem_total") val memTotal: Long,
+    @SerialName("mem_available") val memAvailable: Long,
+    @SerialName("swap_total") val swapTotal: Long,
+    @SerialName("swap_free") val swapFree: Long,
+    @SerialName("disk_total") val diskTotal: Long,
+    @SerialName("disk_free") val diskFree: Long,
+) {
+    val memUsed get() = (memTotal - memAvailable).coerceAtLeast(0)
+    val diskUsed get() = (diskTotal - diskFree).coerceAtLeast(0)
+}
+
+@Serializable
+data class ProcSession(val id: String, val name: String)
+
+/** One process, htop style. [cpuPct] is of one core, so it goes past 100. */
+@Serializable
+data class Proc(
+    val pid: Int,
+    val ppid: Int,
+    /** Sent back with a signal, so a pid the laptop reused is never hit. */
+    val start: Long,
+    val user: String,
+    val name: String,
+    val cmd: String,
+    @SerialName("cpu_pct") val cpuPct: Double,
+    val rss: Long,
+    val killable: Boolean,
+    val session: ProcSession? = null,
+)
+
+@Serializable
+data class ProcsResponse(val resources: Resources, val procs: List<Proc>, val truncated: Boolean)
+
+@Serializable
+enum class Signal {
+    @SerialName("term") Term,
+    @SerialName("kill") Kill,
+}
+
+@Serializable
+data class SignalRequest(val start: Long, val signal: Signal)
+
 @Serializable
 data class PairRequest(
     @SerialName("device_name") val deviceName: String,
@@ -254,6 +301,7 @@ enum class ErrorCode {
     @SerialName("session_cap") SessionCap,
     @SerialName("folder_busy") FolderBusy,
     @SerialName("conversation_open") ConversationOpen,
+    @SerialName("process_denied") ProcessDenied,
     @SerialName("view_token_required") ViewTokenRequired,
     @SerialName("spawn_failed") SpawnFailed,
     @SerialName("desktop_down") DesktopDown,

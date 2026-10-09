@@ -59,6 +59,7 @@ import me.river.remoter.feature.browser.BrowserScreen
 import me.river.remoter.feature.browser.BrowserViewModel
 import me.river.remoter.feature.home.HomeNav
 import me.river.remoter.feature.home.HomeScreen
+import me.river.remoter.feature.home.ProcessesScreen
 import me.river.remoter.feature.onboarding.OnboardingScreen
 import me.river.remoter.feature.onboarding.PairAgainReason
 import me.river.remoter.core.design.openWireGuard
@@ -228,6 +229,7 @@ private fun Graph(start: NavKey, root: RootViewModel, entrance: Boolean, onEntra
                                     onSession = { back.add(Session(it.id)) },
                                     onOpenWireGuard = { openWireGuard(context) },
                                     onOpenClaude = { openClaude(it.claude) },
+                                    onProcesses = { back.add(Processes) },
                                 ),
                                 entrance,
                             )
@@ -283,6 +285,9 @@ private fun Graph(start: NavKey, root: RootViewModel, entrance: Boolean, onEntra
                                 onUnpair = { vm.unpair() },
                             ),
                         )
+                    }
+                    entry<Processes>(metadata = fadeMeta) {
+                        ProcessesScreen(hiltViewModel(), onBack = { back.popFrom(Processes) })
                     }
                     entry<Audit>(metadata = fadeMeta) {
                         val vm: AuditViewModel = hiltViewModel()

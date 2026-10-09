@@ -9,7 +9,7 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use remoter_auth::{Admit, Cached, Devices, Request, Verifier};
-use remoter_proto::api::{ErrorBody, MkdirRequest, SessionDetail, SessionState, SessionsResponse, SpawnRequest, SpawnResponse, ViewTokenResponse};
+use remoter_proto::api::{ErrorBody, MkdirRequest, SessionDetail, SessionState, SessionsResponse, SignalRequest, SpawnRequest, SpawnResponse, ViewTokenResponse};
 use remoter_proto::ipc::{
     AgentFailure, AgentReply, AgentRequest, AgentStatus, EventsReply, LiveReply, MAX_EVENTS_WAIT_MS, MAX_FRAME, MutateReply, SeqEvent,
     TailReply,
@@ -19,6 +19,7 @@ use remoter_proto::{ErrorCode, b64, local};
 use crate::guard::{Home, parse_rel};
 use crate::list::{Lister, STAT_BUDGET};
 use crate::notify::Notifier;
+use crate::procs::Procs;
 use crate::recent::History;
 use crate::search::{Searcher, TIME_BUDGET};
 use crate::sessions::Sessions;
@@ -44,6 +45,7 @@ pub struct AgentCtx {
     /// remoterd can't write here: our sticky lock and unpaired list
     pub agent_state: PathBuf,
     pub autolock: Mutex<remoter_auth::autolock::AutoLock>,
+    pub procs: Procs,
 }
 
 pub const AGENT_LOCK_FILE: &str = "locked";
@@ -176,6 +178,8 @@ impl AgentCtx {
             AgentRequest::Tail { id } => reply(self.tail(&id)),
             AgentRequest::Events { id, after, wait_ms } => reply(self.events(&id, after, wait_ms)),
             AgentRequest::Live { after, wait_ms } => ok(self.live(after, wait_ms)),
+            AgentRequest::Resources {} => ok(self.procs.resources(self.home.fd())),
+            AgentRequest::Procs {} => ok(self.procs.procs(self.home.fd(), &self.session_names())),
             AgentRequest::Mutate { device, request_id, method, target, headers, body } => {
                 let body = b64::decode(&body).unwrap_or_default();
                 ok(self.mutate(&device, &request_id, &method, &target, &headers, &body))
@@ -189,6 +193,10 @@ impl AgentCtx {
             .iter()
             .filter(|s| matches!(s.state, SessionState::Starting | SessionState::Ready | SessionState::Stuck))
             .count() as u32
+    }
+
+    fn session_names(&self) -> std::collections::HashMap<String, String> {
+        self.sessions.list().into_iter().filter(|s| s.state != SessionState::Gone).map(|s| (s.id, s.name)).collect()
     }
 
     fn rel(path_b64: &str) -> Result<crate::guard::RelPath, AgentError> {
@@ -332,6 +340,14 @@ impl AgentCtx {
             ("DELETE", p) if p.starts_with("/v1/sessions/") && body.is_empty() => {
                 let id = &p["/v1/sessions/".len()..];
                 self.sessions.kill(id).map(|()| (202, "{}".to_owned(), Some(id.to_owned())))
+            }
+            ("POST", p) if p.starts_with("/v1/procs/") && p.ends_with("/signal") => {
+                let pid = p["/v1/procs/".len()..p.len() - "/signal".len()].parse::<i32>().map_err(|_| AgentError::new(ErrorCode::BadRequest, "pid"));
+                pid.and_then(|pid| {
+                    let r = parse::<SignalRequest>(body)?;
+                    let what = self.procs.signal(pid, r.start, r.signal)?;
+                    Ok((202, "{}".to_owned(), Some(what)))
+                })
             }
             ("POST", "/v1/view-token") => {
                 self.issue().map(|(token, expires)| (200, to_json(&ViewTokenResponse { token, expires }), None))

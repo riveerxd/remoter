@@ -95,6 +95,16 @@ const CASES: &[Case] = &[
         nonce: [7; 16],
     },
     Case {
+        name: "signal",
+        method: "POST",
+        segments: &["procs", "4242", "signal"],
+        query: &[],
+        target: "/v1/procs/4242/signal",
+        body: r#"{"start":17006290,"signal":"term"}"#,
+        ts: 1_790_611_108_500,
+        nonce: [0x0b; 16],
+    },
+    Case {
         name: "view_token",
         method: "POST",
         segments: &["view-token"],
@@ -294,6 +304,41 @@ fn responses_fixture() {
     ready.worktree = Some("bright-otter-3f2a".into());
     let sessions = vec![ready, stuck, exited];
 
+    let resources = Resources {
+        cpu_pct: 23.4,
+        cores: 16,
+        mem_total: 33_324_118_016,
+        mem_available: 19_843_563_520,
+        swap_total: 17_179_865_088,
+        swap_free: 17_179_865_088,
+        disk_total: 999_142_281_216,
+        disk_free: 412_418_985_984,
+    };
+    let claude = Proc {
+        pid: 4242,
+        ppid: 4240,
+        start: 17_006_290,
+        user: "river".into(),
+        name: "claude".into(),
+        cmd: "claude --remote-control=remoter --permission-mode bypassPermissions".into(),
+        cpu_pct: 104.5,
+        rss: 512_000_000,
+        killable: true,
+        session: Some(ProcSession { id: "rc-01k6b7y3m4n5p6q7r8s9t0v1w2".into(), name: "remoter".into() }),
+    };
+    let sshd = Proc {
+        pid: 811,
+        ppid: 1,
+        start: 2_301,
+        user: "root".into(),
+        name: "sshd".into(),
+        cmd: "sshd: /usr/bin/sshd -D".into(),
+        cpu_pct: 0.0,
+        rss: 9_000_000,
+        killable: false,
+        session: None,
+    };
+
     check(
         "responses.json",
         json!({
@@ -324,6 +369,9 @@ fn responses_fixture() {
             "attest_challenge": AttestChallenge { challenge: "AAECAwQFBgcICQoLDA0ODw".into(), expires: 1_790_611_406_000 },
             "attest_response": AttestResponse { fresh_until: 1_790_697_506_000 },
             "lock": LockResponse { locked: true },
+            "resources": resources.clone(),
+            "procs": ProcsResponse { resources, procs: vec![claude, sshd], truncated: false },
+            "signal_request": SignalRequest { start: 17_006_290, signal: Signal::Term },
             "audit": AuditPage { entries: vec![AuditEntry { ts: 1_790_611_106_000, device: Some(DEVICE.into()), action: "spawn".into(), path: Some("Projects/remoter".into()), result: "ok".into(), request_id: "01K6B7Y3M4N5P6Q7R8S9T0V1X0".into() }], next_before: Some(1_790_611_106_000) },
             "pair": PairResponse { device_id: DEVICE.into(), hostname: "r1v3r".into() },
             "events": [

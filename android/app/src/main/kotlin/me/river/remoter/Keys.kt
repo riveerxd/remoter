@@ -12,3 +12,4 @@ import me.river.remoter.feature.onboarding.PairAgainReason
 @Serializable data class Session(val id: String) : NavKey
 @Serializable data object Settings : NavKey
 @Serializable data object Audit : NavKey
+@Serializable data object Processes : NavKey

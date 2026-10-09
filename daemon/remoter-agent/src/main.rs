@@ -115,6 +115,7 @@ fn run(config_path: &Path) -> Result<(), String> {
         peer_uid,
         agent_state: cfg.agent_state(),
         autolock: Mutex::default(),
+        procs: remoter_agent::procs::Procs::system(),
     });
     watch_lock(cfg.locked_flag(), cfg.agent_state(), NotifySend { bin: cfg.notify_bin.clone() });
     let listener = bind_socket(&cfg.socket)?;

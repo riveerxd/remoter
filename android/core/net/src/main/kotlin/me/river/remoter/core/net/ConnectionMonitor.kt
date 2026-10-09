@@ -37,6 +37,10 @@ class ConnectionMonitor(
     val account: StateFlow<Account?> = _account.asStateFlow()
     private val _health = MutableStateFlow<Health?>(null)
     val health: StateFlow<Health?> = _health.asStateFlow()
+    private val _resources = MutableStateFlow<Resources?>(null)
+
+    /** Only from the live stream. A laptop too old to send it leaves this null. */
+    val resources: StateFlow<Resources?> = _resources.asStateFlow()
 
     private val latencies = ArrayDeque<Int>()
     private var lastSeenMs: Long? = null
@@ -72,6 +76,10 @@ class ConnectionMonitor(
         _health.value = h
         val skew = _account.value?.clockSkewMs ?: (h.serverTime - clock.nowMs())
         _account.value = Account(h.locked, paired = true, clockSkewMs = skew, freshUntilMs = h.freshUntil)
+    }
+
+    fun onLiveResources(r: Resources) {
+        _resources.value = r
     }
 
     private suspend fun loop() {

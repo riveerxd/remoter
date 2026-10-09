@@ -60,7 +60,9 @@ fun AppError.copy(host: String): ErrorCopy = when (this) {
         "remoter on $host is older than this app. Update it there and it trusts the folders it starts in by itself.",
     )
     AppError.NotFound -> ErrorCopy(ErrorLook.Inline, "That folder isn't there anymore")
-    is AppError.Denied -> ErrorCopy(ErrorLook.Limits, "Sessions can't start here", "Folders like .ssh and your home itself are off limits for sessions.")
+    is AppError.Denied -> if (code == ErrorCode.ProcessDenied) {
+        ErrorCopy(ErrorLook.Limits, "remoter won't signal that one", "It runs as another user, or remoter itself depends on it.")
+    } else ErrorCopy(ErrorLook.Limits, "Sessions can't start here", "Folders like .ssh and your home itself are off limits for sessions.")
     AppError.FingerprintLockedOut -> ErrorCopy(
         ErrorLook.Permission, "Fingerprint is locked out for now",
         "Try again in a bit, or use your phone's lock screen to reset it.",

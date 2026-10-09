@@ -26,6 +26,8 @@ pub enum ErrorCode {
     /// The conversation asked to resume is open in a claude right now. claude would let a second
     /// one take it over, and both would write the same transcript.
     ConversationOpen,
+    /// Not your process, or one remoter itself needs.
+    ProcessDenied,
     ViewTokenRequired,
     SpawnFailed,
     DesktopDown,
@@ -37,7 +39,7 @@ pub enum ErrorCode {
 }
 
 impl ErrorCode {
-    pub const ALL: [ErrorCode; 26] = [
+    pub const ALL: [ErrorCode; 27] = [
         ErrorCode::PathOutsideHome,
         ErrorCode::PathDenied,
         ErrorCode::PathUnsupported,
@@ -56,6 +58,7 @@ impl ErrorCode {
         ErrorCode::SessionCap,
         ErrorCode::FolderBusy,
         ErrorCode::ConversationOpen,
+        ErrorCode::ProcessDenied,
         ErrorCode::ViewTokenRequired,
         ErrorCode::SpawnFailed,
         ErrorCode::DesktopDown,
@@ -69,7 +72,7 @@ impl ErrorCode {
     pub fn http_status(self) -> u16 {
         use ErrorCode::*;
         match self {
-            PathOutsideHome | PathDenied | PathUnsupported | UntrustedFolder => 403,
+            PathOutsideHome | PathDenied | PathUnsupported | UntrustedFolder | ProcessDenied => 403,
             NotFound => 404,
             NotADirectory | NameInvalid | BadRequest => 400,
             Exists => 409,
@@ -106,6 +109,7 @@ impl ErrorCode {
             SessionCap => "session_cap",
             FolderBusy => "folder_busy",
             ConversationOpen => "conversation_open",
+            ProcessDenied => "process_denied",
             ViewTokenRequired => "view_token_required",
             SpawnFailed => "spawn_failed",
             DesktopDown => "desktop_down",

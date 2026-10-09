@@ -101,6 +101,7 @@ class OkHttpRemoterApi(
         get(Paths.session(id), SessionDetail.serializer(), mapOf(HDR_VIEW_TOKEN to viewToken))
     override suspend fun history(path: String, viewToken: String) =
         get(Paths.history(path), HistoryResponse.serializer(), mapOf(HDR_VIEW_TOKEN to viewToken))
+    override suspend fun procs() = get(Paths.procs, ProcsResponse.serializer())
     override suspend fun audit(before: Long?) =
         get(Paths.url("audit", query = listOfNotNull(before?.let { "before" to it.toString() })), AuditPage.serializer())
 
@@ -115,6 +116,9 @@ class OkHttpRemoterApi(
     }
     override suspend fun viewToken(signed: Signed) = signed(signed, ViewTokenResponse.serializer())!!
     override suspend fun unpair(signed: Signed) {
+        signed<Unit>(signed, null)
+    }
+    override suspend fun signal(signed: Signed) {
         signed<Unit>(signed, null)
     }
 

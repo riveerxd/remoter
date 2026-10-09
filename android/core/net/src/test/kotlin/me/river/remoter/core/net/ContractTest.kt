@@ -147,10 +147,13 @@ class ContractTest {
         roundTrip<LockResponse>(o["lock"]!!)
         roundTrip<AuditPage>(o["audit"]!!)
         roundTrip<PairResponse>(o["pair"]!!)
+        roundTrip<Resources>(o["resources"]!!)
+        roundTrip<ProcsResponse>(o["procs"]!!)
+        roundTrip<SignalRequest>(o["signal_request"]!!)
         val known = setOf(
             "health", "health_older", "health_direct", "list", "search", "recent", "mkdir_request", "mkdir", "spawn_request", "spawn", "sessions",
             "session_detail", "view_token", "attest_challenge", "attest_response", "lock", "audit", "pair", "events",
-            "live_sessions", "resume_request", "handoff_request", "history",
+            "live_sessions", "resume_request", "handoff_request", "history", "resources", "procs", "signal_request",
         )
         assertEquals("a fixture has no Kotlin model", known, o.keys)
         o["events"]!!.jsonArray.forEach {
@@ -161,6 +164,8 @@ class ContractTest {
         assertEquals(RemoterJson.decodeFromJsonElement(LiveSessions.serializer(), o["live_sessions"]!!).sessions, live.sessions)
         val health = LiveEvent.parse("health", o["health"].toString()) as LiveEvent.Health
         assertEquals(RemoterJson.decodeFromJsonElement(Health.serializer(), o["health"]!!), health.health)
+        val res = LiveEvent.parse("resources", o["resources"].toString()) as LiveEvent.Resources
+        assertEquals(RemoterJson.decodeFromJsonElement(Resources.serializer(), o["resources"]!!), res.resources)
         assertNull("a newer laptop's event is skipped, not fatal", LiveEvent.parse("weather", "{}"))
     }
 
@@ -214,6 +219,17 @@ class ContractTest {
     @Test
     fun history_lives_under_fs_with_the_folder_as_query() {
         assertEquals("/v1/fs/history?path=Projects%2Fmy%20app", Canonical.target(Paths.history("Projects/my app")))
+    }
+
+    @Test
+    fun procs_and_signal_paths() {
+        assertEquals("/v1/procs", Canonical.target(Paths.procs))
+        assertEquals("/v1/procs/4242/signal", Canonical.target(Paths.signal(4242)))
+        val o = fixture("responses.json").jsonObject
+        val p = RemoterJson.decodeFromJsonElement(ProcsResponse.serializer(), o["procs"]!!)
+        assertEquals("remoter", p.procs[0].session?.name)
+        assertNull(p.procs[1].session)
+        assertEquals(o["signal_request"], Json.parseToJsonElement(RemoterJson.encodeToString(SignalRequest.serializer(), SignalRequest(17_006_290, Signal.Term))))
     }
 
     @Test

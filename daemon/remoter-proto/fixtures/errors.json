@@ -181,6 +181,14 @@
   },
   {
     "body": {
+      "code": "process_denied",
+      "message": "process_denied (fixture)",
+      "request_id": "01K6B7Y3M4N5P6Q7R8S9T0V1X1"
+    },
+    "status": 403
+  },
+  {
+    "body": {
       "code": "view_token_required",
       "message": "view_token_required (fixture)",
       "request_id": "01K6B7Y3M4N5P6Q7R8S9T0V1X1"

@@ -314,7 +314,7 @@ fun AuditContent(ui: AuditUi, onBack: () -> Unit, onMore: () -> Unit, host: Stri
                         Text(clockTime(e.ts), style = t.label.tnum(), color = c.textMuted, modifier = Modifier.width(56.dp))
                         Column(Modifier.weight(1f).padding(end = Space.s8)) {
                             Text(auditAction(e.action, e.result), style = t.bodyStrong, color = c.text)
-                            e.path?.let { Text("~/$it", style = t.label, color = c.textMuted) }
+                            e.path?.let { Text(auditPath(e.action, it), style = t.label, color = c.textMuted) }
                         }
                         val (word, tone) = auditResult(e.action, e.result)
                         StatusLabel(word, tone)

@@ -27,6 +27,10 @@ import me.river.remoter.core.net.LockResponse
 import me.river.remoter.core.net.MkdirRequest
 import me.river.remoter.core.net.MkdirResponse
 import me.river.remoter.core.net.Phase
+import me.river.remoter.core.net.Proc
+import me.river.remoter.core.net.ProcsResponse
+import me.river.remoter.core.net.Resources
+import me.river.remoter.core.net.SignalRequest
 import me.river.remoter.core.net.RecentResponse
 import me.river.remoter.core.net.RemoterApi
 import me.river.remoter.core.net.RemoterJson
@@ -94,6 +98,19 @@ class FixtureBackend(
     val mkdirCalls = mutableListOf<Signed>()
     val viewTokenCalls = mutableListOf<Signed>()
     val historyCalls = mutableListOf<String>()
+    val signalCalls = mutableListOf<Signed>()
+
+    /** Processes a signal took down, gone from the next list like on the laptop. */
+    private val signalled = mutableSetOf<Int>()
+
+    /** Null plays a laptop from before resources were sent. */
+    var resources: Resources? = null
+        get() = field ?: if (sendResources) get<Resources>("resources") else null
+        set(v) {
+            field = v
+            changed()
+        }
+    var sendResources = true
 
     /** False makes the laptop refuse every token for history, as an expired one would be. */
     var historyTokenValid = true
@@ -177,12 +194,14 @@ class FixtureBackend(
         liveCalls++
         var sent: List<SessionSummary>? = null
         var health: Health? = null
+        var res: Resources? = null
         version.collect {
             gate()
             val list = current()
             val h = get<Health>(healthKey).copy(sessions = list.size)
             if (h != health) emit(LiveEvent.Health(h)).also { health = h }
             if (list != sent) emit(LiveEvent.Sessions(list)).also { sent = list }
+            resources?.takeIf { it != res }?.let { emit(LiveEvent.Resources(it)); res = it }
         }
     }
 
@@ -216,6 +235,49 @@ class FixtureBackend(
     }
 
     override suspend fun audit(before: Long?): AuditPage = get("audit")
+
+    /** The two fixture processes plus enough of a desktop to scroll and sort, sessions tagged like the agent tags them. */
+    override suspend fun procs(): ProcsResponse {
+        val base = get<ProcsResponse>("procs")
+        val (claude, sshd) = base.procs
+        val gb = 1_000_000_000L
+        val sessions = current().filter { it.state != SessionState.Exited && it.state != SessionState.Gone }
+        fun mine(pid: Int, name: String, cmd: String, cpu: Double, rss: Long, ppid: Int = 1) =
+            claude.copy(pid = pid, ppid = ppid, start = 1_000L + pid, name = name, cmd = cmd, cpuPct = cpu, rss = rss, session = null)
+        val tagged = sessions.mapIndexed { i, s ->
+            claude.copy(pid = claude.pid + i * 10, cmd = "claude --remote-control=${s.name}", cpuPct = listOf(104.5, 3.1, 0.4)[i % 3], session = claude.session?.copy(id = s.id, name = s.name))
+        }
+        val all = tagged + listOf(
+            mine(2210, "firefox", "/usr/lib/firefox/firefox", 18.2, 2 * gb + 300_000_000),
+            mine(2290, "Isolated Web Co", "/usr/lib/firefox/firefox -contentproc -isForBrowser", 9.6, 820_000_000, 2210),
+            mine(1730, "Hyprland", "Hyprland", 4.8, 240_000_000),
+            mine(3120, "cargo", "cargo test --workspace", 37.0, 610_000_000),
+            mine(3125, "rustc", "rustc --crate-name remoter_agent --edition=2024", 96.3, 1_400_000_000, 3120),
+            mine(1801, "kitty", "kitty", 0.7, 150_000_000),
+            mine(1802, "zsh", "-zsh", 0.0, 9_000_000, 1801),
+            mine(2050, "java", "java -Xmx2g org.gradle.launcher.daemon.bootstrap.GradleDaemon", 2.2, 3 * gb),
+            mine(1650, "pipewire", "/usr/bin/pipewire", 0.3, 22_000_000),
+            sshd,
+            sshd.copy(pid = 640, name = "NetworkManager", cmd = "/usr/bin/NetworkManager --no-daemon", cpuPct = 0.1, rss = 31_000_000),
+            sshd.copy(pid = 1, ppid = 0, name = "systemd", cmd = "/sbin/init", cpuPct = 0.0, rss = 14_000_000),
+        )
+        return base.copy(resources = resources ?: base.resources, procs = all.filter { it.pid !in signalled }.sortedByDescending { it.cpuPct })
+    }
+
+    /** A process that exits on its own, not from this phone. */
+    fun endProcess(pid: Int) {
+        signalled += pid
+        changed()
+    }
+
+    override suspend fun signal(signed: Signed) {
+        signalCalls += signed
+        gate()
+        val pid = signed.target.removePrefix("/v1/procs/").removeSuffix("/signal").toInt()
+        RemoterJson.decodeFromString(SignalRequest.serializer(), signed.body.decodeToString())
+        signalled += pid
+        changed()
+    }
     override suspend fun lock(): LockResponse {
         gate()
         lockCalls++

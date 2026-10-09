@@ -61,6 +61,7 @@ browses its folders, and starting a session takes one tap and one finger.
 | **Open in Claude** | Ready sessions get a button straight into the Claude app. |
 | **Resume** | A folder's past conversations are listed with their title and last prompt. Bring one back as it was, or start fresh from a summary of it. |
 | **End it** | One finger, and the window on the laptop closes with it. |
+| **Keep an eye on it** | CPU, memory and disk on the home screen. Tap them for the process list, sort by CPU or memory, and quit or kill anything of yours, one finger each. Processes from remoter sessions are tagged with the session's name. |
 
 <div align="center">
   <img src="docs/screens/start.png" width="640" alt="The start sheet with previous sessions, and a session coming up" />

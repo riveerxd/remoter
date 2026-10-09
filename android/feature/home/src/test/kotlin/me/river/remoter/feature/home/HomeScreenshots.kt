@@ -30,6 +30,11 @@ private val base = HomeUi(
     recent = persistentListOf(FolderItem("Projects/api", "api", true), FolderItem("Projects/site", "site", false)),
 )
 
+internal val load = me.river.remoter.core.net.Resources(
+    cpuPct = 23.4, cores = 16, memTotal = 33_324_118_016, memAvailable = 19_843_563_520,
+    swapTotal = 17_179_865_088, swapFree = 17_179_865_088, diskTotal = 999_142_281_216, diskFree = 412_418_985_984,
+)
+
 internal val homeStates = mapOf(
     "up_no_sessions" to base,
     "up_sessions" to base.copy(
@@ -55,6 +60,12 @@ internal val homeStates = mapOf(
         sessions = persistentListOf(s("rc-a", "remoter", SessionState.Ready), s("rc-b", "remoter", SessionState.Ready).copy(worktree = "bright-otter-3f2a")),
     ),
     "direct_up" to base.copy(direct = true),
+    "up_load" to base.copy(resources = load),
+    "up_sessions_load" to base.copy(
+        resources = load.copy(cpuPct = 91.0, memAvailable = 2_000_000_000),
+        sessions = persistentListOf(s("rc-a", "remoter", SessionState.Ready), s("rc-b", "api", SessionState.Starting)),
+    ),
+    "laptop_down_load" to base.copy(link = Link.LaptopDown(now - 600_000), resources = load),
     "direct_reconnecting" to base.copy(direct = true, link = Link.Reconnecting),
     "direct_vpn_off" to base.copy(direct = true, link = Link.VpnOff),
     "direct_laptop_down" to base.copy(direct = true, link = Link.LaptopDown(now - 600_000)),
@@ -102,6 +113,8 @@ class HomeScreenshots(private val v: Variant) {
         HomeContent(ui, HomeCallbacks(), entrance = false)
         RemoterSheet(visible = true, onDismiss = {}) { NewSession(ui, HomeCallbacks()) }
     }
+    @Test fun up_load() = one("up_load")
+    @Test fun up_sessions_load() = one("up_sessions_load")
     @Test fun direct_up() = one("direct_up")
     @Test fun direct_reconnecting() = one("direct_reconnecting")
     @Test fun direct_vpn_off() = one("direct_vpn_off")

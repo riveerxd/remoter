@@ -43,6 +43,8 @@ class ConnectionMonitorTest {
         override suspend fun kill(signed: Signed) = TODO()
         override suspend fun viewToken(signed: Signed) = TODO()
         override suspend fun unpair(signed: Signed) = TODO()
+        override suspend fun procs() = TODO()
+        override suspend fun signal(signed: Signed) = TODO()
         override fun events(id: String, viewToken: String?, lastEventId: String?): Flow<IdEvent> = emptyFlow()
         override fun live(): Flow<LiveEvent> = emptyFlow()
     }

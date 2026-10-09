@@ -25,4 +25,12 @@ class AuditLabelsTest {
         assertEquals("OK" to StatusTone.Muted, auditResult("spawn", "ok"))
         assertEquals("Bad signature" to StatusTone.Danger, auditResult("spawn", "sig_invalid"))
     }
+
+    @Test
+    fun a_signal_reads_as_what_was_stopped() {
+        assertEquals("Stopped a process", auditAction("signal", "ok"))
+        assertEquals("firefox · 2210 · SIGTERM", auditPath("signal", "firefox 2210 term"))
+        assertEquals("4242 · SIGKILL", auditPath("signal", "4242 kill"))
+        assertEquals("~/Projects/remoter", auditPath("spawn", "Projects/remoter"))
+    }
 }

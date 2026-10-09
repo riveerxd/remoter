@@ -137,6 +137,7 @@ impl World {
             peer_uid,
             agent_state: root.join("agent-state"),
             autolock: Mutex::default(),
+            procs: remoter_agent::procs::Procs::system(),
         });
         let socket = root.join("agent.sock");
         let l = UnixListener::bind(&socket).expect("bind");
@@ -315,6 +316,46 @@ fn locked_flag_beats_a_valid_signature() {
     // view token is a read, fine while locked
     let v = w.a.sign("POST", "/v1/view-token", b"{}", local::now_ms(), &[17; 16]);
     assert_eq!(w.mutate(A, "POST", "/v1/view-token", &v, b"{}").status, 200);
+}
+
+fn sleeper() -> (std::process::Child, u64) {
+    let child = std::process::Command::new("sleep").arg("30").spawn().expect("sleep");
+    let stat = std::fs::read_to_string(format!("/proc/{}/stat", child.id())).expect("stat");
+    let start = stat.rsplit_once(')').and_then(|(_, f)| f.split_whitespace().nth(19)?.parse().ok()).expect("start");
+    (child, start)
+}
+
+#[test]
+fn a_signal_needs_the_signature_and_an_unlocked_laptop() {
+    use std::os::unix::process::ExitStatusExt;
+    let w = World::start(uid());
+    let (mut child, start) = sleeper();
+    let target = format!("/v1/procs/{}/signal", child.id());
+    let body = format!(r#"{{"start":{start},"signal":"term"}}"#).into_bytes();
+
+    let forged = w.a.sign_as(A, &w.b.sig, "POST", &target, &body, local::now_ms(), &[60; 16]);
+    assert_eq!(code(&w.mutate(A, "POST", &target, &forged, &body)), Some(ErrorCode::SigInvalid));
+    std::fs::write(&w.locked, b"").expect("lock");
+    let h = w.a.sign("POST", &target, &body, local::now_ms(), &[61; 16]);
+    assert_eq!(code(&w.mutate(A, "POST", &target, &h, &body)), Some(ErrorCode::Locked));
+    assert!(child.try_wait().expect("wait").is_none(), "still running");
+
+    let _ = std::fs::remove_file(&w.locked);
+    let _ = remoter_agent::server::clear_agent_lock(&w.agent_state);
+    let h = w.a.sign("POST", &target, &body, local::now_ms(), &[62; 16]);
+    let r = w.mutate(A, "POST", &target, &h, &body);
+    assert_eq!(r.status, 202, "{}", r.body);
+    assert_eq!(r.audit_path, Some(format!("sleep {} term", child.id())));
+    assert_eq!(child.wait().expect("wait").signal(), Some(libc::SIGTERM));
+}
+
+#[test]
+fn procs_lists_this_machine() {
+    let w = World::start(uid());
+    let AgentReply::Ok(v) = w.call(&AgentRequest::Procs {}) else { panic!("no procs") };
+    let r: remoter_proto::api::ProcsResponse = serde_json::from_value(v).expect("shape");
+    assert!(r.procs.iter().any(|p| p.pid == std::process::id() as i32));
+    assert!(r.resources.mem_total > 0);
 }
 
 #[test]

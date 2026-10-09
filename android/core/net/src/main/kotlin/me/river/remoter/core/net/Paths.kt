@@ -23,6 +23,8 @@ object Paths {
     val viewToken get() = url("view-token")
     fun history(path: String) = url("fs", "history", query = listOf("path" to path))
     val deviceSelf get() = url("devices", "self")
+    val procs get() = url("procs")
+    fun signal(pid: Int) = url("procs", pid.toString(), "signal")
 }
 
 /** "~/Projects/remoter" for display. Paths from the laptop are relative to home. */

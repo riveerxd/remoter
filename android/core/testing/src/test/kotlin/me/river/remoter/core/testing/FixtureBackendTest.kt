@@ -49,9 +49,10 @@ class FixtureBackendTest {
         assertTrue(got[0] is LiveEvent.Health)
         val first = (got[1] as LiveEvent.Sessions).sessions
         assertEquals(b.sessions().sessions, first)
+        assertTrue(got[2] is LiveEvent.Resources)
         b.setState(first[0].id, first[0].state)
         runCurrent()
-        assertEquals("nothing changed, nothing sent", 2, got.size)
+        assertEquals("nothing changed, nothing sent", 3, got.size)
         b.endOnLaptop(first[0].id)
         runCurrent()
         val after = got.filterIsInstance<LiveEvent.Sessions>().last().sessions

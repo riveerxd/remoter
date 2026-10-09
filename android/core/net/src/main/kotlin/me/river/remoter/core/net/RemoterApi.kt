@@ -35,12 +35,14 @@ interface RemoterApi {
     suspend fun history(path: String, viewToken: String): HistoryResponse
     suspend fun audit(before: Long?): AuditPage
     suspend fun lock(): LockResponse
+    suspend fun procs(): ProcsResponse
 
     suspend fun mkdir(signed: Signed): MkdirResponse
     suspend fun spawn(signed: Signed): SpawnResponse
     suspend fun kill(signed: Signed)
     suspend fun viewToken(signed: Signed): ViewTokenResponse
     suspend fun unpair(signed: Signed)
+    suspend fun signal(signed: Signed)
 
     /** Completes when the stream drops; the caller decides whether to resubscribe. */
     fun events(id: String, viewToken: String?, lastEventId: String?): Flow<IdEvent>

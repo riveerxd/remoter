@@ -68,6 +68,24 @@
       "timestamp_ms": 1790611108000
     },
     {
+      "body": "{\"start\":17006290,\"signal\":\"term\"}",
+      "body_sha256": "07c4e98bb0995d42002be41c9fc156b08f447fcd69950f9b661a277a81478e2d",
+      "canonical": "remoter-sig-v1\nPOST\n/v1/procs/4242/signal\n01K6B7Y3M4N5P6Q7R8S9T0V1W2\n1790611108500\nCwsLCwsLCwsLCwsLCwsLCw\n07c4e98bb0995d42002be41c9fc156b08f447fcd69950f9b661a277a81478e2d",
+      "device": "01K6B7Y3M4N5P6Q7R8S9T0V1W2",
+      "method": "POST",
+      "name": "signal",
+      "nonce": "CwsLCwsLCwsLCwsLCwsLCw",
+      "query": [],
+      "segments": [
+        "procs",
+        "4242",
+        "signal"
+      ],
+      "signature_der": "MEYCIQDSWd2npxhfJb4WsOh2MTdkJDdeCYbK9hyzrLgJBiOrdAIhAP3hF71-6PnJfu5-EQUuZOIgA5iBFupezZmanMNIDcmd",
+      "target": "/v1/procs/4242/signal",
+      "timestamp_ms": 1790611108500
+    },
+    {
       "body": "{}",
       "body_sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
       "canonical": "remoter-sig-v1\nPOST\n/v1/view-token\n01K6B7Y3M4N5P6Q7R8S9T0V1W2\n1790611109000\nQkJCQkJCQkJCQkJCQkJCQg\n44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",

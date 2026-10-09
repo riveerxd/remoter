@@ -201,6 +201,28 @@ async fn audit_lists_this_devices_actions() {
 }
 
 #[tokio::test]
+async fn procs_is_a_read_and_a_signal_is_signed() {
+    let h = start().await;
+    let mut c = h.client(&h.a).await;
+    assert_eq!(c.get("/v1/procs").await.json()["resources"]["cores"], 8);
+    let b = br#"{"start":99,"signal":"kill"}"#;
+    assert_eq!(c.send("POST", "/v1/procs/4242/signal", &[], b.to_vec()).await.expect("r").code(), "bad_request", "no signature, no signal");
+    let sig = h.a.phone.sign("POST", "/v1/procs/4242/signal", b, now(), &[4; 16]);
+    assert_eq!(c.signed("POST", "/v1/procs/4242/signal", &sig, b).await.status, 202);
+    let forwarded = h.agent.seen.lock().expect("l").iter().filter(|r| matches!(r, AgentRequest::Mutate { target, .. } if target == "/v1/procs/4242/signal")).count();
+    assert_eq!(forwarded, 1);
+    let j = c.get("/v1/audit").await.json();
+    assert_eq!(j["entries"][0]["action"].as_str(), Some("signal"));
+
+    // with the agent gone the audit line still says what was asked
+    h.agent.down.store(true, Ordering::SeqCst);
+    let sig = h.a.phone.sign("POST", "/v1/procs/4242/signal", b, now(), &[5; 16]);
+    assert_eq!(c.signed("POST", "/v1/procs/4242/signal", &sig, b).await.code(), "agent_down");
+    let j = c.get("/v1/audit").await.json();
+    assert_eq!((j["entries"][0]["path"].as_str(), j["entries"][0]["result"].as_str()), (Some("4242 kill"), Some("agent_down")));
+}
+
+#[tokio::test]
 async fn unpair_cuts_the_device_off() {
     let h = start().await;
     let mut c = h.client(&h.a).await;
@@ -294,8 +316,9 @@ async fn live_sends_a_snapshot_then_only_what_changed() {
     assert_eq!(health.len(), 1, "{evs:?}");
     assert_eq!((health[0]["battery_pct"].clone(), health[0]["hostname"].clone(), health[0]["sessions"].clone()), (12.into(), "r1v3r".into(), 1.into()));
     assert!(health[0]["server_time"].as_i64().is_some() && health[0]["fresh_until"].as_i64().is_some(), "the /v1/health body: {}", health[0]);
+    assert_eq!(named(&evs, "resources"), vec![&resources_json()]);
 
-    // new seq, same list (phases do this): nothing to send, health neither
+    // new seq, same list (phases do this): nothing to send, health and resources neither
     h.agent.set_live(vec![summary_json("rc-a", "ready")]);
     let (evs, _) = live_events(&collect(&mut rx, Duration::from_millis(2200)).await);
     assert!(evs.is_empty(), "{evs:?}");
@@ -358,10 +381,12 @@ async fn live_stops_asking_once_the_phone_is_gone() {
     // our client only notices the drop on the next chunk, a ping at most 5s away
     tokio::time::sleep(Duration::from_millis(6500)).await;
     let status_calls = || h.agent.seen.lock().expect("l").iter().filter(|r| matches!(r, AgentRequest::Status {})).count();
-    let (status_before, lives_before) = (status_calls(), h.agent.lives.load(Ordering::SeqCst));
+    let resource_calls = || h.agent.seen.lock().expect("l").iter().filter(|r| matches!(r, AgentRequest::Resources {})).count();
+    let (status_before, lives_before, resources_before) = (status_calls(), h.agent.lives.load(Ordering::SeqCst), resource_calls());
     h.agent.set_live(vec![summary_json("rc-a", "ready")]);
     tokio::time::sleep(Duration::from_millis(3000)).await;
     assert_eq!(status_calls(), status_before, "no health checks for a phone that left");
+    assert_eq!(resource_calls(), resources_before, "nor resource reads");
     assert_eq!(h.agent.lives.load(Ordering::SeqCst), lives_before, "no more long polls either");
 }
 

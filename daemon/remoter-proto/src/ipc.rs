@@ -47,6 +47,8 @@ pub enum AgentRequest {
     /// The session list once the agent's event counter passes `after`, or
     /// after `wait_ms` with whatever is current.
     Live { after: u64, wait_ms: u32 },
+    Resources {},
+    Procs {},
     Mutate {
         /// The device that passed mTLS at remoterd.
         device: String,

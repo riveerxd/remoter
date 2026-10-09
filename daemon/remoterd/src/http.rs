@@ -14,7 +14,7 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::{delete, get, post};
 use axum::{Extension, Json, Router};
 use remoter_auth::{Admit, Cached, RawSigHeaders, Request as SigRequest};
-use remoter_proto::api::{AttestChallenge, AttestRequest, AttestResponse, ErrorBody, Health, LiveSessions, LockResponse, SessionSummary};
+use remoter_proto::api::{AttestChallenge, AttestRequest, AttestResponse, ErrorBody, Health, LiveSessions, LockResponse, Resources, SessionSummary};
 use remoter_proto::canonical::{HDR_DEVICE, HDR_NONCE, HDR_SIGNATURE, HDR_TIMESTAMP};
 use remoter_proto::ipc::{AgentRequest, EventsReply, LiveReply, MutateReply, TailReply};
 use remoter_proto::{ErrorCode, b64, local};
@@ -56,6 +56,8 @@ pub fn router(app: Arc<App>) -> Router {
         .route("/v1/sessions", get(sessions).post(signed))
         .route("/v1/sessions/{id}", get(session).delete(signed))
         .route("/v1/sessions/{id}/events", get(events))
+        .route("/v1/procs", get(procs))
+        .route("/v1/procs/{pid}/signal", post(signed))
         .route("/v1/view-token", post(signed))
         .route("/v1/attest/challenge", get(attest_challenge))
         .route("/v1/attest", post(attest))
@@ -256,6 +258,13 @@ async fn session(State(app): State<Arc<App>>, Extension(peer): Extension<Peer>, 
     forward(&app, &rid, AgentRequest::Session { id }).await
 }
 
+async fn procs(State(app): State<Arc<App>>, Extension(peer): Extension<Peer>, Extension(rid): Extension<Rid>) -> Response {
+    if let Err(r) = gate(&app, &peer, &rid, Kind::Read) {
+        return *r;
+    }
+    forward(&app, &rid, AgentRequest::Procs {}).await
+}
+
 async fn audit(State(app): State<Arc<App>>, Extension(peer): Extension<Peer>, Extension(rid): Extension<Rid>, uri: OriginalUri) -> Response {
     if let Err(r) = gate(&app, &peer, &rid, Kind::Read) {
         return *r;
@@ -342,6 +351,7 @@ fn action_of(method: &Method, path: &str) -> &'static str {
         ("POST", "/v1/fs/mkdir") => "mkdir",
         ("POST", "/v1/sessions") => "spawn",
         ("DELETE", p) if p.starts_with("/v1/sessions/") => "end",
+        ("POST", p) if p.starts_with("/v1/procs/") => "signal",
         ("POST", "/v1/view-token") => "view_token",
         ("DELETE", "/v1/devices/self") => "unpair",
         _ => "unknown",
@@ -356,6 +366,7 @@ fn audit_path(action: &str, path: &str, body: &[u8]) -> Option<String> {
         "spawn" => s("path"),
         "mkdir" => Some(format!("{}/{}", s("parent")?, s("name")?).trim_start_matches('/').to_owned()),
         "end" => path.strip_prefix("/v1/sessions/").map(String::from),
+        "signal" => Some(format!("{} {}", path.strip_prefix("/v1/procs/")?.strip_suffix("/signal")?, s("signal")?)),
         _ => None,
     }
 }
@@ -628,7 +639,8 @@ async fn live(State(app): State<Arc<App>>, Extension(peer): Extension<Peer>, Ext
     }
     let (tx, rx) = mpsc::channel::<SseItem>(16);
     tokio::spawn(pump_live_sessions(app.clone(), tx.clone()));
-    tokio::spawn(pump_live_health(app.clone(), peer.device.clone(), tx));
+    tokio::spawn(pump_live_health(app.clone(), peer.device.clone(), tx.clone()));
+    tokio::spawn(pump_live_resources(app.clone(), tx));
     let stream = futures_util::stream::unfold(rx, |mut rx| async move { rx.recv().await.map(|e| (e, rx)) });
     Sse::new(stream).keep_alive(KeepAlive::new().interval(LIVE_PING_EVERY).text("ping")).into_response()
 }
@@ -682,6 +694,30 @@ async fn pump_live_health(app: Arc<App>, device: String, tx: mpsc::Sender<SseIte
                 return;
             }
             last = Some(h);
+        }
+    }
+}
+
+/// Sent when it moved, which on a working laptop is nearly every tick. An agent too old to
+/// know the request just never gets one in.
+async fn pump_live_resources(app: Arc<App>, tx: mpsc::Sender<SseItem>) {
+    let mut last: Option<Resources> = None;
+    let mut every = tokio::time::interval(LIVE_HEALTH_EVERY);
+    every.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+    loop {
+        tokio::select! {
+            _ = every.tick() => {}
+            () = tx.closed() => return,
+        }
+        match app.agent.call_as::<Resources>(&AgentRequest::Resources {}, Duration::from_secs(3)).await {
+            Ok(r) if last.as_ref() != Some(&r) => {
+                if tx.send(Ok(json_event("resources", &r))).await.is_err() {
+                    return;
+                }
+                last = Some(r);
+            }
+            Ok(_) | Err(CallError::Down(_)) => {}
+            Err(CallError::Failed(_)) => return,
         }
     }
 }

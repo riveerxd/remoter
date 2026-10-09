@@ -2,6 +2,8 @@ package me.river.remoter.feature.home
 
 import androidx.activity.ComponentActivity
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -36,5 +38,24 @@ class HomeLargeFontTest {
         val status = compose.onNodeWithContentDescription("Connected").getUnclippedBoundsInRoot()
         val new = compose.onNodeWithContentDescription("New session").getUnclippedBoundsInRoot()
         assertTrue("+ New starts at ${new.top}, above the status line's bottom ${status.bottom}", new.top >= status.bottom)
+    }
+
+    @Test
+    fun new_never_covers_the_load_card() {
+        var scale by androidx.compose.runtime.mutableFloatStateOf(1f)
+        compose.setContent {
+            val d = LocalDensity.current
+            CompositionLocalProvider(LocalDensity provides Density(d.density, fontScale = scale)) {
+                RemoterTheme(dark = true, reducedMotion = true) { HomeContent(homeStates.getValue("up_sessions_load"), HomeCallbacks(), entrance = false) }
+            }
+        }
+        compose.waitForIdle()
+        val card = compose.onNodeWithContentDescription("CPU", substring = true).getUnclippedBoundsInRoot()
+        val new = compose.onNodeWithContentDescription("New session").getUnclippedBoundsInRoot()
+        assertTrue("+ New starts at ${new.top}, above the card's bottom ${card.bottom}", new.top >= card.bottom)
+        // no room at 200%, the details sheet carries it then
+        scale = 2f
+        compose.waitForIdle()
+        compose.onNodeWithContentDescription("CPU", substring = true).assertDoesNotExist()
     }
 }

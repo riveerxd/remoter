@@ -9,6 +9,7 @@ import me.river.remoter.core.design.components.StatusTone
 internal fun auditAction(action: String, result: String): String = when (action) {
     "spawn" -> "Started a session"
     "end" -> "Ended a session"
+    "signal" -> "Stopped a process"
     "mkdir" -> "Created a folder"
     "view_token" -> "Showed terminal output"
     "unpair" -> "Unpaired"
@@ -44,6 +45,18 @@ internal fun auditResult(action: String, result: String): Pair<String, StatusTon
         "exists" -> "Already there" to StatusTone.Warn
         else -> if (result.startsWith("http_")) "Error ${result.removePrefix("http_")}" to StatusTone.Danger else words(result) to StatusTone.Danger
     }
+}
+
+/** Paths are relative to home. A signal's is "firefox 2210 term", which no folder is. */
+internal fun auditPath(action: String, path: String): String {
+    if (action != "signal") return "~/$path"
+    val parts = path.split(' ')
+    val sig = when (parts.lastOrNull()) {
+        "term" -> "SIGTERM"
+        "kill" -> "SIGKILL"
+        else -> return path
+    }
+    return (parts.dropLast(1) + sig).joinToString(" · ")
 }
 
 private fun words(s: String): String = s.replace('_', ' ').trim().replaceFirstChar { it.uppercase() }.ifEmpty { "Unknown" }

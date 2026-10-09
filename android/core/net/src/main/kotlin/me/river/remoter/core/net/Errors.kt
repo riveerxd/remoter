@@ -31,7 +31,7 @@ sealed interface AppError {
 
 fun ErrorBody.toAppError(nowMs: Long): AppError = when (code) {
     ErrorCode.NameInvalid, ErrorCode.Exists, ErrorCode.NotADirectory, ErrorCode.BadRequest -> AppError.Validation(code)
-    ErrorCode.PathOutsideHome, ErrorCode.PathDenied, ErrorCode.PathUnsupported -> AppError.Denied(code)
+    ErrorCode.PathOutsideHome, ErrorCode.PathDenied, ErrorCode.PathUnsupported, ErrorCode.ProcessDenied -> AppError.Denied(code)
     ErrorCode.NotFound -> AppError.NotFound
     ErrorCode.UntrustedFolder -> AppError.Untrusted
     ErrorCode.Locked -> AppError.Locked

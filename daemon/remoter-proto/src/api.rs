@@ -386,6 +386,77 @@ pub struct PairResponse {
     pub hostname: String,
 }
 
+/// What the laptop has left. Sizes are bytes. Sent as `resources` on `/v1/live`, where a phone
+/// that doesn't know the event skips it.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Resources {
+    /// Busy share of all cores since the last reading, 0 to 100, one decimal.
+    pub cpu_pct: f64,
+    pub cores: u32,
+    pub mem_total: u64,
+    pub mem_available: u64,
+    pub swap_total: u64,
+    pub swap_free: u64,
+    /// The filesystem home is on.
+    pub disk_total: u64,
+    pub disk_free: u64,
+}
+
+/// One process, htop style. Kernel threads are left out.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Proc {
+    pub pid: i32,
+    pub ppid: i32,
+    /// Clock ticks after boot. A signal names it too, so a pid that got reused is never hit.
+    pub start: u64,
+    pub user: String,
+    /// Display only, cleaned and capped like every other text off the laptop.
+    pub name: String,
+    pub cmd: String,
+    /// Of one core, so a busy multi-threaded process goes past 100.
+    pub cpu_pct: f64,
+    pub rss: u64,
+    /// Yours and not something remoter itself runs on, so the phone may offer to signal it.
+    pub killable: bool,
+    /// The remoter session it runs in, if any.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub session: Option<ProcSession>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ProcSession {
+    pub id: String,
+    pub name: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ProcsResponse {
+    pub resources: Resources,
+    /// Busiest first.
+    pub procs: Vec<Proc>,
+    /// More ran than fit, the quietest were dropped.
+    pub truncated: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Signal {
+    Term,
+    Kill,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SignalRequest {
+    /// `Proc::start` as listed.
+    pub start: u64,
+    pub signal: Signal,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ErrorBody {

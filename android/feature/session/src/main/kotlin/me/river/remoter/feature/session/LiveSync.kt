@@ -61,6 +61,7 @@ class LiveSync @Inject constructor(
                     when (ev) {
                         is LiveEvent.Sessions -> hub.publish(ev.sessions)
                         is LiveEvent.Health -> monitor.onLiveHealth(ev.health)
+                        is LiveEvent.Resources -> monitor.onLiveResources(ev.resources)
                     }
                 }
             } catch (e: CancellationException) {

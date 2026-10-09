@@ -11,6 +11,7 @@ pub mod natural;
 pub mod notify;
 pub mod peer;
 pub mod policy;
+pub mod procs;
 pub mod recent;
 pub mod search;
 pub mod sessions;

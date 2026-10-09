@@ -70,6 +70,13 @@ pub fn summary_json(id: &str, state: &str) -> serde_json::Value {
     })
 }
 
+pub fn resources_json() -> serde_json::Value {
+    serde_json::json!({
+        "cpu_pct": 12.5, "cores": 8, "mem_total": 16, "mem_available": 4,
+        "swap_total": 0, "swap_free": 0, "disk_total": 100, "disk_free": 40,
+    })
+}
+
 impl FakeAgent {
     fn answer(&self, req: AgentRequest) -> AgentReply {
         self.seen.lock().expect("lock").push(req.clone());
@@ -114,6 +121,8 @@ impl FakeAgent {
                 let seq = seq();
                 ok(serde_json::json!({ "seq": seq, "sessions": *self.live_sessions.lock().expect("lock") }))
             }
+            AgentRequest::Resources {} => ok(resources_json()),
+            AgentRequest::Procs {} => ok(serde_json::json!({ "resources": resources_json(), "procs": [], "truncated": false })),
             AgentRequest::Mutate { .. } => {
                 let n = self.mutations.fetch_add(1, Ordering::SeqCst) + 1;
                 ok(serde_json::to_value(MutateReply { status: 202, body: format!("{{\"n\":{n}}}"), audit_path: Some("Projects/canonical".into()) }).expect("json"))

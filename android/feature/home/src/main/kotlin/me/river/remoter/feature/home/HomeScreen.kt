@@ -150,6 +150,7 @@ data class HomeCallbacks(
     val onReorder: () -> Unit = {},
     val onNew: () -> Unit = {},
     val onOpenClaude: (SessionSummary) -> Unit = {},
+    val onLoad: () -> Unit = {},
 )
 
 private val nodes = persistentListOf(
@@ -305,8 +306,16 @@ private fun MapArea(ui: HomeUi, cb: HomeCallbacks, phone: PhoneStats, onNaturalH
                 } }
                 Spacer(Modifier.height(Space.s16))
                 // min height so the map doesn't jump on status change. large fonts can still grow it
-                Box(Modifier.fillMaxWidth().heightIn(min = 96.dp).padding(horizontal = Space.gutter)) {
+                // Numbers from before the link dropped would only look current, so they go with it.
+                // At big fonts there's no room left above "+ New"; the details sheet has it then.
+                val load = ui.resources.takeIf { shown is Link.Up && !isLargeFont() }
+                // The 96 dp floor keeps the map still between states with a button. Connected has
+                // none, so with the load card under it the floor would only push "+ New" onto the card.
+                Box(Modifier.fillMaxWidth().heightIn(min = if (load != null) 0.dp else 96.dp).padding(horizontal = Space.gutter)) {
                     Crossfade(shown, animationSpec = tween(Dur.base, easing = EaseOut), label = "status") { l -> if (l != null) StatusLine(l, ui, cb) }
+                }
+                Appear(load != null) {
+                    load?.let { LoadCard(it, cb.onLoad, Modifier.padding(horizontal = Space.gutter)) }
                 }
             }
         }
