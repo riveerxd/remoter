@@ -11,7 +11,7 @@
   <img src="https://img.shields.io/badge/Rust-2024-B7410E?style=flat-square&logo=rust&logoColor=white" alt="Rust 2024" />
   <img src="https://img.shields.io/badge/WireGuard-88171A?style=flat-square&logo=wireguard&logoColor=white" alt="WireGuard" />
   <img src="https://img.shields.io/badge/minSdk-34-3a3f4b?style=flat-square" alt="minSdk 34" />
-  <img src="https://img.shields.io/badge/tests-328%20Rust%20+%20868%20JVM-2FD98A?style=flat-square" alt="Tests" />
+  <img src="https://img.shields.io/badge/tests-329%20Rust%20+%20868%20JVM-2FD98A?style=flat-square" alt="Tests" />
   <a href="LICENSE"><img src="https://img.shields.io/badge/licence-MIT-3a3f4b?style=flat-square" alt="MIT" /></a>
 </p>
 
@@ -269,7 +269,7 @@ Release builds are signed with `android/tools/make-release-key.sh` and
 starting at `v1.0.0`; main between them carries a `-dev` version.
 
 <details>
-<summary><b>Tests: 328 Rust + 868 JVM</b></summary>
+<summary><b>Tests: 329 Rust + 868 JVM</b></summary>
 
 <br/>
 
