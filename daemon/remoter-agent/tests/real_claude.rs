@@ -1,5 +1,6 @@
 //! Real claude, real kitty on workspace 9, your real `~/.claude`. Run from a
-//! desktop session, outside any claude, one at a time:
+//! desktop session, outside any claude, one at a time (`REMOTER_ALACRITTY`
+//! set to its binary runs them in Alacritty instead):
 //!
 //!     cargo build -p remoter-exec
 //!     env -u CLAUDECODE -u CLAUDE_CODE_CHILD_SESSION ... \
@@ -14,7 +15,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use remoter_agent::guard::{Home, parse_rel};
-use remoter_agent::launcher::{KittyLauncher, Wm};
+use remoter_agent::launcher::{Terminal, WindowLauncher, Wm};
 use remoter_agent::sessions::{Sessions, SessionsConfig};
 use remoter_agent::transcripts::{Transcripts, project_dir_name};
 use remoter_agent::trust::Trust;
@@ -22,6 +23,11 @@ use remoter_proto::ErrorCode;
 use remoter_proto::api::{SessionState, SpawnMode, SpawnRequest};
 
 const FOLDER: &str = "Projects/spike-a";
+
+fn window(exec_bin: PathBuf) -> Box<WindowLauncher> {
+    let terminal = std::env::var_os("REMOTER_ALACRITTY").map_or_else(|| Terminal::Kitty("/usr/bin/kitty".into()), |a| Terminal::Alacritty(a.into()));
+    Box::new(WindowLauncher { terminal, wm: Wm::Hyprland { hyprctl_bin: "/usr/bin/hyprctl".into() }, exec_bin, workspace: 9 })
+}
 
 fn home() -> PathBuf {
     PathBuf::from(std::env::var_os("HOME").expect("HOME"))
@@ -108,7 +114,7 @@ fn real_resume() {
         },
         Home::open(&home()).expect("home"),
         Trust::new(home().join(".claude.json")),
-        Box::new(KittyLauncher { kitty_bin: "/usr/bin/kitty".into(), wm: Wm::Hyprland { hyprctl_bin: "/usr/bin/hyprctl".into() }, exec_bin: exec, workspace: 9 }),
+        window(exec),
     )
     .expect("sessions");
 
@@ -223,7 +229,7 @@ fn real_handoff() {
         },
         Home::open(&home()).expect("home"),
         Trust::new(home().join(".claude.json")),
-        Box::new(KittyLauncher { kitty_bin: "/usr/bin/kitty".into(), wm: Wm::Hyprland { hyprctl_bin: "/usr/bin/hyprctl".into() }, exec_bin: exec, workspace: 9 }),
+        window(exec),
     )
     .expect("sessions");
     let before = jsonl_ids();
@@ -302,7 +308,7 @@ fn real_untrusted_folder() {
         },
         Home::open(&home()).expect("home"),
         trust,
-        Box::new(KittyLauncher { kitty_bin: "/usr/bin/kitty".into(), wm: Wm::Hyprland { hyprctl_bin: "/usr/bin/hyprctl".into() }, exec_bin: exec, workspace: 9 }),
+        window(exec),
     )
     .expect("sessions");
 
@@ -319,6 +325,9 @@ fn real_untrusted_folder() {
         std::thread::sleep(Duration::from_millis(500));
     }
     assert!(Trust::new(home().join(".claude.json")).is_trusted_here(&folder));
+    let (tail, _) = s.tail(&id).expect("tail");
+    eprintln!("screen:\n{}", tail.join("\n"));
+    assert!(!tail.is_empty(), "nothing on screen");
 
     s.kill(&id).expect("kill");
     let deadline = Instant::now() + Duration::from_secs(20);

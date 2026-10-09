@@ -1,7 +1,9 @@
 //! Same bodies run on every launcher:
-//! kitty on Hyprland (real windows on workspace 9, `cargo test -- --ignored`),
-//! kitty on an i3 of its own under Xvfb (`i3_on_xvfb`, also ignored) and
-//! headless (`script` pty, `--features e2e-test`). claude is always a fake script.
+//! kitty and Alacritty on Hyprland (real windows on workspace 9,
+//! `cargo test -- --ignored`), both again on an i3 of its own under Xvfb
+//! (`i3_on_xvfb`, also ignored) and headless (`script` pty, `--features
+//! e2e-test`). claude is always a fake script. `REMOTER_ALACRITTY` points at
+//! an Alacritty outside /usr/bin.
 
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
@@ -11,7 +13,7 @@ use std::time::{Duration, Instant};
 
 use remoter_agent::AgentError;
 use remoter_agent::guard::Home;
-use remoter_agent::launcher::{KittyLauncher, Launcher, Wm};
+use remoter_agent::launcher::{Launcher, Terminal, WindowLauncher, Wm};
 use remoter_agent::sessions::{Sessions, SessionsConfig, active_scopes};
 use remoter_agent::transcripts::{Transcripts, project_dir_name};
 use remoter_agent::trust::Trust;
@@ -168,22 +170,42 @@ fn exec_bin() -> PathBuf {
     p
 }
 
+fn window(terminal: Terminal, wm: Wm) -> Box<dyn Launcher> {
+    Box::new(WindowLauncher { terminal, wm, exec_bin: exec_bin(), workspace: 9 })
+}
+
+fn hyprland() -> Wm {
+    Wm::Hyprland { hyprctl_bin: "/usr/bin/hyprctl".into() }
+}
+
+fn i3() -> Wm {
+    Wm::I3 { i3msg_bin: "/usr/bin/i3-msg".into() }
+}
+
+fn kitty_bin() -> Terminal {
+    Terminal::Kitty("/usr/bin/kitty".into())
+}
+
+fn alacritty_bin() -> Terminal {
+    let bin = std::env::var_os("REMOTER_ALACRITTY").map_or_else(|| PathBuf::from("/usr/bin/alacritty"), PathBuf::from);
+    assert!(bin.exists(), "{} missing: install alacritty or set REMOTER_ALACRITTY", bin.display());
+    Terminal::Alacritty(bin)
+}
+
 fn kitty() -> Box<dyn Launcher> {
-    Box::new(KittyLauncher {
-        kitty_bin: "/usr/bin/kitty".into(),
-        wm: Wm::Hyprland { hyprctl_bin: "/usr/bin/hyprctl".into() },
-        exec_bin: exec_bin(),
-        workspace: 9,
-    })
+    window(kitty_bin(), hyprland())
 }
 
 fn kitty_i3() -> Box<dyn Launcher> {
-    Box::new(KittyLauncher {
-        kitty_bin: "/usr/bin/kitty".into(),
-        wm: Wm::I3 { i3msg_bin: "/usr/bin/i3-msg".into() },
-        exec_bin: exec_bin(),
-        workspace: 9,
-    })
+    window(kitty_bin(), i3())
+}
+
+fn alacritty() -> Box<dyn Launcher> {
+    window(alacritty_bin(), hyprland())
+}
+
+fn alacritty_i3() -> Box<dyn Launcher> {
+    window(alacritty_bin(), i3())
 }
 
 fn never() -> bool {
@@ -476,6 +498,9 @@ impl Launcher for LateScreen {
         }
         self.inner.screen(dir)
     }
+    fn renders_screen(&self) -> bool {
+        self.inner.renders_screen()
+    }
 }
 
 fn t_untrusted_screen_arriving_late_is_still_untrusted(l: Box<dyn Launcher>) {
@@ -533,6 +558,9 @@ impl Launcher for Swap {
     }
     fn screen(&self, dir: &Path) -> Option<String> {
         self.inner.screen(dir)
+    }
+    fn renders_screen(&self) -> bool {
+        self.inner.renders_screen()
     }
 }
 
@@ -1137,6 +1165,8 @@ macro_rules! suite {
 
 suite!(kitty_ws9, kitty, never, ignore = "opens real kitty windows on Hyprland workspace 9: cargo test -- --ignored");
 suite!(kitty_i3, kitty_i3, outside_i3_lab, ignore = "run by i3_on_xvfb");
+suite!(alacritty_ws9, alacritty, never, ignore = "opens real Alacritty windows on Hyprland workspace 9: cargo test -- --ignored");
+suite!(alacritty_i3, alacritty_i3, outside_i3_lab, ignore = "run by i3_on_xvfb");
 #[cfg(feature = "e2e-test")]
 suite!(headless_pty, headless, never, allow(unused_attributes));
 
@@ -1344,6 +1374,7 @@ fn ended_worktree_session(w: &World, repo: &Path, name: &str) -> PathBuf {
         started: 0,
         argv: vec!["claude".into(), "--worktree".into()],
         handoff: None,
+        screen: false,
     };
     std::fs::write(dir.join("spec.json"), serde_json::to_vec(&spec).expect("json")).expect("spec");
     std::fs::write(dir.join("worktree.json"), serde_json::json!({ "path": wt_s, "name": name }).to_string()).expect("worktree.json");
@@ -1477,7 +1508,7 @@ fn i3_on_xvfb() {
     assert_eq!(lab.run(&["--exact", "i3_lab::refuses_without_the_rule"]), 1);
     lab.config(&remoter_agent::launcher::i3_assign_line(9));
     assert!(lab.i3msg(&["reload"]).status.success());
-    assert!(lab.run(&["kitty_i3::", "i3_lab::places_the_window_without_taking_focus"]) > 20);
+    assert!(lab.run(&["kitty_i3::", "alacritty_i3::", "i3_lab::places_"]) > 40);
 }
 
 mod i3_lab {
@@ -1516,12 +1547,25 @@ mod i3_lab {
 
     #[test]
     #[ignore = "run by i3_on_xvfb"]
-    fn places_the_window_without_taking_focus() {
+    fn places_kitty_without_taking_focus() {
         if outside_i3_lab() {
             return;
         }
+        placed_without_focus(kitty_i3());
+    }
+
+    #[test]
+    #[ignore = "run by i3_on_xvfb"]
+    fn places_alacritty_without_taking_focus() {
+        if outside_i3_lab() {
+            return;
+        }
+        placed_without_focus(alacritty_i3());
+    }
+
+    fn placed_without_focus(l: Box<dyn Launcher>) {
         let w = World::new();
-        let s = w.sessions(w.cfg("ready"), kitty_i3());
+        let s = w.sessions(w.cfg("ready"), l);
         let id = s.spawn(&req("Projects/remoter", "placed"), None).expect("spawn");
         wait_state(&s, &id, SessionState::Ready, Duration::from_secs(15));
         let deadline = Instant::now() + Duration::from_secs(5);

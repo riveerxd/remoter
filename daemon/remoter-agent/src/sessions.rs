@@ -226,6 +226,7 @@ impl Sessions {
                 summarizer: summarizer_argv(&claude.display().to_string(), conv),
                 source: dir.join(HANDOFF_SOURCE_FILE).display().to_string(),
             }),
+            screen: inner.launcher.renders_screen(),
         };
         let fail = |e: AgentError| {
             let _ = std::fs::remove_dir_all(&dir);

@@ -10,7 +10,12 @@ pub struct AgentConfig {
     pub socket: PathBuf,
     pub home: PathBuf,
     pub claude_bin: PathBuf,
+    #[serde(default)]
+    pub terminal: TerminalChoice,
+    #[serde(default = "d_kitty")]
     pub kitty_bin: PathBuf,
+    #[serde(default = "d_alacritty")]
+    pub alacritty_bin: PathBuf,
     #[serde(default)]
     pub desktop: Desktop,
     #[serde(default = "d_hyprctl")]
@@ -58,8 +63,26 @@ pub struct AgentConfig {
 #[serde(rename_all = "lowercase")]
 pub enum Desktop {
     #[default]
+    Auto,
     Hyprland,
     I3,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum TerminalChoice {
+    /// kitty if it's installed, else Alacritty
+    #[default]
+    Auto,
+    Kitty,
+    Alacritty,
+}
+
+fn d_kitty() -> PathBuf {
+    "/usr/bin/kitty".into()
+}
+fn d_alacritty() -> PathBuf {
+    "/usr/bin/alacritty".into()
 }
 
 fn d_hyprctl() -> PathBuf {
@@ -116,8 +139,19 @@ impl AgentConfig {
 
     pub fn wm(&self) -> crate::launcher::Wm {
         match self.desktop {
+            Desktop::Auto => crate::launcher::Wm::Auto { hyprctl_bin: self.hyprctl_bin.clone(), i3msg_bin: self.i3msg_bin.clone() },
             Desktop::Hyprland => crate::launcher::Wm::Hyprland { hyprctl_bin: self.hyprctl_bin.clone() },
             Desktop::I3 => crate::launcher::Wm::I3 { i3msg_bin: self.i3msg_bin.clone() },
+        }
+    }
+
+    pub fn terminal(&self) -> crate::launcher::Terminal {
+        use crate::launcher::Terminal;
+        match self.terminal {
+            TerminalChoice::Kitty => Terminal::Kitty(self.kitty_bin.clone()),
+            TerminalChoice::Alacritty => Terminal::Alacritty(self.alacritty_bin.clone()),
+            TerminalChoice::Auto if !self.kitty_bin.exists() && self.alacritty_bin.exists() => Terminal::Alacritty(self.alacritty_bin.clone()),
+            TerminalChoice::Auto => Terminal::Kitty(self.kitty_bin.clone()),
         }
     }
 
@@ -144,6 +178,7 @@ impl AgentConfig {
             ("home", &self.home),
             ("claude_bin", &self.claude_bin),
             ("kitty_bin", &self.kitty_bin),
+            ("alacritty_bin", &self.alacritty_bin),
             ("hyprctl_bin", &self.hyprctl_bin),
             ("i3msg_bin", &self.i3msg_bin),
             ("exec_bin", &self.exec_bin),
@@ -254,17 +289,41 @@ app_package     = "me.river.remoter"
     }
 
     #[test]
-    fn desktop_defaults_to_hyprland_and_takes_i3() {
+    fn desktop_defaults_to_auto_and_takes_either() {
         use crate::launcher::Wm;
-        let c = AgentConfig::parse(SAMPLE).expect("parses");
-        assert_eq!(c.wm(), Wm::Hyprland { hyprctl_bin: "/usr/bin/hyprctl".into() });
-        let i3 = SAMPLE.replace("hyprctl_bin     = \"/usr/bin/hyprctl\"", "desktop = \"i3\"");
-        assert_eq!(AgentConfig::parse(&i3).expect("i3").wm(), Wm::I3 { i3msg_bin: "/usr/bin/i3-msg".into() });
-        let own = SAMPLE.replace("hyprctl_bin     = \"/usr/bin/hyprctl\"", "desktop = \"i3\"\ni3msg_bin = \"/opt/i3/i3-msg\"");
-        assert_eq!(AgentConfig::parse(&own).expect("own").wm(), Wm::I3 { i3msg_bin: "/opt/i3/i3-msg".into() });
+        let set = |line: &str| AgentConfig::parse(&SAMPLE.replace("hyprctl_bin     = \"/usr/bin/hyprctl\"", line));
+        let both = Wm::Auto { hyprctl_bin: "/usr/bin/hyprctl".into(), i3msg_bin: "/usr/bin/i3-msg".into() };
+        assert_eq!(AgentConfig::parse(SAMPLE).expect("parses").wm(), both);
+        assert_eq!(set("desktop = \"hyprland\"").expect("hyprland").wm(), Wm::Hyprland { hyprctl_bin: "/usr/bin/hyprctl".into() });
+        assert_eq!(set("desktop = \"i3\"").expect("i3").wm(), Wm::I3 { i3msg_bin: "/usr/bin/i3-msg".into() });
+        assert_eq!(set("desktop = \"i3\"\ni3msg_bin = \"/opt/i3/i3-msg\"").expect("own").wm(), Wm::I3 { i3msg_bin: "/opt/i3/i3-msg".into() });
         for bad in ["desktop = \"sway\"", "desktop = \"i3\"\ni3msg_bin = \"i3-msg\""] {
-            assert!(AgentConfig::parse(&SAMPLE.replace("hyprctl_bin     = \"/usr/bin/hyprctl\"", bad)).is_err(), "{bad}");
+            assert!(set(bad).is_err(), "{bad}");
         }
+    }
+
+    #[test]
+    fn terminal_is_chosen_or_found() {
+        use crate::launcher::Terminal;
+        let dir = std::env::temp_dir().join(format!("remoter-term-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("mkdir");
+        let (k, a) = (dir.join("kitty"), dir.join("alacritty"));
+        let with = |choice: &str| {
+            let text = SAMPLE.replace(
+                "kitty_bin       = \"/usr/bin/kitty\"",
+                &format!("kitty_bin = \"{}\"\nalacritty_bin = \"{}\"\n{choice}", k.display(), a.display()),
+            );
+            AgentConfig::parse(&text).expect("parses").terminal()
+        };
+        assert_eq!(with(""), Terminal::Kitty(k.clone()), "neither installed: kitty, so doctor names it");
+        std::fs::write(&a, "").expect("alacritty");
+        assert_eq!(with(""), Terminal::Alacritty(a.clone()));
+        assert_eq!(with("terminal = \"kitty\""), Terminal::Kitty(k.clone()));
+        std::fs::write(&k, "").expect("kitty");
+        assert_eq!(with(""), Terminal::Kitty(k.clone()), "kitty wins when both are there");
+        assert_eq!(with("terminal = \"alacritty\""), Terminal::Alacritty(a.clone()));
+        let _ = std::fs::remove_dir_all(&dir);
+        assert!(AgentConfig::parse(&SAMPLE.replace("max_sessions    = 8", "max_sessions = 8\nterminal = \"xterm\"")).is_err());
     }
 
     #[test]

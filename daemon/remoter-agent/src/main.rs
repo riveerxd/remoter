@@ -6,7 +6,7 @@ use std::time::Duration;
 
 use remoter_agent::config::AgentConfig;
 use remoter_agent::guard::Home;
-use remoter_agent::launcher::{KittyLauncher, Launcher};
+use remoter_agent::launcher::{WindowLauncher, Launcher};
 use remoter_agent::notify::{Notifier, NotifySend};
 use remoter_agent::recent::History;
 use remoter_agent::server::{AgentCtx, serve};
@@ -51,8 +51,8 @@ fn launcher(cfg: &AgentConfig) -> Box<dyn Launcher> {
     if std::env::var_os("REMOTER_E2E_HEADLESS").is_some() {
         return Box::new(remoter_agent::launcher::HeadlessLauncher { exec_bin: cfg.exec_bin.clone() });
     }
-    Box::new(KittyLauncher {
-        kitty_bin: cfg.kitty_bin.clone(),
+    Box::new(WindowLauncher {
+        terminal: cfg.terminal(),
         wm: cfg.wm(),
         exec_bin: cfg.exec_bin.clone(),
         workspace: cfg.workspace,

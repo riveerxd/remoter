@@ -1,10 +1,10 @@
-//! Opens a session's window. Kitty on Hyprland or i3 in real builds, headless only with `e2e-test`.
+//! Opens a session's window: kitty or Alacritty, on Hyprland or i3. Headless only with `e2e-test`.
 
 use std::path::Path;
 use std::process::{Command, Stdio};
 
 use remoter_proto::ErrorCode;
-use remoter_proto::local::{KITTY_SOCKET, SPEC_FILE};
+use remoter_proto::local::{KITTY_SOCKET, SCREEN_FILE, SPEC_FILE};
 
 use crate::AgentError;
 
@@ -16,6 +16,11 @@ pub trait Launcher: Send + Sync {
     fn launch(&self, id: &str, dir: &Path) -> Result<(), AgentError>;
 
     fn screen(&self, dir: &Path) -> Option<String>;
+
+    /// remoter-exec keeps the screen in `SCREEN_FILE` because the terminal can't be asked for it.
+    fn renders_screen(&self) -> bool {
+        false
+    }
 }
 
 /// kitty expands `$VAR` in its child's argv, so paths stick to a boring
@@ -54,10 +59,41 @@ fn spawn_detached(mut cmd: Command) -> Result<(), AgentError> {
 pub enum Wm {
     Hyprland { hyprctl_bin: std::path::PathBuf },
     I3 { i3msg_bin: std::path::PathBuf },
+    /// whichever this login is
+    Auto { hyprctl_bin: std::path::PathBuf, i3msg_bin: std::path::PathBuf },
 }
 
-pub struct KittyLauncher {
-    pub kitty_bin: std::path::PathBuf,
+impl Wm {
+    /// Hyprland exports its instance signature into the user manager; an X
+    /// login without it is taken for i3.
+    pub fn resolve(&self, set: impl Fn(&str) -> bool) -> Option<Wm> {
+        match self {
+            Wm::Auto { hyprctl_bin, i3msg_bin } => {
+                if set("HYPRLAND_INSTANCE_SIGNATURE") {
+                    Some(Wm::Hyprland { hyprctl_bin: hyprctl_bin.clone() })
+                } else if set("DISPLAY") {
+                    Some(Wm::I3 { i3msg_bin: i3msg_bin.clone() })
+                } else {
+                    None
+                }
+            }
+            wm => Some(wm.clone()),
+        }
+    }
+}
+
+fn env_set(var: &str) -> bool {
+    std::env::var_os(var).is_some_and(|v| !v.is_empty())
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Terminal {
+    Kitty(std::path::PathBuf),
+    Alacritty(std::path::PathBuf),
+}
+
+pub struct WindowLauncher {
+    pub terminal: Terminal,
     pub wm: Wm,
     pub exec_bin: std::path::PathBuf,
     pub workspace: u32,
@@ -65,18 +101,51 @@ pub struct KittyLauncher {
 
 pub const WINDOW_CLASS: &str = "remoter-rc";
 
-impl KittyLauncher {
+impl WindowLauncher {
     pub fn window_rule(&self) -> String {
         format!("match:class ^({WINDOW_CLASS})$, workspace {} silent", self.workspace)
     }
 
     fn need_env(vars: &[&str]) -> Result<(), AgentError> {
         for var in vars {
-            if std::env::var_os(var).is_none_or(|v| v.is_empty()) {
+            if !env_set(var) {
                 return Err(AgentError::new(ErrorCode::DesktopDown, format!("{var} not set")));
             }
         }
         Ok(())
+    }
+
+    fn wm(&self) -> Result<Wm, AgentError> {
+        self.wm
+            .resolve(env_set)
+            .ok_or_else(|| AgentError::new(ErrorCode::DesktopDown, "neither HYPRLAND_INSTANCE_SIGNATURE nor DISPLAY is set"))
+    }
+
+    /// The terminal's argv, up to and including remoter-exec's.
+    pub fn terminal_argv(&self, id: &str, dir: &Path) -> Vec<std::ffi::OsString> {
+        let mut a: Vec<std::ffi::OsString> = Vec::new();
+        match &self.terminal {
+            Terminal::Kitty(bin) => {
+                a.push(bin.into());
+                for s in ["--class", WINDOW_CLASS, "--title", id, "--listen-on"] {
+                    a.push(s.into());
+                }
+                a.push(format!("unix:{}", dir.join(KITTY_SOCKET).display()).into());
+                for s in ["-o", "allow_remote_control=socket-only", "--"] {
+                    a.push(s.into());
+                }
+            }
+            Terminal::Alacritty(bin) => {
+                a.push(bin.into());
+                for s in ["--class", WINDOW_CLASS, "--title", id, "-e"] {
+                    a.push(s.into());
+                }
+            }
+        }
+        a.push(self.exec_bin.clone().into());
+        a.push("--spec".into());
+        a.push(dir.join(SPEC_FILE).into());
+        a
     }
 }
 
@@ -92,13 +161,13 @@ pub fn i3_places_windows(text: &str) -> bool {
     text.lines().map(str::trim).any(|l| (l.starts_with("assign ") || l.starts_with("for_window ")) && l.contains(WINDOW_CLASS))
 }
 
-impl Launcher for KittyLauncher {
+impl Launcher for WindowLauncher {
     fn prepare(&self) -> Result<(), AgentError> {
-        match &self.wm {
+        match self.wm()? {
             Wm::Hyprland { hyprctl_bin } => {
                 Self::need_env(&["WAYLAND_DISPLAY", "HYPRLAND_INSTANCE_SIGNATURE"])?;
                 // a Hyprland reload drops runtime rules, so set it every time
-                let out = Command::new(hyprctl_bin)
+                let out = Command::new(&hyprctl_bin)
                     .args(["keyword", "windowrule", &self.window_rule()])
                     .stdin(Stdio::null())
                     .output()
@@ -110,7 +179,7 @@ impl Launcher for KittyLauncher {
             }
             Wm::I3 { i3msg_bin } => {
                 Self::need_env(&["DISPLAY"])?;
-                let out = Command::new(i3msg_bin)
+                let out = Command::new(&i3msg_bin)
                     .args(["-t", "get_config"])
                     .env_remove("WAYLAND_DISPLAY")
                     .stdin(Stdio::null())
@@ -128,6 +197,7 @@ impl Launcher for KittyLauncher {
                     ));
                 }
             }
+            Wm::Auto { .. } => return Err(AgentError::new(ErrorCode::DesktopDown, "no desktop found")),
         }
         Ok(())
     }
@@ -137,25 +207,25 @@ impl Launcher for KittyLauncher {
             return Err(AgentError::new(ErrorCode::SpawnFailed, "runtime or exec path has characters kitty would expand"));
         }
         let mut cmd = Command::new("systemd-run");
-        cmd.args(scope_prefix(id))
-            .arg(&self.kitty_bin)
-            .args(["--class", WINDOW_CLASS, "--title", id])
-            .arg("--listen-on")
-            .arg(format!("unix:{}", dir.join(KITTY_SOCKET).display()))
-            .args(["-o", "allow_remote_control=socket-only", "--"])
-            .arg(&self.exec_bin)
-            .arg("--spec")
-            .arg(dir.join(SPEC_FILE));
-        if matches!(self.wm, Wm::I3 { .. }) {
-            // a WAYLAND_DISPLAY left in the user manager from another login
-            // would send kitty there instead of the X server i3 runs on
+        cmd.args(scope_prefix(id)).args(self.terminal_argv(id, dir));
+        if matches!(self.wm()?, Wm::I3 { .. }) {
+            // a WAYLAND_DISPLAY left in the user manager from an earlier
+            // Wayland login would win over the X server i3 runs on
             cmd.env_remove("WAYLAND_DISPLAY");
         }
         spawn_detached(cmd)
     }
 
+    fn renders_screen(&self) -> bool {
+        matches!(self.terminal, Terminal::Alacritty(_))
+    }
+
     fn screen(&self, dir: &Path) -> Option<String> {
-        let out = Command::new(&self.kitty_bin)
+        let kitty = match &self.terminal {
+            Terminal::Kitty(bin) => bin,
+            Terminal::Alacritty(_) => return std::fs::read_to_string(dir.join(SCREEN_FILE)).ok(),
+        };
+        let out = Command::new(kitty)
             .arg("@")
             .arg("--to")
             .arg(format!("unix:{}", dir.join(KITTY_SOCKET).display()))
@@ -261,8 +331,35 @@ mod tests {
 
     #[test]
     fn window_rule_text() {
-        let k = KittyLauncher { kitty_bin: "/k".into(), wm: Wm::Hyprland { hyprctl_bin: "/h".into() }, exec_bin: "/e".into(), workspace: 9 };
+        let k = WindowLauncher { terminal: Terminal::Kitty("/k".into()), wm: Wm::Hyprland { hyprctl_bin: "/h".into() }, exec_bin: "/e".into(), workspace: 9 };
         assert_eq!(k.window_rule(), "match:class ^(remoter-rc)$, workspace 9 silent");
+    }
+
+    #[test]
+    fn terminal_argv_per_terminal() {
+        let dir = Path::new("/run/user/1000/remoter/rc-x");
+        let mut l = WindowLauncher { terminal: Terminal::Kitty("/usr/bin/kitty".into()), wm: Wm::I3 { i3msg_bin: "/i".into() }, exec_bin: "/usr/local/bin/remoter-exec".into(), workspace: 9 };
+        let joined = |l: &WindowLauncher| l.terminal_argv("rc-x", dir).iter().map(|a| a.to_string_lossy().into_owned()).collect::<Vec<_>>().join(" ");
+        assert_eq!(
+            joined(&l),
+            "/usr/bin/kitty --class remoter-rc --title rc-x --listen-on unix:/run/user/1000/remoter/rc-x/kitty.sock -o allow_remote_control=socket-only -- /usr/local/bin/remoter-exec --spec /run/user/1000/remoter/rc-x/spec.json"
+        );
+        assert!(!l.renders_screen());
+        l.terminal = Terminal::Alacritty("/usr/bin/alacritty".into());
+        assert_eq!(joined(&l), "/usr/bin/alacritty --class remoter-rc --title rc-x -e /usr/local/bin/remoter-exec --spec /run/user/1000/remoter/rc-x/spec.json");
+        assert!(l.renders_screen());
+    }
+
+    #[test]
+    fn auto_desktop_follows_the_login() {
+        let auto = Wm::Auto { hyprctl_bin: "/h".into(), i3msg_bin: "/i".into() };
+        let only = |vars: &'static [&'static str]| move |v: &str| vars.contains(&v);
+        assert_eq!(auto.resolve(only(&["HYPRLAND_INSTANCE_SIGNATURE", "DISPLAY", "WAYLAND_DISPLAY"])), Some(Wm::Hyprland { hyprctl_bin: "/h".into() }));
+        assert_eq!(auto.resolve(only(&["DISPLAY"])), Some(Wm::I3 { i3msg_bin: "/i".into() }));
+        assert_eq!(auto.resolve(only(&["DISPLAY", "WAYLAND_DISPLAY"])), Some(Wm::I3 { i3msg_bin: "/i".into() }), "a leftover WAYLAND_DISPLAY isn't Hyprland");
+        assert_eq!(auto.resolve(only(&[])), None);
+        let fixed = Wm::Hyprland { hyprctl_bin: "/h".into() };
+        assert_eq!(fixed.resolve(only(&[])), Some(fixed.clone()), "a fixed choice isn't second guessed");
     }
 
     #[test]
