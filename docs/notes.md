@@ -84,7 +84,7 @@ some update. Versions are what I saw it on.
   `~/.claude/sessions/<pid>.json` (pid alive and `procStart` matching
   `/proc/<pid>/stat`) and refuses with `conversation_open`.
 
-## kitty, Hyprland and i3
+## kitty, Alacritty, Hyprland and i3
 
 - kitty expands `$VAR` in the child's argv. Nothing user controlled goes on
   kitty's command line, only the session id and a path to a 0600 spec file
@@ -104,7 +104,20 @@ some update. Versions are what I saw it on.
   `WAYLAND_DISPLAY` removed, since one left over from a Wayland login would win
   over `DISPLAY`.
 - The i3 path is tested against a real i3 on its own Xvfb (`i3_on_xvfb`), which
-  runs the whole kitty session suite there.
+  runs the whole session suite there in kitty and in Alacritty.
+- Alacritty can't be asked for its text the way `kitty @ get-text` can. So in
+  Alacritty, remoter-exec runs claude on a pty of its own, passes everything
+  through, renders it with the `vt100` crate, and keeps the screen plus 200
+  lines of scrollback in `screen.txt`. It's a snapshot rewritten every 200 ms
+  at most, not a log, because /run is RAM and sessions run for days.
+- Two things vt100 does differently from a terminal, both fixed in remoter-exec:
+  a shrink cuts rows off the bottom, where the newest output is (a new window
+  tiling in shrinks the others), and wrapped rows come out as separate lines,
+  which broke matching claude's long error lines. Lines come out whole now, as
+  from kitty.
+- `auto` (the default for both) is decided per start: Hyprland when
+  `HYPRLAND_INSTANCE_SIGNATURE` is set, else i3 when `DISPLAY` is; kitty when
+  `kitty_bin` exists, else Alacritty.
 - Sessions die when the window manager exits or you log out. That's accepted.
 
 ## NoNewPrivileges
