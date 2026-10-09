@@ -16,7 +16,8 @@ const NOW: i64 = 1_790_611_106;
 fn policy(template: &str) -> remoter_attest::Policy {
     let t = std::fs::read_to_string(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../infra/laptop").join(template)).expect("template");
     let text = t
-        .replace("@DESKTOP@", "hyprland")
+        .replace("@DESKTOP@", "auto")
+        .replace("@TERMINAL@", "auto")
         .replace("@HOME@", "/home/river")
         .replace("@USER@", "river")
         .replace("@UID@", "1000")

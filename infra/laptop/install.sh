@@ -3,10 +3,12 @@
 # that needs sudo, asks once, then runs them.
 #
 #   install.sh --app-cert-sha256 <SHA-256 of the release signing cert>
-#              [--desktop hyprland|i3]
+#              [--desktop auto|hyprland|i3] [--terminal auto|kitty|alacritty]
 #              [--with-staging --e2e-cert-sha256 <SHA-256 of the e2e cert>]
 #
-# --desktop picks where session windows open, Hyprland unless told otherwise.
+# --desktop and --terminal pick where session windows open. auto, the
+# default, decides on every start: Hyprland if you're logged in to it, else i3;
+# kitty if it's installed, else Alacritty.
 #
 # --with-staging also installs the staging instance the device e2e suite runs
 # against (ports 9443/9444, /etc/remoter/staging), off unless asked for.
@@ -26,17 +28,20 @@ die() { echo "install.sh: $*" >&2; exit 1; }
 digest=""
 e2e_digest=""
 staging=0
-desktop=hyprland
+desktop=auto
+terminal=auto
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --app-cert-sha256) digest="${2:-}"; shift 2 ;;
         --e2e-cert-sha256) e2e_digest="${2:-}"; shift 2 ;;
         --with-staging) staging=1; shift ;;
         --desktop) desktop="${2:-}"; shift 2 ;;
+        --terminal) terminal="${2:-}"; shift 2 ;;
         *) die "unknown argument $1" ;;
     esac
 done
-[[ "$desktop" == hyprland || "$desktop" == i3 ]] || die "--desktop is hyprland or i3"
+[[ "$desktop" =~ ^(auto|hyprland|i3)$ ]] || die "--desktop is auto, hyprland or i3"
+[[ "$terminal" =~ ^(auto|kitty|alacritty)$ ]] || die "--terminal is auto, kitty or alacritty"
 plain="${digest//:/}"
 [[ "$plain" =~ ^[0-9A-Fa-f]{64}$ ]] || die "--app-cert-sha256 needs the 64 hex digits of the release signing cert (keytool -list -v)"
 e2e_plain="${e2e_digest//:/}"
@@ -64,6 +69,7 @@ render() {
     text="${text//@USER@/"$user"}"
     text="${text//@UID@/"$uid"}"
     text="${text//@DESKTOP@/"$desktop"}"
+    text="${text//@TERMINAL@/"$terminal"}"
     text="${text//@APP_CERT_SHA256@/"$plain"}"
     text="${text//@E2E_CERT_SHA256@/"$e2e_plain"}"
     printf '%s\n' "$text"
