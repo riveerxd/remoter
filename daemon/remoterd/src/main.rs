@@ -39,12 +39,17 @@ fn main() -> ExitCode {
 }
 
 fn init_logging() {
-    let fmt = tracing_subscriber::fmt::layer().with_writer(std::io::stderr).with_target(false);
-    let reg = tracing_subscriber::registry().with(fmt);
-    match tracing_journald::layer() {
-        Ok(j) => reg.with(j).init(),
-        Err(_) => reg.init(),
+    let reg = tracing_subscriber::registry();
+    // under systemd stderr already lands in the journal, so both would log every line twice
+    if let Some(j) = std::env::var_os("JOURNAL_STREAM").and_then(|_| tracing_journald::layer().ok()) {
+        reg.with(quiet(j)).init();
+    } else {
+        reg.with(quiet(tracing_subscriber::fmt::layer().with_writer(std::io::stderr).with_target(false))).init();
     }
+}
+
+fn quiet<S: tracing::Subscriber, L: tracing_subscriber::Layer<S>>(l: L) -> tracing_subscriber::filter::Filtered<L, tracing_subscriber::filter::LevelFilter, S> {
+    l.with_filter(tracing_subscriber::filter::LevelFilter::INFO)
 }
 
 /// Root, unless an e2e build says otherwise.
@@ -154,4 +159,39 @@ fn run(config_path: &Path) -> Result<(), String> {
         remoterd::serve::serve(app, Arc::new(tls), conn_rx).await;
     });
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Write;
+
+    #[derive(Clone, Default)]
+    struct Buf(Arc<Mutex<Vec<u8>>>);
+
+    impl Write for Buf {
+        fn write(&mut self, b: &[u8]) -> std::io::Result<usize> {
+            self.0.lock().expect("lock").extend_from_slice(b);
+            Ok(b.len())
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+
+    // h2 logged every frame of the phone's traffic, about 8000 lines an hour
+    #[test]
+    fn library_chatter_stays_out() {
+        let buf = Buf::default();
+        let w = buf.clone();
+        let sub = tracing_subscriber::registry().with(quiet(tracing_subscriber::fmt::layer().with_writer(move || w.clone())));
+        tracing::subscriber::with_default(sub, || {
+            tracing::trace!(target: "h2::codec", "encoding SETTINGS");
+            tracing::debug!(target: "h2::proto", "Connection::poll");
+            tracing::info!("listening");
+        });
+        let out = String::from_utf8(buf.0.lock().expect("lock").clone()).expect("utf8");
+        assert!(out.contains("listening"), "{out}");
+        assert!(!out.contains("SETTINGS") && !out.contains("Connection::poll"), "{out}");
+    }
 }
