@@ -1,7 +1,6 @@
-//! claude on a pty of our own, for terminals that can't be asked for their
-//! text. Everything passes through unchanged; on the way it is rendered, and
-//! the screen with some scrollback is kept in `SCREEN_FILE`. A snapshot, not
-//! a log: a session that runs for days still costs one screen in /run.
+//! claude on our own pty, for terminals that can't be asked for their text.
+//! Output passes through and the rendered screen lands in `SCREEN_FILE`, a
+//! snapshot rather than a log so a long session costs one screen in /run.
 
 use std::fs::File;
 use std::io::{Read, Write};
@@ -71,7 +70,7 @@ impl Mirror {
         unsafe { libc::ioctl(master.as_raw_fd(), libc::TIOCSWINSZ, &ws) };
         cmd.stdin(Stdio::from(slave.try_clone()?)).stdout(Stdio::from(slave.try_clone()?)).stderr(Stdio::from(slave));
         // SAFETY: setsid and ioctl are async signal safe. claude needs the pty
-        // as its controlling terminal for Ctrl-C and resizes to reach it.
+        // as controlling terminal for Ctrl-C and resizes.
         unsafe {
             cmd.pre_exec(|| {
                 if libc::setsid() < 0 || libc::ioctl(0, libc::TIOCSCTTY, 0) < 0 {
@@ -185,52 +184,96 @@ fn save(parser: &Mutex<vt100::Parser>, dirty: &AtomicBool, file: &Path) {
     let _ = local::write_atomic(file, text.as_bytes());
 }
 
-/// vt100 cuts rows off the bottom when the screen shrinks, which is where
-/// the cursor and the newest output are. A terminal scrolls the top away
-/// instead, and so does this. A new window tiling in shrinks the rest.
+/// vt100 cuts rows off the bottom when the screen shrinks, where the newest
+/// output is, and forgets every wrap on any resize. A terminal scrolls and
+/// reflows instead, so this does too. Every window tiling in resizes the others.
 fn resize(p: &mut vt100::Parser, rows: u16, cols: u16) {
-    let (old_rows, _) = p.screen().size();
-    let (row, col) = p.screen().cursor_position();
-    let shift = (row + 1).saturating_sub(rows);
-    if shift > 0 {
-        let mut scroll = format!("\x1b[{old_rows};1H");
-        scroll.extend(std::iter::repeat_n('\n', shift as usize));
-        p.process(scroll.as_bytes());
-    }
-    p.screen_mut().set_size(rows, cols);
-    p.process(format!("\x1b[{};{}H", row - shift + 1, col + 1).as_bytes());
+    *p = reflow(p, rows, cols);
 }
 
-/// Scrollback, oldest first, then the screen. A line the terminal wrapped
-/// comes out whole, as kitty's get-text gives it, so long messages still
-/// match. vt100 only shows scrollback by scrolling the view back, so it is
-/// read a screenful at a time.
-fn text_of(screen: &mut vt100::Screen) -> String {
+/// The text again at the new width, and the cursor at the same spot in it.
+/// Colours are lost, which nothing here reads.
+fn reflow(p: &mut vt100::Parser, rows: u16, cols: u16) -> vt100::Parser {
+    let (lines, (at_line, at_char)) = logical(p.screen_mut());
+    let mut n = vt100::Parser::new(rows, cols, SCROLLBACK);
+    let last = lines.iter().rposition(|l| !l.is_empty()).unwrap_or(0).max(at_line);
+    let mut cursor = (0, 0);
+    let mut below = 0usize;
+    for (i, line) in lines[..=last].iter().enumerate() {
+        if i > 0 {
+            n.process(b"\r\n");
+        }
+        if i == at_line {
+            let mut head: String = line.chars().take(at_char).collect();
+            head.extend(std::iter::repeat_n(' ', at_char.saturating_sub(head.chars().count())));
+            n.process(head.as_bytes());
+            cursor = n.screen().cursor_position();
+            n.process(line.chars().skip(at_char).collect::<String>().as_bytes());
+        } else {
+            n.process(line.as_bytes());
+            if i > at_line {
+                below += line.chars().count().max(1).div_ceil(cols as usize);
+            }
+        }
+    }
+    // claude draws above its cursor, but anything below it scrolled the screen
+    let (row, col) = cursor;
+    let room = (rows - 1 - row) as usize;
+    let row = row.saturating_sub(below.saturating_sub(room) as u16);
+    n.process(format!("\x1b[{};{}H", row + 1, col + 1).as_bytes());
+    n
+}
+
+/// Scrollback then screen as whole lines, the way kitty's get-text gives them,
+/// and the cursor as (line, char). vt100 only shows scrollback a view at a time.
+fn logical(screen: &mut vt100::Screen) -> (Vec<String>, (usize, usize)) {
     let (rows, cols) = screen.size();
-    let mut out: Vec<(String, bool)> = Vec::new();
-    let mut take_view = |screen: &vt100::Screen, n: usize| {
-        for (i, text) in screen.rows(0, cols).take(n).enumerate() {
-            out.push((text, screen.row_wrapped(i as u16)));
+    let mut lines = vec![String::new()];
+    let mut cursor = (0, 0);
+    let mut view = |screen: &vt100::Screen, n: u16, live: bool, lines: &mut Vec<String>| {
+        let (crow, ccol) = screen.cursor_position();
+        for r in 0..n {
+            let at = lines.len() - 1;
+            let line = &mut lines[at];
+            let mut chars = line.chars().count();
+            for c in 0..cols {
+                if live && r == crow && c == ccol {
+                    cursor = (at, chars);
+                }
+                let Some(cell) = screen.cell(r, c) else { break };
+                if cell.is_wide_continuation() {
+                    continue;
+                }
+                let text = cell.contents();
+                line.push_str(if text.is_empty() { " " } else { text });
+                chars += 1;
+            }
+            if live && r == crow && ccol >= cols {
+                cursor = (at, chars);
+            }
+            if !screen.row_wrapped(r) {
+                let keep = line.trim_end().len();
+                line.truncate(keep);
+                lines.push(String::new());
+            }
         }
     };
     screen.set_scrollback(usize::MAX);
     let mut back = screen.scrollback();
     while back > 0 {
         let take = back.min(rows as usize);
-        take_view(screen, take);
+        view(screen, take as u16, false, &mut lines);
         back -= take;
         screen.set_scrollback(back);
     }
-    take_view(screen, rows as usize);
-    let mut text = String::new();
-    for (row, wrapped) in out {
-        if wrapped {
-            text.push_str(&row);
-        } else {
-            text.push_str(row.trim_end());
-            text.push('\n');
-        }
-    }
+    view(screen, rows, true, &mut lines);
+    lines.pop();
+    (lines, cursor)
+}
+
+fn text_of(screen: &mut vt100::Screen) -> String {
+    let mut text = logical(screen).0.join("\n");
+    text.push('\n');
     text
 }
 
@@ -252,7 +295,7 @@ mod tests {
     }
 
     #[test]
-    fn a_shrink_keeps_the_bottom() {
+    fn shrink_keeps_bottom() {
         let mut p = vt100::Parser::new(10, 20, SCROLLBACK);
         for i in 0..10 {
             p.process(format!("\r\nl{i}").as_bytes());
@@ -265,8 +308,49 @@ mod tests {
         assert_eq!(lines.iter().filter(|l| l.starts_with('l')).count(), 10, "{text:?}");
     }
 
+    fn joined(p: &mut vt100::Parser) -> Vec<String> {
+        text_of(p.screen_mut()).lines().filter(|l| !l.is_empty()).map(String::from).collect()
+    }
+
+    // vt100 drops every wrap mark when the width changes
     #[test]
-    fn a_wrapped_line_comes_out_whole() {
+    fn wrap_survives_widening() {
+        let mut p = vt100::Parser::new(6, 10, SCROLLBACK);
+        p.process(b"Connected to fake remote control\r\n");
+        resize(&mut p, 6, 40);
+        assert_eq!(joined(&mut p), ["Connected to fake remote control"]);
+    }
+
+    #[test]
+    fn wrap_survives_a_height_change() {
+        let mut p = vt100::Parser::new(6, 10, SCROLLBACK);
+        p.process(b"Connected to fake remote control\r\n");
+        resize(&mut p, 9, 10);
+        assert_eq!(joined(&mut p), ["Connected to fake remote control"]);
+    }
+
+    #[test]
+    fn narrowing_keeps_text() {
+        let mut p = vt100::Parser::new(6, 40, SCROLLBACK);
+        p.process(b"Connected to fake remote control\r\nok\r\n");
+        resize(&mut p, 6, 10);
+        assert_eq!(joined(&mut p), ["Connected to fake remote control", "ok"]);
+    }
+
+    #[test]
+    fn output_after_reflow_lands_at_cursor() {
+        let mut p = vt100::Parser::new(6, 40, SCROLLBACK);
+        p.process(b"first\r\nprompt> ");
+        resize(&mut p, 6, 12);
+        p.process(b"typed");
+        assert_eq!(joined(&mut p), ["first", "prompt> typed"]);
+        resize(&mut p, 3, 30);
+        p.process(b"!");
+        assert_eq!(joined(&mut p), ["first", "prompt> typed!"]);
+    }
+
+    #[test]
+    fn wrapped_line_whole() {
         let mut p = vt100::Parser::new(6, 20, SCROLLBACK);
         let long = "Error: Workspace not trusted. Please run `claude` in /home/r/x first";
         p.process(format!("{long}\r\nnext\r\n").as_bytes());
