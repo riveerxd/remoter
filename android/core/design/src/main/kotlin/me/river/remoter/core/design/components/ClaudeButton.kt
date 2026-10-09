@@ -36,19 +36,16 @@ import me.river.remoter.core.design.Shapes
 import me.river.remoter.core.design.Space
 import me.river.remoter.core.design.Touch
 
-/** The Claude app's coral and ink, so it's obvious the button leaves our app. */
+// the Claude app's own colours, so it's obvious the button leaves remoter
 object ClaudeColors {
     val coral = Color(0xFFD97757)
     val ink = Color(0xFF141413)
-    /** claude's own crab colour, `clawd_body` in its terminal theme. */
+    // clawd_body in claude's terminal theme
     val crab = Color(0xFFD77757)
 }
 
-/**
- * Claude Code's crab, from the sprite claude itself prints on its welcome screen
- * (2.1.286, front pose). Each quarter-block character becomes its quadrants, and a
- * terminal cell is twice as tall as wide, so one quadrant is 1 by 2 here.
- */
+// the crab claude prints on its welcome screen (2.1.286, front pose). a terminal cell is
+// twice as tall as wide, so one quadrant is 1 by 2 here
 internal val CRAB_ROWS = listOf(
     " \u2590\u259B\u2588\u2588\u2588\u259B\u2588 ",
     "\u259D\u259C\u2588\u2588\u2588\u2588\u2588\u2588\u2580",
@@ -73,18 +70,15 @@ internal fun quadrants(c: Char): BooleanArray = when (c) {
     else -> booleanArrayOf(false, false, false, false)
 }
 
-/**
- * The sprite's cells leave an empty column on the left and empty rows at the bottom, which put the
- * crab half a pixel right and a pixel high in every disc it sat in. The canvas is cropped to the
- * pixels it draws, then the art sits [CRAB_DROP] lower: the legs are thin, so the crab's weight is
- * above its box, and centring the box alone still read as high.
- */
+// the sprite's empty left column and bottom rows put the crab off centre in every disc, so the
+// canvas is cropped to what it draws. the thin legs leave its weight above the box, so centring
+// the box alone still read as high: hence CRAB_DROP
 internal const val CRAB_LEFT = 1f
 internal const val CRAB_W = 17f
 internal const val CRAB_DROP = 0.6f
 internal const val CRAB_H = 10f + CRAB_DROP
 
-/** Every filled pixel as (x, y, w, h) in sprite units, before any cropping. */
+/** (x, y, w, h) in sprite units, before cropping. */
 internal fun crabPixels(): List<FloatArray> = buildList {
     CRAB_ROWS.forEachIndexed { row, line ->
         line.forEachIndexed { col, ch ->
@@ -94,7 +88,7 @@ internal fun crabPixels(): List<FloatArray> = buildList {
     }
 }
 
-/** Draw at this size, or any with the same 17 : 10.6 shape, so it never stretches. */
+// keep the 17 : 10.6 shape or it stretches
 val CrabSize = androidx.compose.ui.unit.DpSize(27.dp, 16.8.dp)
 
 val ClaudeCrab: ImageVector by lazy {
@@ -113,11 +107,7 @@ private fun androidx.compose.ui.graphics.vector.PathBuilder.rect(x: Float, y: Fl
     close()
 }
 
-/**
- * The one button that hands off to the Claude app: coral pill, ink label, and
- * the crab in an ink disc so it looks like itself (coral body, dark eyes).
- * Ink on coral is about 6:1, where white on this coral fails contrast.
- */
+// ink label because white on this coral fails contrast (ink is about 6:1)
 @Composable
 fun ClaudeButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Row(
@@ -139,7 +129,7 @@ fun ClaudeButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifie
     }
 }
 
-/** Compact [ClaudeButton] for rows and snackbars. 40 dp pill, 48 dp hit area. */
+// 40 dp pill, 48 dp hit area
 @Composable
 fun ClaudeChip(text: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Box(

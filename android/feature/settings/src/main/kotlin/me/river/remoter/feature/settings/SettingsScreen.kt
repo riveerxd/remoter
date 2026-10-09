@@ -1,32 +1,19 @@
 package me.river.remoter.feature.settings
 
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import me.river.remoter.core.design.ListPlacement
-import me.river.remoter.core.design.ListFadeOut
-import me.river.remoter.core.design.ListFadeIn
-import androidx.compose.runtime.setValue
-import me.river.remoter.core.design.components.RemoterSwitch
-import me.river.remoter.core.design.Appear
-import me.river.remoter.core.design.FadeSwap
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.ui.semantics.heading
-import androidx.compose.ui.semantics.semantics
-import me.river.remoter.core.design.components.PrimaryButton
-import me.river.remoter.core.design.components.StatusLabel
-import me.river.remoter.core.design.components.StatusTone
-import me.river.remoter.core.design.components.DangerButton
-import me.river.remoter.core.design.components.HoldButton
-import me.river.remoter.feature.session.CommandBlock
-import me.river.remoter.feature.session.copy
-
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -34,6 +21,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.width
@@ -42,30 +30,56 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.Composable
-import me.river.remoter.feature.session.pastWhen
-import me.river.remoter.core.design.components.TopBar
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.dp
+import me.river.remoter.core.design.Appear
+import me.river.remoter.core.design.Dur
+import me.river.remoter.core.design.FadeSwap
 import me.river.remoter.core.design.Glyphs
+import me.river.remoter.core.design.ListFadeIn
+import me.river.remoter.core.design.ListFadeOut
+import me.river.remoter.core.design.ListPlacement
 import me.river.remoter.core.design.Remoter
 import me.river.remoter.core.design.Shapes
 import me.river.remoter.core.design.Space
 import me.river.remoter.core.design.Touch
 import me.river.remoter.core.design.components.Chip
+import me.river.remoter.core.design.components.DangerButton
+import me.river.remoter.core.design.components.HoldButton
+import me.river.remoter.core.design.components.PrimaryButton
 import me.river.remoter.core.design.components.QuietButton
+import me.river.remoter.core.design.components.RemoterSwitch
 import me.river.remoter.core.design.components.RoundIconButton
 import me.river.remoter.core.design.components.SkeletonRow
+import me.river.remoter.core.design.components.StatusLabel
+import me.river.remoter.core.design.components.StatusTone
+import me.river.remoter.core.design.components.TopBar
 import me.river.remoter.core.design.tnum
+import me.river.remoter.core.net.AppError
+import me.river.remoter.core.net.B64
 import me.river.remoter.core.net.Prefs
+import me.river.remoter.core.net.ThemePref
+import me.river.remoter.feature.session.CommandBlock
 import me.river.remoter.feature.session.clockTime
+import me.river.remoter.feature.session.copy
+import me.river.remoter.feature.session.pastWhen
+import java.time.ZoneId
 
 data class SettingsCallbacks(
     val onBack: () -> Unit = {},
@@ -75,14 +89,14 @@ data class SettingsCallbacks(
     val onUnpair: () -> Unit = {},
 )
 
-/** [nowMs] and [zone] are only parameters so screenshots don't change with the calendar. */
+// nowMs and zone are parameters so screenshots don't change with the calendar
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun SettingsContent(
     ui: SettingsUi,
     cb: SettingsCallbacks,
     nowMs: Long = System.currentTimeMillis(),
-    zone: java.time.ZoneId = java.time.ZoneId.systemDefault(),
+    zone: ZoneId = ZoneId.systemDefault(),
 ) {
     val c = Remoter.colors
     val t = Remoter.type
@@ -117,20 +131,17 @@ fun SettingsContent(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text("Audit log", style = t.bodyStrong, color = c.text, modifier = Modifier.weight(1f))
-            androidx.compose.material3.Icon(Glyphs.chevron, null, tint = c.textMuted)
+            Icon(Glyphs.chevron, null, tint = c.textMuted)
         }
         LostPhone(ui, host, cb.onLock)
-        // Unpair sits last and on its own: nothing else on the screen is near it.
+        // last and on its own, nothing else near it
         DangerZone(ui, host, cb.onUnpair)
         Spacer(Modifier.height(Space.s24))
     }
     }
 }
 
-/**
- * Remote lock is the lost-phone switch, not a destructive action: nothing is
- * deleted. It is a pain to undo though (sudo at the laptop), so it takes a hold.
- */
+// nothing is deleted, but undoing it takes sudo at the laptop, so it takes a hold
 @Composable
 private fun LostPhone(ui: SettingsUi, host: String, onLock: () -> Unit) {
     val c = Remoter.colors
@@ -154,10 +165,6 @@ private fun LostPhone(ui: SettingsUi, host: String, onLock: () -> Unit) {
     }
 }
 
-/**
- * Same surface as the other cards, just a red border and its own heading.
- * No "Unpair" title on top, the button already says it.
- */
 @Composable
 private fun DangerZone(ui: SettingsUi, host: String, onUnpair: () -> Unit) {
     val c = Remoter.colors
@@ -181,11 +188,9 @@ private fun DangerZone(ui: SettingsUi, host: String, onUnpair: () -> Unit) {
     }
 }
 
-private val Int.dp get() = androidx.compose.ui.unit.Dp(this.toFloat())
-
 @Composable
-private fun androidx.compose.foundation.layout.ColumnScope.ErrorLine(error: me.river.remoter.core.net.AppError?, host: String) {
-    var last by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(error) }
+private fun ColumnScope.ErrorLine(error: AppError?, host: String) {
+    var last by remember { mutableStateOf(error) }
     if (error != null) last = error
     Appear(error != null) {
         last?.let { Text(it.copy(host).title, style = Remoter.type.label, color = Remoter.colors.danger) }
@@ -193,14 +198,11 @@ private fun androidx.compose.foundation.layout.ColumnScope.ErrorLine(error: me.r
 }
 
 fun groupFp(b64: String): String {
-    val bytes = me.river.remoter.core.net.B64.decode(b64) ?: return b64
-    return me.river.remoter.core.net.B64.hex(bytes).uppercase().take(16).chunked(4).joinToString(" ")
+    val bytes = B64.decode(b64) ?: return b64
+    return B64.hex(bytes).uppercase().take(16).chunked(4).joinToString(" ")
 }
 
-/**
- * The heading sits above its card, the way the start sheet's sections do. Inside the card it read
- * as one more row, and every card looked like every other.
- */
+// heading above the card: inside it read as one more row and every card looked the same
 @Composable
 private fun Section(title: String, content: @Composable () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(Space.s8)) {
@@ -220,25 +222,21 @@ private fun Fact(k: String, v: String, divider: Boolean = true) {
     }
 }
 
-/**
- * System, Light or Dark as one segmented control. The fill slides to the pick under a spring, the
- * same way a chosen mode card settles, and the colors of the whole app blend after it.
- */
 @Composable
-private fun ThemePicker(current: me.river.remoter.core.net.ThemePref, set: (me.river.remoter.core.net.ThemePref) -> Unit) {
+private fun ThemePicker(current: ThemePref, set: (ThemePref) -> Unit) {
     val c = Remoter.colors
-    val options = me.river.remoter.core.net.ThemePref.entries
+    val options = ThemePref.entries
     val index = options.indexOf(current)
-    androidx.compose.foundation.layout.BoxWithConstraints(
+    BoxWithConstraints(
         Modifier.fillMaxWidth().padding(vertical = Space.s8).heightIn(min = Touch.min).clip(Shapes.pill).background(c.bg),
     ) {
         val segment = maxWidth / options.size
-        val x by androidx.compose.animation.core.animateDpAsState(segment * index, androidx.compose.animation.core.spring(dampingRatio = 0.86f, stiffness = 520f), label = "theme pick")
+        val x by animateDpAsState(segment * index, spring(dampingRatio = 0.86f, stiffness = 520f), label = "theme pick")
         Box(Modifier.offset(x = x).width(segment).height(Touch.min).padding(Space.s4).clip(Shapes.pill).background(c.cta))
         Row(Modifier.fillMaxWidth()) {
             options.forEach { o ->
                 val picked = o == current
-                val fg by androidx.compose.animation.animateColorAsState(if (picked) c.onCta else c.text, androidx.compose.animation.core.tween(me.river.remoter.core.design.Dur.base), label = "theme label")
+                val fg by animateColorAsState(if (picked) c.onCta else c.text, tween(Dur.base), label = "theme label")
                 Box(
                     Modifier
                         .weight(1f)
@@ -249,9 +247,9 @@ private fun ThemePicker(current: me.river.remoter.core.net.ThemePref, set: (me.r
                 ) {
                     Text(
                         when (o) {
-                            me.river.remoter.core.net.ThemePref.System -> "System"
-                            me.river.remoter.core.net.ThemePref.Light -> "Light"
-                            me.river.remoter.core.net.ThemePref.Dark -> "Dark"
+                            ThemePref.System -> "System"
+                            ThemePref.Light -> "Light"
+                            ThemePref.Dark -> "Dark"
                         },
                         style = Remoter.type.bodyStrong,
                         color = fg,
@@ -270,8 +268,7 @@ private fun Toggle(label: String, on: Boolean, set: (Boolean) -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(label, style = Remoter.type.body, color = c.text, modifier = Modifier.weight(1f))
-        // The off thumb and border in textMuted: Material's grey thumb on a white track was under the
-        // 3:1 a control needs to be seen in light mode.
+        // own switch: Material's grey thumb on a white track was under 3:1 in light mode
         RemoterSwitch(on)
     }
 }
@@ -307,8 +304,7 @@ fun AuditContent(ui: AuditUi, onBack: () -> Unit, onMore: () -> Unit, host: Stri
                 item(key = "d" + day.label) {
                     Text(day.label, style = t.label, color = c.textMuted, modifier = Modifier.animateItem(fadeInSpec = ListFadeIn, placementSpec = ListPlacement, fadeOutSpec = ListFadeOut).padding(start = Space.gutter, top = Space.s16, bottom = Space.s4))
                 }
-                // Not keyed by request id alone: pairing, lock and unlock have no request behind
-                // them and all log "-", and a repeated key crashes the list.
+                // not keyed by request id alone: pairing and lock all log "-" and a repeated key crashes the list
                 itemsIndexed(day.entries, key = { i, e -> "${e.ts}/${e.action}/${e.requestId}/$i" }) { _, e ->
                     Row(Modifier.animateItem(fadeInSpec = ListFadeIn, placementSpec = ListPlacement, fadeOutSpec = ListFadeOut).fillMaxWidth().heightIn(min = Touch.row).padding(horizontal = Space.gutter), verticalAlignment = Alignment.CenterVertically) {
                         Text(clockTime(e.ts), style = t.label.tnum(), color = c.textMuted, modifier = Modifier.width(56.dp))
@@ -321,8 +317,7 @@ fun AuditContent(ui: AuditUi, onBack: () -> Unit, onMore: () -> Unit, host: Stri
                     }
                 }
             }
-            // A failed page swaps the skeleton for Retry: the skeleton's effect only
-            // fires once, so leaving it up would spin forever.
+            // the skeleton's effect only fires once, so leaving it up after a failure would spin forever
             if (!ui.end && ui.error != null) item(key = "retry") {
                 Row(Modifier.animateItem(fadeInSpec = ListFadeIn, placementSpec = ListPlacement, fadeOutSpec = ListFadeOut).fillMaxWidth().heightIn(min = Touch.row).padding(horizontal = Space.gutter), verticalAlignment = Alignment.CenterVertically) {
                     Text("Couldn't load more", style = t.body, color = c.textMuted, modifier = Modifier.weight(1f))
@@ -336,8 +331,7 @@ fun AuditContent(ui: AuditUi, onBack: () -> Unit, onMore: () -> Unit, host: Stri
     }
 }
 
-
-/** The stored value is the enum name ("Tee"), which nobody reads that way. Words first, hardware name after. */
+// the stored value is the enum name ("Tee"), which nobody reads that way
 internal fun keyLevelLabel(level: String?): String = when (level?.lowercase()) {
     null -> "None"
     "tee" -> "Hardware (TEE)"

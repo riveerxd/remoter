@@ -20,11 +20,7 @@ import java.security.KeyStore
 import java.security.Signature
 import java.security.spec.ECGenParameterSpec
 
-/**
- * What the keystore really does on this device. Tests that only mean
- * something with StrongBox and real attestation assume it and skip elsewhere;
- * they are listed as needing the S25, never faked.
- */
+// tests that only mean something with StrongBox and real attestation skip elsewhere, never faked
 @RunWith(AndroidJUnit4::class)
 class KeystoreDeviceTest {
     private val ctx = InstrumentationRegistry.getInstrumentation().targetContext
@@ -37,7 +33,7 @@ class KeystoreDeviceTest {
         ks.aliases().toList().forEach { ks.deleteEntry(it) }
     }
 
-    /** The release sig spec minus StrongBox, so auth binding can be checked where StrongBox is missing. */
+    // release sig spec minus StrongBox, so auth binding can be checked without it
     private fun teeSig(alias: String) {
         val s = KeySpecs.sig(challenge)
         val spec = KeyGenParameterSpec.Builder(alias, s.purposes)
@@ -53,10 +49,10 @@ class KeystoreDeviceTest {
     }
 
     @Test
-    fun without_strongbox_pairing_stops_instead_of_downgrading() {
+    fun no_strongbox_no_downgrade() {
         assumeFalse("this device has StrongBox", strongBox)
         assertThrows(NoStrongBoxException::class.java) { Keys().generatePair(challenge) }
-        assertFalse("nothing half made is left behind", ks.containsAlias(TLS_ALIAS))
+        assertFalse(ks.containsAlias(TLS_ALIAS))
     }
 
     @Test
@@ -101,7 +97,7 @@ class KeystoreDeviceTest {
     }
 }
 
-/** Runs only on a phone with StrongBox and real attestation: the S25. The emulator run filters these out. */
+// the emulator run filters these out
 @Retention(AnnotationRetention.RUNTIME)
 @Target(AnnotationTarget.CLASS, AnnotationTarget.FUNCTION)
 annotation class RequiresS25
@@ -129,10 +125,8 @@ class StrongBoxDeviceTest {
         assertNotNull(Attestation.verifiedBootKey(keys.chain(SIG_ALIAS).first()))
     }
 
-    /**
-     * Logs the real attestation chains (public certs only) under remoter-chain, to check
-     * the laptop's verifier against. Logcat because Gradle uninstalls the test app, files and all.
-     */
+    // public certs only, for checking the laptop's verifier. logcat because Gradle
+    // uninstalls the test app, files and all
     @Test
     fun dump_pair_attestation_chains() {
         val keys = Keys()

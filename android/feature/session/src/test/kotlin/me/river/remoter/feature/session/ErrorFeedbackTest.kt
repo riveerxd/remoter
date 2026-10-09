@@ -42,7 +42,7 @@ class ErrorFeedbackTest {
     }
 
     @Test
-    fun opening_a_sheet_is_not_a_threshold_crossing() {
+    fun opening_sheet_no_threshold_haptic() {
         compose.setContent {
             CompositionLocalProvider(LocalView provides view) {
                 RemoterTheme(dark = true, reducedMotion = true) { Box(Modifier.fillMaxSize()) { RemoterSheet(true, {}) { Text("body") } } }
@@ -61,7 +61,7 @@ class ErrorFeedbackTest {
     private fun rejects(e: AppError) {
         sheet(ui(StartState.NotAccepted(e, null)))
         compose.waitForIdle()
-        assertTrue("$e should buzz REJECT, fired ${view.fired}", view.fired.contains(HapticFeedbackConstants.REJECT))
+        assertTrue("$e: ${view.fired}", view.fired.contains(HapticFeedbackConstants.REJECT))
     }
 
     @Test fun locked_buzzes_reject() = rejects(AppError.Locked)
@@ -70,7 +70,7 @@ class ErrorFeedbackTest {
     @Test fun fingerprint_lockout_buzzes_reject() = rejects(AppError.FingerprintLockedOut)
 
     @Test
-    fun an_unreachable_laptop_is_not_a_refusal() {
+    fun unreachable_is_not_refusal() {
         sheet(ui(StartState.NotAccepted(AppError.Unreachable, 1)))
         compose.waitForIdle()
         assertFalse(view.fired.contains(HapticFeedbackConstants.REJECT))

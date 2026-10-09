@@ -27,6 +27,7 @@ import me.river.remoter.core.net.AppError
 import me.river.remoter.core.net.Clock
 import me.river.remoter.core.net.ConnectionMonitor
 import me.river.remoter.core.net.DenyReason
+import me.river.remoter.core.net.ErrorCode
 import me.river.remoter.core.net.FsEntry
 import me.river.remoter.core.net.Link
 import me.river.remoter.core.net.ListResponse
@@ -43,7 +44,7 @@ import me.river.remoter.core.net.folderName
 import me.river.remoter.core.net.toAppError
 import me.river.remoter.feature.session.copy
 
-/** Why Start can't go ahead here. The button stays tappable and this explains it. */
+// the Start button stays tappable and explains which of these it is
 enum class Blocked { Denied, Home, Offline, Unsupported }
 
 data class NewFolder(
@@ -62,7 +63,7 @@ data class BrowserUi(
     val query: String = "",
     val deeper: ImmutableList<SearchHit> = persistentListOf(),
     val searching: Boolean = false,
-    /** The deeper search failed, which is not the same as finding nothing. */
+    // failed is not the same as finding nothing
     val searchError: AppError? = null,
     val pinned: Set<String> = emptySet(),
     val newFolder: NewFolder = NewFolder(),
@@ -70,9 +71,9 @@ data class BrowserUi(
     val hostname: String = "the laptop",
     val snack: String? = null,
     val snackRetry: Boolean = false,
-    /** Where the folder sat in the pinned list, so Undo puts it back in the same spot. */
+    // index too, so Undo puts it back in the same spot
     val undoUnpin: Pair<Int, String>? = null,
-    /** Why the last listing failed. With a list on screen, that list is the old one. */
+    // with a list on screen, that list is the old one
     val error: AppError? = null,
 ) {
     val name get() = folderName(path)
@@ -137,16 +138,12 @@ class BrowserViewModel @AssistedInject constructor(
         } catch (e: Exception) {
             val err = e.toAppError(clock.nowMs())
             if (err == AppError.NotFound) _gone.tryEmit(path)
-            // The old list stays and the screen says it's the old one.
             _ui.update { it.copy(loading = false, error = err) }
         }
     }
 
-    /**
-     * Local filter at once; after 250 ms idle with 2+ characters, the laptop searches deeper.
-     * [BrowserUi.searching] flips on with the keystroke, not after the wait, or "Nothing
-     * called" flashes up for those 250 ms on every letter.
-     */
+    // searching flips on with the keystroke, not after the wait, or "Nothing called" flashes up
+    // for 250 ms on every letter
     fun setQuery(q: String) {
         search?.cancel()
         if (q.trim().length < 2) {
@@ -201,19 +198,17 @@ class BrowserViewModel @AssistedInject constructor(
 
     fun setNewName(n: String) = _ui.update {
         val nf = it.newFolder
-        // A shown error clears the moment the name becomes valid.
         val err = if (nf.error != null && Names.isValidFolderName(n)) null else nf.error
         it.copy(newFolder = nf.copy(name = n, error = err))
     }
 
     fun toggleGit() = _ui.update { it.copy(newFolder = it.newFolder.copy(gitInit = !it.newFolder.gitInit)) }
 
-    /** Validation waits for submit. The fingerprint prompt names the exact folder. */
     fun submitNewFolder() {
         val nf = _ui.value.newFolder
         if (nf.submitting) return
         if (!Names.isValidFolderName(nf.name)) {
-            _ui.update { it.copy(newFolder = nf.copy(error = AppError.Validation(me.river.remoter.core.net.ErrorCode.NameInvalid))) }
+            _ui.update { it.copy(newFolder = nf.copy(error = AppError.Validation(ErrorCode.NameInvalid))) }
             return
         }
         _ui.update { it.copy(newFolder = nf.copy(submitting = true)) }
@@ -267,7 +262,7 @@ class BrowserViewModel @AssistedInject constructor(
     }
 }
 
-/** `v2` before `v10`, the same order the laptop sorts in. */
+// v2 before v10, the same order the laptop sorts in
 object NaturalOrder : Comparator<String> {
     override fun compare(a: String, b: String): Int {
         var i = 0

@@ -23,14 +23,11 @@ data class RemoterColors(
     val terminal: Color,
     val onTerminal: Color,
 ) {
-    /**
-     * Light volt on white is 1.34:1, so in light mode it is never text or a lone
-     * ring. The ring is `text` with a volt inner stroke instead.
-     */
+    // light volt on white is 1.34:1, never text or a lone ring
     val focusRing: Color get() = if (isDark) volt else text
     val focusInner: Color? get() = if (isDark) null else volt
 
-    /** The unpinned pin and other off-state icons. Must hold 3:1; ContrastTest measures it with its alpha. */
+    // must hold 3:1, ContrastTest checks it
     val iconInactive: Color get() = textMuted
 }
 

@@ -3,7 +3,7 @@ package me.river.remoter.feature.session
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-/** Seen on the emulator: a two-day-old session read "48:27:00" on its banner. */
+// a two day old session read "48:27:00" on its banner
 class UptimeTest {
     @Test
     fun hours_tick_and_days_read_as_days() {

@@ -122,12 +122,8 @@ fun SkeletonRow(modifier: Modifier = Modifier) {
     }
 }
 
-/**
- * Where snackbars go on screen. The app wraps everything in one [RemoterSnackbarHost], so
- * snackbars from the root and from screens share a single slot instead of stacking at the
- * same spot. [bottomInset] is the height of the current screen's bottom bar, so a
- * snackbar never covers its primary button. The keyboard and navigation bar are added here.
- */
+// one slot for the whole app, so snackbars from the root and from screens don't stack.
+// bottomInset is the current screen's bottom bar, so a snackbar never covers its button
 @Composable
 fun RemoterSnackbarHost(bottomInset: Dp, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
     val host = remember { Snackbars() }
@@ -166,16 +162,9 @@ fun RemoterSnackbarHost(bottomInset: Dp, modifier: Modifier = Modifier, content:
     }
 }
 
-/**
- * One snackbar at a time, above the primary button. Errors that need action
- * stay until dismissed; the close button is always there. [autoDismissMs] is
- * for news and undo: the countdown only runs while the snackbar is on screen
- * and holds while a finger is on it.
- *
- * Inside a [RemoterSnackbarHost] this only posts to the host, which draws it
- * and ignores [modifier]. The newest one shows; an older one comes back once
- * the newer is gone, since its caller still wants it shown.
- */
+// errors that need action stay until dismissed. the autoDismissMs countdown only runs on
+// screen and holds under a finger. inside a host this just posts, and an older snackbar
+// comes back once the newer one is gone, since its caller still wants it
 @Composable
 fun RemoterSnackbar(
     message: String,

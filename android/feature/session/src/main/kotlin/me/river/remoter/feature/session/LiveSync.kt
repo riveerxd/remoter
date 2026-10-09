@@ -16,10 +16,7 @@ import me.river.remoter.core.net.RemoterApi
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/**
- * Keeps `/v1/live` open while the app is in the foreground. Sessions go into the [SessionsHub],
- * health into the monitor, so nobody polls. A drop empties nothing: the next connect replaces it whole.
- */
+// a drop empties nothing, the next connect replaces it whole
 @Singleton
 class LiveSync @Inject constructor(
     private val api: RemoterApi,
@@ -28,7 +25,7 @@ class LiveSync @Inject constructor(
 ) {
     private val _connected = MutableStateFlow(false)
 
-    /** True from the first event of a stream until it drops. Detail polls only while this is false. */
+    // detail polls only while this is false
     val connected: StateFlow<Boolean> = _connected.asStateFlow()
     private var job: Job? = null
 
@@ -69,8 +66,7 @@ class LiveSync @Inject constructor(
             } catch (_: Exception) {
             }
             _connected.value = false
-            // Only a stream that was up kicks the monitor. Kicking on every failed attempt would
-            // restart its retries each time and it would never get to saying the laptop is down.
+            // kicking on every failed attempt restarts the monitor's retries, so it never says the laptop is down
             if (got) monitor.probeNow()
             delay(BACKOFF_MS[attempt.coerceAtMost(BACKOFF_MS.size - 1)])
             attempt++

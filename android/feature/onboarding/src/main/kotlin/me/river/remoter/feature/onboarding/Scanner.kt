@@ -56,14 +56,11 @@ import me.river.remoter.core.design.Remoter
 import me.river.remoter.core.net.Pairing
 import java.util.concurrent.Executors
 
-/** A decoded QR and where it sits, as fractions of the analysed frame, so the frame can snap to it. */
+// position as fractions of the analysed frame, so the frame can snap to it
 data class Found(val text: String, val left: Float, val top: Float, val size: Float)
 
-/**
- * Decodes a luma plane with ZXing core only: no Google services on this phone's path.
- * A terminal draws the code light on dark, so a miss is retried inverted; QRCodeReader
- * ignores ALSO_INVERTED (only MultiFormatReader honours it), hence the explicit second pass.
- */
+// ZXing core only, no Google services. a terminal draws the code light on dark and QRCodeReader
+// ignores ALSO_INVERTED (only MultiFormatReader honours it), hence the inverted second pass
 internal fun decodeLuma(data: ByteArray, rowStride: Int, width: Int, height: Int): com.google.zxing.Result? {
     val reader = QRCodeReader()
     val src = PlanarYUVLuminanceSource(data, rowStride, height, 0, 0, width, height, false)
@@ -83,7 +80,7 @@ class QrAnalyzer(private val onFound: (Found) -> Unit) : ImageAnalysis.Analyzer 
             val buf = plane.buffer
             val data = ByteArray(buf.remaining()).also(buf::get)
             val result = decodeLuma(data, plane.rowStride, it.width, it.height) ?: return
-            // Only a link we would accept counts as found; anything else keeps scanning quietly.
+            // anything but a link we'd accept keeps scanning quietly
             if (Pairing.Link.parse(result.text) == null) return
             val xs = result.resultPoints.map { p -> p.x / it.width }
             val ys = result.resultPoints.map { p -> p.y / it.height }
@@ -93,10 +90,7 @@ class QrAnalyzer(private val onFound: (Found) -> Unit) : ImageAnalysis.Analyzer 
     }
 }
 
-/**
- * The zoom stops offered under the viewfinder. The ultrawide only shows up as a stop
- * below 1x on a logical camera that exposes it; the S25's 1x is the main sensor.
- */
+// the ultrawide only shows below 1x on a logical camera that exposes it
 internal fun zoomStops(min: Float, max: Float): List<Float> =
     buildList {
         if (min < 0.95f) add(min)
@@ -107,11 +101,7 @@ internal fun zoomStops(min: Float, max: Float): List<Float> =
 internal fun zoomLabel(z: Float): String =
     if (z >= 1f && z == z.toInt().toFloat()) "${z.toInt()}\u00d7" else "%.1f\u00d7".format(java.util.Locale.ROOT, z)
 
-/**
- * Full-bleed camera with a frame that snaps to the code and turns volt when it finds one.
- * An S25 defaulted to the wide end of the zoom range and a terminal QR came out mush, so
- * zoom starts at 1x (main sensor) and the stops along the bottom pick the lens. Tap focuses.
- */
+// an S25 defaulted to the wide end of the zoom range and a terminal QR came out mush, so zoom starts at 1x
 @Composable
 fun ScannerView(onLink: (String) -> Unit, modifier: Modifier = Modifier) {
     val owner = LocalLifecycleOwner.current
@@ -128,8 +118,8 @@ fun ScannerView(onLink: (String) -> Unit, modifier: Modifier = Modifier) {
                     future.addListener({
                         val provider = future.get()
                         val preview = Preview.Builder().build().also { p -> p.surfaceProvider = surfaceProvider }
-                        // The default 640x480 analysis frame gives a dense pairing code about two
-                        // pixels a module from arm's length: too few to decode off a screen.
+                        // the default 640x480 gives a dense pairing code about two pixels a module
+                        // at arm's length, too few to decode off a screen
                         val resolution = ResolutionSelector.Builder()
                             .setResolutionStrategy(ResolutionStrategy(Size(1920, 1080), ResolutionStrategy.FALLBACK_RULE_CLOSEST_LOWER_THEN_HIGHER))
                             .build()
@@ -167,7 +157,7 @@ fun ScannerView(onLink: (String) -> Unit, modifier: Modifier = Modifier) {
         val h = maxHeight
         val idle = w * 0.68f
         val f = found
-        // The analysis frame is landscape; mapped roughly onto the rotated preview, which is enough to snap.
+        // the analysis frame is landscape, mapped roughly onto the rotated preview
         val size by animateDpAsState(if (f == null) idle else (w * f.size).coerceIn(120.dp, w), tween(250, easing = EaseOut), label = "size")
         val x by animateDpAsState(if (f == null) (w - idle) / 2 else w * (1f - f.top - f.size), tween(250, easing = EaseOut), label = "x")
         val y by animateDpAsState(if (f == null) (h - idle) / 2 else h * f.left, tween(250, easing = EaseOut), label = "y")

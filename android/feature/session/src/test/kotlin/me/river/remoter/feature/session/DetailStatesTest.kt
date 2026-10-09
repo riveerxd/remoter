@@ -61,7 +61,7 @@ class DetailStatesTest {
     }
 
     @Test
-    fun a_gone_session_says_so_and_offers_back() {
+    fun gone_offers_back() {
         detail(DetailUi(hostname = "r1v3r", gone = true))
         compose.onNodeWithText("This session is gone").assertIsDisplayed()
         compose.onNodeWithText("Back").performClick()
@@ -69,12 +69,11 @@ class DetailStatesTest {
     }
 
     @Test
-    fun ending_locks_end_and_shows_it_in_the_pill() {
+    fun ending_hides_end() {
         detail(shown.copy(ending = true, tail = listOf("x").toImmutableList(), tailAtMs = now))
         compose.onNodeWithContentDescription("Ending…").assertIsDisplayed()
-        // While ending there is no End to press a second time, only what is happening.
         compose.onNodeWithText("End session").assertDoesNotExist()
-        assertEquals("the pill and the End slot both say it", 2, compose.onAllNodesWithText("Ending\u2026", useUnmergedTree = true).fetchSemanticsNodes().size)
+        assertEquals(2, compose.onAllNodesWithText("Ending\u2026", useUnmergedTree = true).fetchSemanticsNodes().size)
         assertEquals(0, ends)
     }
 
@@ -104,7 +103,7 @@ class DetailStatesTest {
     }
 
     @Test
-    fun a_wiped_key_error_offers_pair_again() {
+    fun wiped_key_offers_pair_again() {
         var paired = 0
         detail(shown.copy(error = AppError.KeyInvalidated, failed = DetailAction.End), ErrorActions(onPairAgain = { paired++ }))
         compose.onNodeWithText("Pair again").performClick()
@@ -112,26 +111,26 @@ class DetailStatesTest {
     }
 
     @Test
-    fun unlocked_output_skeletons_until_the_first_capture() {
+    fun output_skeleton_until_capture() {
         detail(shown)
         compose.onNodeWithContentDescription("Loading terminal output").assertExists()
     }
 
     @Test
-    fun one_finger_scrolls_and_jump_pill_is_full_size() {
+    fun one_finger_scrolls() {
         detail(shown.copy(tail = List(200) { "line $it" }.toImmutableList(), tailAtMs = now))
         compose.onNodeWithTag("terminal").performTouchInput { swipeDown() }
         compose.onNodeWithText("Jump to latest").assertIsDisplayed().assertHeightIsAtLeast(48.dp)
-        assertTrue("a one finger drag must not zoom", zooms.isEmpty())
+        assertTrue("zoomed", zooms.isEmpty())
     }
 
     @Test
-    fun two_fingers_zoom_the_terminal() {
+    fun pinch_zooms() {
         detail(shown.copy(tail = List(200) { "line $it" }.toImmutableList(), tailAtMs = now))
         compose.onNodeWithTag("terminal").performTouchInput {
             pinch(center - Offset(20f, 0f), center + Offset(20f, 0f), center - Offset(200f, 0f), center + Offset(200f, 0f))
         }
-        assertTrue("pinching out grows the text", zooms.isNotEmpty() && zooms.last() > 12f)
+        assertTrue(zooms.isNotEmpty() && zooms.last() > 12f)
     }
 
     @Test
@@ -149,7 +148,7 @@ class DetailStatesTest {
         compose.onNodeWithText("Hold to lock r1v3r").performClick()
         assertEquals(0, locks)
         compose.onNode(androidx.compose.ui.test.hasStateDescription("Press and hold")).performSemanticsAction(SemanticsActions.OnClick)
-        assertEquals("TalkBack's double tap still locks", 1, locks)
+        assertEquals("talkback", 1, locks)
     }
 
     @Test

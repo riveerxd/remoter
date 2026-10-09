@@ -14,10 +14,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
-/**
- * A phone set to reduce motion gets the end state on the next frame from every MotionKit helper.
- * The helpers once animated regardless, so a skeleton sat invisible for a third of a second.
- */
+// the helpers once animated regardless, so a skeleton sat invisible for a third of a second
 @RunWith(RobolectricTestRunner::class)
 class ReducedMotionTest {
     @get:Rule val compose = createComposeRule()

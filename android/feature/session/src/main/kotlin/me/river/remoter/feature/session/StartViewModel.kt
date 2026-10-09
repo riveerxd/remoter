@@ -44,13 +44,13 @@ data class StartTarget(val path: String, val folder: String, val isGit: Boolean)
 
 data class StartForm(
     val mode: SpawnMode = SpawnMode.SameDir,
-    /** Resumed as is (forces [SpawnMode.SameDir]), or with [handoff] just the source of a fresh one. */
+    // resumed as is (same dir), or with handoff just the source of a fresh one
     val resume: Conversation? = null,
-    /** Always true for a conversation that's open on the laptop. */
+    // always true for a conversation that's open on the laptop
     val handoff: Boolean = false,
     val name: String = "",
     val nameInvalid: Boolean = false,
-    /** Bumped per refused submit so the field shakes again even when already red. */
+    // bumped per refused submit so the field shakes again when already red
     val nameRefusals: Int = 0,
 )
 
@@ -58,7 +58,7 @@ val StartForm.resumesAsIs get() = resume != null && !handoff
 
 data class PastRow(val conversation: Conversation, val whenLabel: String)
 
-/** Earlier here. Nothing drawn while [Loading] so a fast answer doesn't flicker. */
+// nothing drawn while Loading so a fast answer doesn't flicker
 sealed interface PastState {
     data object Loading : PastState
     data class Loaded(val rows: ImmutableList<PastRow>) : PastState
@@ -71,7 +71,7 @@ data class StartUi(
     val form: StartForm = StartForm(),
     val state: StartState = StartState.Idle,
     val hostname: String = "the laptop",
-    /** Median of recent starts, null under three of them. */
+    // median of recent starts, null under three
     val typicalStartS: Int? = null,
     val retryLeftS: Int? = null,
     val elapsedS: Int = 0,
@@ -95,7 +95,7 @@ fun sessionNameProblem(name: String): String? {
     }
 }
 
-/** Activity scoped, so closing the sheet never cancels anything: the session carries on and home shows it. */
+// activity scoped, so closing the sheet never cancels anything
 @HiltViewModel
 class StartViewModel @Inject constructor(
     private val api: RemoterApi,
@@ -105,23 +105,23 @@ class StartViewModel @Inject constructor(
     private val store: LocalStore,
     private val hub: SessionsHub,
 ) : ViewModel() {
-    /** var so tests can pin it */
+    // var so tests can pin it
     var zone: ZoneId = ZoneId.systemDefault()
     private val _ui = MutableStateFlow(StartUi())
     val ui: StateFlow<StartUi> = _ui.asStateFlow()
 
-    /** The exact bytes that were signed, kept for the idempotent retry. Never in UI state. */
+    // the exact signed bytes, for the idempotent retry. never in UI state
     private var signed: Signed? = null
     private var tail = mutableListOf<String>()
     private var jobs = mutableListOf<Job>()
-    /** Kept apart from [jobs]: a retry must not strand the list half loaded. */
+    // apart from jobs: a retry must not strand the list half loaded
     private var pastJob: Job? = null
 
     private val host get() = monitor.health.value?.hostname ?: store.state.value?.laptop?.hostname ?: "the laptop"
 
     fun open(target: StartTarget) {
         val s = _ui.value.state
-        // A start that is under way keeps the sheet on it; a finished one makes room for a new form.
+        // a start under way keeps the sheet on it
         if (s !is StartState.Idle && s !is StartState.Ready && s !is StartState.Exited && s !is StartState.NotAccepted) {
             _ui.update { it.copy(open = true) }
             return
@@ -170,18 +170,15 @@ class StartViewModel @Inject constructor(
 
     fun expandPast() = _ui.update { it.copy(pastExpanded = true) }
 
-    /**
-     * Picks a past conversation, or clears it when it is already picked. One that is open on the
-     * laptop can only be the source of a handoff: resuming it would let two claudes run on one
-     * transcript, while a handoff only reads it.
-     */
+    // an open conversation can only be a handoff source: resuming it would run two claudes on one
+    // transcript, a handoff only reads it
     fun selectResume(c: Conversation) {
         val ui = _ui.value
         val target = ui.target ?: return
         val s = ui.state
         if (s !is StartState.Idle && s !is StartState.NotAccepted) return
         if (s is StartState.NotAccepted) {
-            // Signed bytes for the old choice must never go out as a retry of the new one.
+            // bytes signed for the old choice must never go out as a retry of the new one
             cancelJobs()
             signed = null
         }
@@ -201,14 +198,10 @@ class StartViewModel @Inject constructor(
         }
     }
 
-    /** Drag, back or Keep in background. Cancels nothing. */
+    // drag, back or Keep in background. cancels nothing
     fun close() = _ui.update { it.copy(open = false) }
 
-    /**
-     * Whether the form may change now. Not while a request is out: the fingerprint prompt and the
-     * signed bytes already say what goes. After a refusal or a failure it may, and the old signed
-     * bytes are dropped, so Retry signs what is on screen instead of resending what was.
-     */
+    // after a refusal the old signed bytes go, so Retry signs what's on screen, not what was
     private fun editable(): Boolean {
         val s = _ui.value.state
         if (s !is StartState.Idle && s !is StartState.NotAccepted) return false
@@ -220,10 +213,6 @@ class StartViewModel @Inject constructor(
         return true
     }
 
-    /**
-     * Continue it or Fresh with handoff for the picked conversation. Continue it is refused for one
-     * that is open on the laptop. Back to Continue it, the mode goes back to the same folder.
-     */
     fun setHandoff(on: Boolean) {
         val ui = _ui.value
         val picked = ui.form.resume ?: return
@@ -243,10 +232,7 @@ class StartViewModel @Inject constructor(
         }
     }
 
-    /**
-     * A resume runs in its own folder, so with Continue it picked a mode card drops the pick and
-     * its name. A handoff starts a fresh session, so there the mode is simply the mode.
-     */
+    // a resume runs in its own folder, so picking a mode undoes a Continue pick
     fun setMode(mode: SpawnMode) {
         if (!editable()) return
         val form = _ui.value.form
@@ -262,7 +248,7 @@ class StartViewModel @Inject constructor(
         }
     }
 
-    /** Ignored unless Idle, so a second tap can never start a second session. */
+    // ignored unless Idle, so a second tap can't start a second session
     fun start() {
         val ui = _ui.value
         val target = ui.target ?: return
@@ -302,10 +288,6 @@ class StartViewModel @Inject constructor(
         }
     }
 
-    /**
-     * The picked conversation is open on the laptop: the same pick, as a handoff instead, which only
-     * reads it. A new request, so a new fingerprint.
-     */
     fun handoffInstead() {
         val s = _ui.value.state
         if (s !is StartState.NotAccepted || s.error != AppError.ConversationOpen || _ui.value.form.resume == null) return
@@ -313,7 +295,6 @@ class StartViewModel @Inject constructor(
         start()
     }
 
-    /** Folder busy: the same start again as a worktree. A new request, so a new fingerprint. */
     fun startInWorktree() {
         val form = _ui.value.form
         val s = _ui.value.state
@@ -325,9 +306,9 @@ class StartViewModel @Inject constructor(
         start()
     }
 
-    /** Resends the same signed bytes inside 30 s; after that it needs a new fingerprint. */
+    // same signed bytes inside 30 s, after that a new fingerprint
     fun retry() {
-        // Retry clears the jobs, and the kill in flight is one of them.
+        // retry clears the jobs, and the kill in flight is one of them
         if (_ui.value.ending) return
         val s = _ui.value.state
         val bytes = signed
@@ -353,7 +334,7 @@ class StartViewModel @Inject constructor(
             throw e
         } catch (e: Exception) {
             val err = e.toAppError(clock.nowMs())
-            // Only an unanswered request is safe to resend: the server never said no.
+            // only an unanswered request is safe to resend
             fail(err, if (err is AppError.Unreachable || err is AppError.AgentDown) until else null)
         }
     }
@@ -380,10 +361,10 @@ class StartViewModel @Inject constructor(
     }
 
     private var startedHandoff = false
-    /** Where "Taking longer than usual" counts from. A handoff alone takes 15 to 60 s, so after one it counts from there. */
+    // a handoff alone takes 15 to 60 s, so the slow note counts from after it
     private var slowFromMs: Long? = null
 
-    /** The stepper's phases in order, `null` standing for the fingerprint, already done. */
+    // null is the fingerprint, already done
     private val phaseOrder get() =
         listOfNotNull(null to "Fingerprint", Phase.Accepted to "Accepted by $host", Phase.Terminal to "Opening the terminal") +
             listOfNotNull((Phase.Handoff to "Writing the handoff").takeIf { startedHandoff }) +
@@ -408,10 +389,8 @@ class StartViewModel @Inject constructor(
         launchJob { follow(id, token) }
     }
 
-    /**
-     * A timeout only means no sign of life yet: claude once took 31 s to connect while the sheet
-     * had given up at 20 s and missed the Ready. Real failures carry a reason and end it.
-     */
+    // a timeout only means no sign of life yet: claude once took 31 s to connect after the sheet
+    // gave up at 20 s. real failures carry a reason
     private fun watching(): Boolean = when (val s = _ui.value.state) {
         is StartState.Starting -> true
         is StartState.Stuck -> s.reason == null || s.reason == StuckReason.Timeout
@@ -496,10 +475,7 @@ class StartViewModel @Inject constructor(
         _ui.update { StartUi(hostname = it.hostname) }
     }
 
-    /**
-     * End it, or Cancel start while starting. The fingerprint prompt is the confirmation. A failed
-     * kill keeps the sheet open with the reason, the session is probably still running.
-     */
+    // a failed kill keeps the sheet open, the session is probably still running
     fun endIt() {
         val ui = _ui.value
         if (ui.ending) return

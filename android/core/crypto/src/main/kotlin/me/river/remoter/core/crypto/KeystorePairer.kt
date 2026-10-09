@@ -12,12 +12,7 @@ import me.river.remoter.core.net.PairRequest
 import me.river.remoter.core.net.Pairing
 import me.river.remoter.core.net.PairingClient
 
-/**
- * Phone side of pairing. The code and MAC are computed here from the secret
- * in the link, so the code shows while the one POST waits for the laptop to
- * have it typed. Leaf SPKIs come from each chain's own leaf, never a separate
- * field that could disagree with it.
- */
+// leaf SPKIs come from each chain's own leaf, never a separate field that could disagree
 class KeystorePairer(private val keys: Keys, private val client: PairingClient) : Pairer {
     override fun pair(link: Pairing.Link, deviceName: String): Flow<PairEvent> = flow {
         try {

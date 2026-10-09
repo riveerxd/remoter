@@ -24,7 +24,7 @@ class SigPolicyReleaseTest {
     }
 
     @Test
-    fun release_signs_only_through_the_fingerprint_prompt() {
+    fun release_signs_through_biometric_prompt() {
         assertTrue(SigPolicy.authorizer(PromptHost { null }) is BiometricAuthorizer)
     }
 }

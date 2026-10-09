@@ -155,7 +155,7 @@ private fun ProcRow(p: Proc, large: Boolean, modifier: Modifier, onClick: () -> 
     }
 }
 
-/** Marks what a remoter session runs, so it never gets killed by mistake for some stray claude. */
+// so nobody kills a session's claude thinking it's a stray one
 @Composable
 internal fun SessionTag(name: String, modifier: Modifier = Modifier) {
     val c = Remoter.colors

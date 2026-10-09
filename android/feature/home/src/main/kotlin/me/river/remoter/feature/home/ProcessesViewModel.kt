@@ -36,14 +36,12 @@ enum class ProcSort { Cpu, Memory }
 data class ProcsUi(
     val host: String = "the laptop",
     val resources: Resources? = null,
-    /** Sorted by [sort]. */
     val procs: ImmutableList<Proc> = persistentListOf(),
     val sort: ProcSort = ProcSort.Cpu,
     val loaded: Boolean = false,
-    /** The last poll failed. The list stays as it was and says so. */
+    // last poll failed, the list stays as it was
     val error: AppError? = null,
     val truncated: Boolean = false,
-    /** The process whose sheet is open, kept fresh from each poll. */
     val selected: Proc? = null,
     val sending: Signal? = null,
     val signalError: AppError? = null,
@@ -55,7 +53,6 @@ internal fun List<Proc>.sortedFor(s: ProcSort): List<Proc> = when (s) {
     ProcSort.Memory -> sortedWith(compareByDescending<Proc> { it.rss }.thenByDescending { it.cpuPct }.thenBy { it.pid })
 }
 
-/** What a signal is called on the button, the prompt and the note after. */
 internal fun Signal.verb() = if (this == Signal.Term) "Quit" else "Kill"
 internal fun Signal.unix() = if (this == Signal.Term) "SIGTERM" else "SIGKILL"
 
@@ -71,7 +68,6 @@ class ProcessesViewModel @Inject constructor(
     private var raw: List<Proc> = emptyList()
     private val loading = Mutex()
 
-    /** Runs while the screen is on top and started; the caller cancels it. */
     suspend fun poll() {
         while (true) {
             load()
@@ -91,7 +87,7 @@ class ProcessesViewModel @Inject constructor(
                     loaded = true,
                     error = null,
                     truncated = r.truncated,
-                    // A process that went away closes its sheet, the buttons would only hit nothing.
+                    // a process that went away closes its sheet
                     selected = u.selected?.let { s -> raw.firstOrNull { it.pid == s.pid && it.start == s.start } },
                 )
             }

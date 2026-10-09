@@ -22,7 +22,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
-/** A pushed tail lands up to twice a second now; reading back up must not be yanked to the bottom by it. */
+// tails land up to twice a second, reading back up must not get yanked to the bottom
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = "w411dp-h891dp-xxhdpi")
 class TerminalPinTest {
@@ -42,7 +42,7 @@ class TerminalPinTest {
     }
 
     @Test
-    fun at_the_bottom_a_new_tail_keeps_it_there() {
+    fun new_tail_keeps_bottom() {
         show()
         compose.onNodeWithText("Jump to latest").performClick()
         compose.waitForIdle()
@@ -50,12 +50,12 @@ class TerminalPinTest {
         ui = ui.copy(tail = lines(80))
         compose.waitForIdle()
         assertTrue("the bottom moved", scroll().maxValue() > 0)
-        assertEquals("still pinned to the newest line", scroll().maxValue(), scroll().value())
+        assertEquals("pinned", scroll().maxValue(), scroll().value())
         compose.onNodeWithText("Jump to latest").assertDoesNotExist()
     }
 
     @Test
-    fun scrolled_up_new_tail_does_not_jump() {
+    fun scrolled_up_stays() {
         show()
         compose.onNodeWithText("Jump to latest").performClick()
         compose.waitForIdle()
@@ -65,6 +65,6 @@ class TerminalPinTest {
         assertTrue(at < scroll().maxValue())
         ui = ui.copy(tail = lines(80))
         compose.waitForIdle()
-        assertEquals("reading back must not jump", at, scroll().value())
+        assertEquals("jumped", at, scroll().value())
     }
 }

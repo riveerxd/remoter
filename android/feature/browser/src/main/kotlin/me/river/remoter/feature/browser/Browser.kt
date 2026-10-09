@@ -43,7 +43,7 @@ data class BrowserNav(
     val onCrumb: (String) -> Unit,
     val onOpen: (String) -> Unit,
     val onStart: (path: String, isGit: Boolean) -> Unit,
-    /** The folder is gone on the laptop: pop to the nearest one that still exists. */
+    // pops to the nearest folder that still exists
     val onGone: (String) -> Unit,
 )
 
@@ -86,15 +86,14 @@ fun BrowserScreen(vm: BrowserViewModel, nav: BrowserNav, focusSearch: Boolean) {
             ),
             focusSearch,
         )
-        // Clears the bottom bar: the button, its gutter on both sides, and the nav bar under it.
+        // clears the bottom button, its gutters and the nav bar
         val snackPlace = Modifier
             .align(Alignment.BottomCenter)
             .windowInsetsPadding(WindowInsets.navigationBars)
             .padding(start = Space.gutter, end = Space.gutter, bottom = Touch.primaryButton + Space.gutter * 2 + Space.s8)
         val undo = ui.undoUnpin
         val msg = ui.snack
-        // One snackbar at a time. The newest thing the user did wins, and a create
-        // error that needs Retry comes back once the undo is gone.
+        // one snackbar at a time. a create error that needs Retry comes back once the undo is gone
         when {
             copied != null -> {
                 val path = copied.orEmpty()
@@ -123,7 +122,7 @@ fun BrowserScreen(vm: BrowserViewModel, nav: BrowserNav, focusSearch: Boolean) {
                     MenuHeader(s.e.name, displayPath(child))
                     // an older laptop still says untrusted, and its refusal explains
                     val canStart = s.e.spawnAllowed || s.e.denyReason == DenyReason.Untrusted
-                    // The Start sheet takes the sheet slot, which closes this menu without its exit.
+                    // Start takes the sheet slot, which closes this menu without its exit
                     if (canStart) MenuRow(Glyphs.play, "Start here", { if (slot == null) sheet = null; nav.onStart(child, s.e.isGit) }, divider = false)
                     MenuRow(Glyphs.pin, if (child in ui.pinned) "Unpin" else "Pin", { sheet = null; vm.togglePin(child) }, divider = canStart)
                     MenuRow(Glyphs.copy, "Copy path", {

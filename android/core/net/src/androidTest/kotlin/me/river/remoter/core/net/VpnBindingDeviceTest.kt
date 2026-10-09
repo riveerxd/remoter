@@ -11,10 +11,6 @@ import org.junit.runner.RunWith
 import java.net.InetAddress
 import javax.net.ssl.X509ExtendedKeyManager
 
-/**
- * The VPN binding on a real ConnectivityManager. With no VPN holding
- * 10.66.66.2 nothing is sent: calls fail before a socket exists.
- */
 @RunWith(AndroidJUnit4::class)
 class VpnBindingDeviceTest {
     private val ctx = InstrumentationRegistry.getInstrumentation().targetContext
@@ -28,7 +24,7 @@ class VpnBindingDeviceTest {
     }
 
     @Test
-    fun without_our_network_calls_stop_before_any_socket() = runBlocking {
+    fun no_network_no_socket() = runBlocking {
         var asked = 0
         val api = OkHttpRemoterApi({ asked++; null }, object : X509ExtendedKeyManager() {
             override fun chooseClientAlias(k: Array<out String>?, i: Array<out java.security.Principal>?, s: java.net.Socket?) = null
@@ -45,7 +41,7 @@ class VpnBindingDeviceTest {
     }
 
     @Test
-    fun a_fake_network_list_picks_only_ours() {
+    fun picks_only_ours() {
         val fake = mapOf(1L to listOf(InetAddress.getByName("10.8.0.2")), 2L to listOf(InetAddress.getByName("10.66.66.2")))
         assertEquals(2L, pickOurs(fake))
         assertEquals(null, pickOurs(mapOf(1L to listOf(InetAddress.getByName("192.168.1.9")))))

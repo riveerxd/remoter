@@ -24,10 +24,7 @@ import java.security.KeyFactory
 import java.security.Signature
 import java.security.spec.X509EncodedKeySpec
 
-/**
- * Reads the fixtures remoter-proto writes and rebuilds everything from them.
- * Any drift between the Rust and Kotlin sides fails here first.
- */
+// fixtures come from remoter-proto, so Rust/Kotlin drift fails here first
 class ContractTest {
     private fun fixture(name: String): JsonElement {
         val text = javaClass.classLoader!!.getResourceAsStream(name)!!.bufferedReader().readText()
@@ -37,7 +34,7 @@ class ContractTest {
     private fun JsonElement.str(key: String) = jsonObject[key]!!.jsonPrimitive.content
 
     @Test
-    fun signing_urls_and_canonical_strings_match_byte_for_byte() {
+    fun signing_matches_fixture() {
         val root = fixture("signing.json").jsonObject
         val spki = B64.decode(root.str("test_only_public_key_spki"))!!
         val key = KeyFactory.getInstance("EC").generatePublic(X509EncodedKeySpec(spki))
@@ -90,7 +87,7 @@ class ContractTest {
     }
 
     @Test
-    fun pairing_transcript_mac_code_and_link_match() {
+    fun pairing_matches_fixture() {
         val o = fixture("pair.json").jsonObject
         val secret = B64.decode(o.str("secret"))!!
         val t = Pairing.transcript(
@@ -196,7 +193,7 @@ class ContractTest {
         val o = fixture("responses.json").jsonObject
         val resume = RemoterJson.decodeFromJsonElement(SpawnRequest.serializer(), o["resume_request"]!!)
         assertEquals("c82d8b5c-edd4-453e-8d59-4748ff325c03", resume.resume)
-        // Key order differs (serde sorts the fixture), and the laptop doesn't care, so the JSON is compared, not the bytes.
+        // serde sorts the fixture's keys, so compare JSON, not bytes
         assertEquals(o["resume_request"], Json.parseToJsonElement(RemoterJson.encodeToString(SpawnRequest.serializer(), resume)))
         val plain = RemoterJson.encodeToString(SpawnRequest.serializer(), SpawnRequest("Projects/remoter", "remoter", SpawnMode.SameDir))
         assertEquals(o["spawn_request"], Json.parseToJsonElement(plain))
@@ -217,7 +214,7 @@ class ContractTest {
     }
 
     @Test
-    fun history_lives_under_fs_with_the_folder_as_query() {
+    fun history_path() {
         assertEquals("/v1/fs/history?path=Projects%2Fmy%20app", Canonical.target(Paths.history("Projects/my app")))
     }
 

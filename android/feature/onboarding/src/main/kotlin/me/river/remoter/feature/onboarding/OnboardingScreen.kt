@@ -83,7 +83,6 @@ import me.river.remoter.core.design.rememberHaptics
 import me.river.remoter.core.design.tnum
 import me.river.remoter.feature.session.CommandBlock
 
-/** Camera permission as the screen sees it; permanent denial needs the settings app. */
 enum class CameraAccess { Unknown, Granted, Denied, DeniedForever }
 
 data class OnboardingCallbacks(
@@ -148,8 +147,8 @@ private fun Page(title: String, content: @Composable androidx.compose.foundation
 
 @Composable
 private fun Connect(s: OnboardingStep.Connect, cb: OnboardingCallbacks) = Page("Connect WireGuard") {
-    // Only the tunnel coming up can be seen from here, so the settings row stays numbered.
-    // Scrolls by itself so at large fonts the status and the button stay on screen.
+    // only the tunnel coming up can be seen from here, so step 3 never ticks.
+    // scrolls on its own so at large fonts the status and the button stay on screen
     Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(Space.s8)) {
         SetupStep(null, "remoter is installed", null, done = true)
         SetupStep(1, "Import the tunnel", "In WireGuard, tap + and scan the code phone-tunnel.sh shows on the laptop.", done = s.tunnel)
@@ -158,8 +157,6 @@ private fun Connect(s: OnboardingStep.Connect, cb: OnboardingCallbacks) = Page("
     }
     // polite live region so TalkBack hears the step tick over
     Box(Modifier.semantics { liveRegion = LiveRegionMode.Polite }) {
-        // One label whose word and dot blend as the tunnel and laptop come up, rather than three
-        // labels swapped in place.
         val (word, tone) = when {
             s.laptop -> "Laptop answered" to StatusTone.Ready
             s.tunnel -> "Tunnel is up, waiting for the laptop\u2026" to StatusTone.Warn
@@ -180,8 +177,7 @@ private fun SetupStep(n: Int?, title: String, detail: String?, done: Boolean) {
         },
         verticalAlignment = Alignment.Top,
     ) {
-        // Same tick as the start stepper. At least 28 dp, wider at large fonts instead of
-        // cutting the digit.
+        // at least 28 dp, wider at large fonts instead of cutting the digit
         val haptics = rememberHaptics()
         var was by remember { mutableStateOf(done) }
         LaunchedEffect(done) {
@@ -193,8 +189,7 @@ private fun SetupStep(n: Int?, title: String, detail: String?, done: Boolean) {
             Modifier.padding(top = 2.dp).defaultMinSize(28.dp, 28.dp).clip(Shapes.pill).background(animatedTone(if (done) c.volt else c.surface, "step")).padding(horizontal = Space.s4),
             contentAlignment = Alignment.Center,
         ) {
-            // Out of layout once the check has landed: at 200% the digit is taller than the disc and
-            // held at alpha 0 it stretched a done step into an oval.
+            // out of layout once the check lands: at 200% the digit held at alpha 0 stretched the disc into an oval
             if (check < 1f) n?.let { Text("$it", style = t.label.tnum(), color = c.text, modifier = Modifier.alpha(1f - check)) }
             Canvas(Modifier.size(14.dp)) {
                 if (check > 0f) {
@@ -299,8 +294,7 @@ private fun Stop(why: HardStop, cb: OnboardingCallbacks) {
     Page(title) {
         Text(body, style = Remoter.type.body, color = Remoter.colors.textMuted)
         Spacer(Modifier.weight(1f))
-        // No retry here on purpose, the stop is the point. Starting over is a
-        // deliberate choice, e.g. after moving off a network that swapped the key.
+        // no retry on purpose. starting over is a deliberate choice, e.g. off a network that swapped the key
         if (why == HardStop.Expired) SecondaryButton("Scan a new code", cb.onScanAgain)
         else SecondaryButton("Start over", cb.onStartOver)
     }
@@ -320,7 +314,6 @@ private fun PairAgain(reason: PairAgainReason, cb: OnboardingCallbacks) {
     }
 }
 
-/** Stateful wrapper: camera permission, WireGuard, and the CONFIRM haptic when pairing lands. */
 @Composable
 fun OnboardingScreen(vm: OnboardingViewModel, pairAgain: PairAgainReason?, onPaired: () -> Unit) {
     val context = LocalContext.current

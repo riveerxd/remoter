@@ -24,7 +24,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
-/** `/v1/live`: what it keeps through a drop, how fast it comes back, and what it tells the monitor. */
 @OptIn(ExperimentalCoroutinesApi::class)
 class LiveSyncTest {
     @get:Rule val main = MainDispatcherRule()
@@ -33,10 +32,10 @@ class LiveSyncTest {
         val clock = SchedulerClock(scope.testScheduler)
         val fixture = FixtureBackend(nowMs = clock::nowMs)
 
-        /** Each connect gets its own channel; closing one with an error is the link dropping. */
+        // one channel per connect, closing one with an error drops the link
         val streams = mutableListOf<Channel<LiveEvent>>()
 
-        /** Connects that fail before any event, as with the laptop away. */
+        // fail before any event, like the laptop away
         var refuse = false
         var healthCalls = 0
         val api = object : RemoterApi by fixture {
@@ -72,9 +71,9 @@ class LiveSyncTest {
         r.streams.last().close(java.io.IOException("tunnel went away"))
         runCurrent()
         assertFalse(r.live.connected.value)
-        assertEquals("nothing empties while it reconnects", list, r.hub.sessions.value)
+        assertEquals("emptied", list, r.hub.sessions.value)
         assertEquals(1, r.streams.size)
-        // 0.5, 1, 2, 4, then 4 s again: capped.
+        // 0.5, 1, 2, 4, then capped at 4 s
         for ((i, wait) in listOf(500L, 1_000L, 2_000L, 4_000L, 4_000L).withIndex()) {
             advanceTimeBy(wait - 1)
             runCurrent()
@@ -92,9 +91,9 @@ class LiveSyncTest {
         r.streams.last().send(LiveEvent.Sessions(shorter))
         runCurrent()
         assertTrue(r.live.connected.value)
-        assertEquals("the new snapshot replaces the old one whole", shorter, r.hub.sessions.value)
+        assertEquals(shorter, r.hub.sessions.value)
 
-        // A good connect resets the backoff to its first step.
+        // a good connect resets the backoff
         r.streams.last().close(java.io.IOException("again"))
         runCurrent()
         val n = r.streams.size
@@ -104,30 +103,30 @@ class LiveSyncTest {
     }
 
     @Test
-    fun a_dropped_stream_probes_the_link_at_once() = runRig { r ->
+    fun drop_probes_link_at_once() = runRig { r ->
         runCurrent()
         r.streams.last().send(LiveEvent.Sessions(emptyList()))
         runCurrent()
         val before = r.healthCalls
         r.streams.last().close(java.io.IOException("gone"))
         runCurrent()
-        assertEquals("the link status must not wait out the 10 s probe", before + 1, r.healthCalls)
+        assertEquals("waited for the probe", before + 1, r.healthCalls)
     }
 
-    // Kicking the monitor on every failed attempt restarted its 1, 2, 4 s retries each time,
-    // so with the laptop away it sat on Reconnecting for good and never said Laptop down.
+    // kicking the monitor on every failed attempt restarted its retries, so with the laptop away
+    // it sat on Reconnecting for good
     @Test
-    fun a_laptop_that_stays_away_still_reads_as_down() = runRig { r ->
+    fun away_laptop_reads_down() = runRig { r ->
         r.refuse = true
         r.fixture.unreachable = true
         advanceTimeBy(30_000)
         runCurrent()
         assertTrue(r.monitor.link.value.toString(), r.monitor.link.value is Link.LaptopDown)
-        assertTrue("it kept trying meanwhile", r.streams.size > 5)
+        assertTrue("kept trying", r.streams.size > 5)
     }
 
     @Test
-    fun no_attempts_while_the_vpn_is_off() = runRig { r ->
+    fun no_attempts_while_vpn_off() = runRig { r ->
         runCurrent()
         r.vpn.absent()
         r.streams.last().close(java.io.IOException("tunnel off"))
@@ -143,7 +142,7 @@ class LiveSyncTest {
     }
 
     @Test
-    fun a_health_event_reaches_the_monitor() = runRig { r ->
+    fun health_event_reaches_monitor() = runRig { r ->
         runCurrent()
         val h = r.fixture.health().copy(batteryPct = 7, locked = true)
         r.streams.last().send(LiveEvent.Health(h))

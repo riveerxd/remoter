@@ -54,11 +54,7 @@ class IntroAnchor {
 
 val LocalIntroAnchor = staticCompositionLocalOf<IntroAnchor?> { null }
 
-/**
- * Reports this layout's window bounds to the intro. Goes last in the modifier
- * handed to [RouteMap], so the bounds are exactly its node row (nodes plus the
- * 8 dp above and below).
- */
+// last in the modifier handed to RouteMap, so the bounds are exactly its node row
 fun Modifier.introAnchor(): Modifier = composed {
     val a = LocalIntroAnchor.current
     if (a == null) this else onGloballyPositioned { a.bounds = it.boundsInWindow() }
@@ -94,17 +90,9 @@ private val MarkAway = CubicBezierEasing(0.4f, 0f, 1f, 1f)
 
 private fun win(ms: Float, start: Int, dur: Int) = ((ms - start) / dur).coerceIn(0f, 1f)
 
-/**
- * The cold start beat after the system splash: the mark gives way to the home
- * route (phone, relay, laptop), the lines draw, one pulse runs down them, then
- * the overlay fades off home. Before [play] it holds the finished mark exactly
- * where the splash icon sat, so the handoff doesn't move a pixel. With reduced
- * motion it draws nothing and finishes as soon as it may play.
- *
- * If home reported its route row through [LocalIntroAnchor], the nodes glide
- * onto it while the backdrop fades; otherwise they fade where they are. [direct]
- * leaves the relay out, once the app knows there isn't one.
- */
+// cold start after the system splash. before play it holds the finished mark exactly where the
+// splash icon sat so the handoff doesn't move a pixel. with an anchor the nodes glide onto
+// home's route row, otherwise they fade where they are
 @Composable
 fun Intro(
     play: Boolean,

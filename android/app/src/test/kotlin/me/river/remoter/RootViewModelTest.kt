@@ -92,7 +92,7 @@ class RootViewModelTest {
     }
 
     @Test
-    fun a_cancelled_end_prompt_keeps_the_row() = runRig { r ->
+    fun cancelled_end_keeps_row() = runRig { r ->
         r.signer.outcomes += FakeSigner.Next.Cancel
         r.vm.end(s)
         runCurrent()
@@ -102,7 +102,7 @@ class RootViewModelTest {
     }
 
     @Test
-    fun a_wiped_key_on_end_is_said_not_swallowed() = runRig { r ->
+    fun wiped_key_on_end_is_reported() = runRig { r ->
         r.signer.outcomes += FakeSigner.Next.Invalidate
         r.vm.end(s)
         runCurrent()
@@ -111,7 +111,7 @@ class RootViewModelTest {
     }
 
     @Test
-    fun a_failed_end_says_why() = runRig { r ->
+    fun failed_end_says_why() = runRig { r ->
         r.api.failWith = ErrorCode.Locked
         r.vm.end(s)
         runCurrent()
@@ -120,7 +120,7 @@ class RootViewModelTest {
     }
 
     @Test
-    fun the_live_stream_runs_in_the_foreground_only() = runRig { r ->
+    fun live_stream_only_in_foreground() = runRig { r ->
         r.vm.foreground()
         runCurrent()
         assertEquals(1, r.api.liveCalls)

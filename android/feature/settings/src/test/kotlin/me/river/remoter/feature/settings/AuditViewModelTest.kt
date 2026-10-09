@@ -20,7 +20,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
-/** A failed page used to leave the skeleton spinning, and the first load raced the list's own request. */
+// a failed page used to leave the skeleton spinning, and the first load raced the list's own request
 @OptIn(ExperimentalCoroutinesApi::class)
 class AuditViewModelTest {
     @get:Rule val main = MainDispatcherRule()

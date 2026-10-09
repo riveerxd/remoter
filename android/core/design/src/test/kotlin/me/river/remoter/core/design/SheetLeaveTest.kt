@@ -15,11 +15,8 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
-/**
- * A menu emptied itself while it slid away, and starting a session from a menu slid the menu out
- * under the Start sheet, two sheets and two scrims at once. The clock stops partway through the
- * exit, which is where both showed.
- */
+// a menu emptied itself while it slid away, and starting from a menu slid it out under the
+// Start sheet: two sheets and two scrims at once
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = "w411dp-h891dp-xxhdpi")
 class SheetLeaveTest {
@@ -62,8 +59,8 @@ class SheetLeaveTest {
         compose.waitForIdle()
         compose.mainClock.autoAdvance = false
         start.value = true
-        // The menu's own exit is 180 ms. Six frames in, a handed off menu is already gone.
-        // Frame by frame, settling each: the handoff runs through effects, which a single jump skips.
+        // its own exit is 180 ms. frame by frame because the handoff runs through effects,
+        // which a single jump skips
         repeat(6) {
             compose.mainClock.advanceTimeByFrame()
             compose.waitForIdle()

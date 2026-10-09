@@ -95,14 +95,14 @@ class StartRecoveryTest {
         compose.waitForIdle()
         compose.onNodeWithText("Can't start with a dash").assertIsDisplayed()
         compose.onNode(hasSetTextAction()).assertIsFocused()
-        // A second refusal of the same name still counts, so it shakes and refocuses again.
+        // a second refusal of the same name still shakes
         compose.onNodeWithText("Start session").performClick()
         assertEquals(2, v.vm.ui.value.form.nameRefusals)
         assertEquals(StartState.Idle, v.vm.ui.value.state)
     }
 
     @Test
-    fun retry_copy_says_the_timer_is_about_the_fingerprint() {
+    fun retry_timer_is_about_fingerprint() {
         sheet(ui(StartState.NotAccepted(AppError.Unreachable, 1), retry = 12))
         compose.onNodeWithText("Retry now").assertIsDisplayed()
         compose.onNodeWithText("No fingerprint needed for 12 s").assertIsDisplayed()
@@ -130,7 +130,7 @@ class StartRecoveryTest {
     }
 
     @Test
-    fun starting_offers_cancel_start_from_the_first_second() {
+    fun cancel_start_from_first_second() {
         var ended = 0
         val steps = kotlinx.collections.immutable.persistentListOf(Step("Fingerprint", true))
         sheet(ui(StartState.Starting(SessionId("rc-1"), steps, 0, streamReconnecting = false, slow = false)), StartCallbacks(onEndIt = { ended++ }))
@@ -139,16 +139,16 @@ class StartRecoveryTest {
     }
 
     @Test
-    fun cancel_start_kills_the_session_and_resets() = withVm { v ->
+    fun cancel_start_kills_and_resets() = withVm { v ->
         val finger = kotlinx.coroutines.CompletableDeferred<Unit>()
-        // Phases a minute apart keep it on Starting for the whole test.
+        // phases a minute apart keep it on Starting
         v.api.phaseStepMs = 60_000
         v.vm.open(target)
         v.vm.start()
         compose.waitUntil(3_000) { v.vm.ui.value.state is StartState.Starting }
         v.signer.gate = finger
         v.vm.endIt()
-        assertEquals("spinner from the fingerprint on", true, v.vm.ui.value.ending)
+        assertEquals("spinner", true, v.vm.ui.value.ending)
         v.vm.endIt()
         finger.complete(Unit)
         compose.waitUntil(3_000) { v.vm.ui.value.state == StartState.Idle }
@@ -169,7 +169,6 @@ class StartRecoveryTest {
         assertEquals(true, u.open)
         assertEquals(true, u.state is StartState.Stuck)
         assertEquals(AppError.Unreachable, u.endError)
-        // Trying again clears the old reason and can succeed.
         v.api.unreachable = false
         v.vm.endIt()
         assertNull(v.vm.ui.value.endError)
@@ -177,7 +176,7 @@ class StartRecoveryTest {
     }
 
     @Test
-    fun retry_is_ignored_while_the_kill_is_in_flight() = withVm { v ->
+    fun retry_ignored_during_kill() = withVm { v ->
         val finger = kotlinx.coroutines.CompletableDeferred<Unit>()
         v.api.spawnScript = me.river.remoter.core.testing.SpawnScript.Stuck
         v.vm.open(target)
@@ -193,7 +192,7 @@ class StartRecoveryTest {
     }
 
     @Test
-    fun end_error_shows_under_the_stuck_sheet() {
+    fun end_error_under_stuck() {
         sheet(ui(StartState.Stuck(SessionId("rc-1"), null, kotlinx.collections.immutable.persistentListOf())).copy(endError = AppError.Unreachable))
         compose.onNodeWithText("Couldn't end it. Couldn't reach r1v3r").assertIsDisplayed()
         compose.onNodeWithText("End session").assertIsDisplayed()

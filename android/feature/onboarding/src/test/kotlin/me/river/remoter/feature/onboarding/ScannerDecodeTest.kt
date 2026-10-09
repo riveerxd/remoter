@@ -5,14 +5,11 @@ import com.google.zxing.qrcode.QRCodeWriter
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-/**
- * An S25 couldn't scan `remoterctl pair` off a dark kitty: the terminal drew
- * the code light on dark, and the analyzer only knew dark on light.
- */
+// an S25 couldn't scan `remoterctl pair` off a dark kitty: light on dark, the analyzer only knew dark on light
 class ScannerDecodeTest {
     private val link = "remoter://pair?h=10.66.66.3&p=8444&t=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA&f=BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"
 
-    /** A camera-ish frame: the code scaled up on a wider grey-free plane, with row padding. */
+    // camera-ish: the code on a wider plane, with row padding
     private fun frame(inverted: Boolean): Triple<ByteArray, Int, Pair<Int, Int>> {
         val m = QRCodeWriter().encode(link, BarcodeFormat.QR_CODE, 600, 600)
         val w = 800
@@ -34,13 +31,13 @@ class ScannerDecodeTest {
     }
 
     @Test
-    fun decodes_a_terminal_code_drawn_light_on_dark() {
+    fun decodes_light_on_dark() {
         val (d, stride, size) = frame(inverted = true)
         assertEquals(link, decodeLuma(d, stride, size.first, size.second)?.text)
     }
 
     @Test
-    fun ultrawide_stop_only_when_the_camera_has_it() {
+    fun ultrawide_stop_only_if_present() {
         assertEquals(listOf(0.6f, 1f, 2f, 3f), zoomStops(0.6f, 10f))
         assertEquals(listOf(1f, 2f), zoomStops(1f, 2.5f))
         assertEquals(listOf("0.6×", "1×", "2×"), listOf(0.6f, 1f, 2f).map(::zoomLabel))

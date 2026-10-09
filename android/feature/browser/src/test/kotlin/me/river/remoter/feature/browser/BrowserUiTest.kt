@@ -24,7 +24,7 @@ class BrowserUiTest {
     @get:Rule val compose = createComposeRule()
 
     @Test
-    fun blocked_start_stays_tappable_and_explains_itself() {
+    fun blocked_start_explains() {
         var blocked: Blocked? = null
         var started = false
         compose.setContent {
@@ -38,14 +38,14 @@ class BrowserUiTest {
     }
 
     @Test
-    fun blocked_copy_says_why_and_what_to_do() {
+    fun blocked_copy_says_why() {
         compose.setContent { RemoterTheme(dark = true, reducedMotion = true) { androidx.compose.foundation.layout.Column { BlockedCopy(Blocked.Denied, "r1v3r", ".ssh") } } }
         compose.onNodeWithText("Sessions can't start in .ssh").assertIsDisplayed()
         compose.onNodeWithText("Pick a project folder instead", substring = true).assertIsDisplayed()
     }
 
     @Test
-    fun empty_folder_explains_without_repeating_actions() {
+    fun empty_folder_explains() {
         compose.setContent { RemoterTheme(dark = true, reducedMotion = true) { BrowserContent(browserStates.getValue("empty"), BrowserCallbacks(), false) } }
         compose.onNodeWithText("No folders in remoter").assertIsDisplayed()
         compose.onNodeWithText("Create one, or start a session right here.").assertIsDisplayed()
@@ -54,7 +54,7 @@ class BrowserUiTest {
     }
 
     @Test
-    fun no_results_offers_to_create_that_folder() {
+    fun no_results_offers_create() {
         var made: String? = null
         compose.setContent { RemoterTheme(dark = true, reducedMotion = true) { BrowserContent(browserStates.getValue("search_none"), BrowserCallbacks(onNewFolder = { made = it }), false) } }
         compose.onNodeWithText("Nothing called 'foo' here").assertIsDisplayed()
@@ -63,7 +63,7 @@ class BrowserUiTest {
     }
 
     @Test
-    fun breadcrumb_tap_names_the_right_level() {
+    fun breadcrumb_names_level() {
         var crumb: String? = null
         val ui = browserStates.getValue("listing").copy(path = "Projects/clients/acme")
         compose.setContent { RemoterTheme(dark = true, reducedMotion = true) { BrowserContent(ui, BrowserCallbacks(onCrumb = { crumb = it }), false) } }

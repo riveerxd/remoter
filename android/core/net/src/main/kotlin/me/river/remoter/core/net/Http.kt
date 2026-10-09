@@ -45,13 +45,8 @@ object RemoterHttp {
         if (host == LAPTOP_ADDR) listOf(InetAddress.getByName(LAPTOP_ADDR)) else throw UnknownHostException(host)
     }
 
-    /**
-     * [socketFactory] is the VPN network's, so with the tunnel down not one
-     * packet goes to the laptop address over Wi-Fi.
-     *
-     * OkHttp refuses a protocol list without HTTP/1.1 over TLS, so it offers
-     * both; the laptop's ALPN offers only h2, and that is what gets negotiated.
-     */
+    // OkHttp refuses a protocol list without HTTP/1.1, so both are offered; the laptop's ALPN
+    // only has h2, so h2 is what gets negotiated
     fun client(
         socketFactory: SocketFactory,
         trust: PinnedTrustManager,

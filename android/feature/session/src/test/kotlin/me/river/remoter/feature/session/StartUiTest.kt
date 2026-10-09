@@ -33,8 +33,7 @@ class StartUiTest {
     @get:Rule val compose = createComposeRule()
 
     private val clock = me.river.remoter.core.net.Clock.System
-    // Robolectric's paused main looper doesn't run coroutine delays while the
-    // compose clock advances, so the fixture runs without them here.
+    // Robolectric's paused looper doesn't run coroutine delays while the compose clock advances
     private val api = FixtureBackend(phaseStepMs = 0)
     private val signer = FakeSigner(clock, fingerMs = 0)
     private val store = MemoryStore(LocalState(laptop = PairedLaptop("r1v3r", "fp", "dev", 0, "StrongBox", "TEE", null)))
@@ -60,7 +59,7 @@ class StartUiTest {
         signer.gate = finger
         show()
         compose.onNodeWithText("Start session").performClick()
-        // The prompt is up; the button is still there and gets hammered.
+        // prompt is up, the button still gets hammered
         compose.onNodeWithText("Start session").performClick()
         compose.onNodeWithText("Start session").performClick()
         finger.complete(Unit)
@@ -70,7 +69,7 @@ class StartUiTest {
     }
 
     @Test
-    fun cancelled_fingerprint_resets_cleanly() {
+    fun cancelled_finger_resets() {
         signer.outcomes += FakeSigner.Next.Cancel
         show()
         compose.onNodeWithText("Start session").performClick()
@@ -80,7 +79,7 @@ class StartUiTest {
     }
 
     @Test
-    fun retry_button_resends_the_same_bytes() {
+    fun retry_resends_same_bytes() {
         api.unreachable = true
         show()
         compose.onNodeWithText("Start session").performClick()

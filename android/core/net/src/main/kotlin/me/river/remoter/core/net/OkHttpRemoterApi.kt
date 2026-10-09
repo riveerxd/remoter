@@ -22,11 +22,6 @@ import javax.net.ssl.X509ExtendedKeyManager
 
 private val JSON = "application/json".toMediaType()
 
-/**
- * The real client. Every socket comes from the VPN network's own factory, so
- * with the tunnel down this throws [VpnOffException] before a single packet
- * leaves the phone.
- */
 class OkHttpRemoterApi(
     private val network: () -> Network?,
     private val keyManager: X509ExtendedKeyManager,
@@ -128,10 +123,7 @@ class OkHttpRemoterApi(
             .post(RemoterJson.encodeToString(AttestRequest.serializer(), req).toByteArray().toRequestBody(JSON)).build()
     }, AttestResponse.serializer())!!
 
-    /**
-     * A silent stream counts as dead after [readTimeoutMs]: the laptop pings while idle, so missing
-     * two pings means the link went away without a FIN, which a tunnel dropping never sends.
-     */
+    // the laptop pings while idle, so two missed pings means the tunnel dropped: that never sends a FIN
     private fun <T> sse(url: HttpUrl, readTimeoutMs: Long, headers: Map<String, String>, parse: (id: String?, type: String, data: String) -> T?): Flow<T> =
         callbackFlow {
             val (c, l) = client()

@@ -53,7 +53,7 @@ class ProcessesViewModelTest {
     }
 
     @Test
-    fun loads_busiest_first_and_sorts_by_memory() = runRig { r ->
+    fun sorts_by_cpu_then_memory() = runRig { r ->
         r.vm.load()
         val ui = r.vm.ui.value
         assertTrue(ui.loaded)
@@ -65,7 +65,7 @@ class ProcessesViewModelTest {
     }
 
     @Test
-    fun a_signal_is_signed_for_that_exact_process() = runRig { r ->
+    fun signal_signs_exact_process() = runRig { r ->
         r.vm.load()
         val firefox = r.vm.ui.value.procs.first { it.name == "firefox" }
         r.vm.select(firefox)
@@ -83,7 +83,7 @@ class ProcessesViewModelTest {
     }
 
     @Test
-    fun the_prompt_names_the_session() = runRig { r ->
+    fun prompt_names_session() = runRig { r ->
         r.vm.load()
         val claude = r.vm.ui.value.procs.first { it.session != null }
         r.vm.signal(claude, Signal.Kill)
@@ -94,7 +94,7 @@ class ProcessesViewModelTest {
     }
 
     @Test
-    fun a_cancelled_finger_sends_nothing() = runRig { r ->
+    fun cancel_sends_nothing() = runRig { r ->
         r.vm.load()
         val p = r.vm.ui.value.procs.first { it.killable }
         r.vm.select(p)
@@ -107,7 +107,7 @@ class ProcessesViewModelTest {
     }
 
     @Test
-    fun a_refusal_stays_on_the_sheet() = runRig { r ->
+    fun refusal_stays_on_sheet() = runRig { r ->
         r.vm.load()
         val p = r.vm.ui.value.procs.first { it.killable }
         r.vm.select(p)
@@ -120,7 +120,7 @@ class ProcessesViewModelTest {
     }
 
     @Test
-    fun a_process_that_ended_closes_its_sheet() = runRig { r ->
+    fun ended_process_closes_sheet() = runRig { r ->
         r.vm.load()
         val p = r.vm.ui.value.procs.first { it.name == "cargo" }
         r.vm.select(p)
@@ -130,7 +130,7 @@ class ProcessesViewModelTest {
     }
 
     @Test
-    fun a_failed_poll_keeps_the_list() = runRig { r ->
+    fun failed_poll_keeps_list() = runRig { r ->
         val job = launch { r.vm.poll() }
         runCurrent()
         val before = r.vm.ui.value.procs

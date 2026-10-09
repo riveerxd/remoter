@@ -23,10 +23,6 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
-/**
- * Snackbars used to pop in and out with no motion, four of them could sit on the
- * same spot at once, and none held still under a finger.
- */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = "w411dp-h891dp-xxhdpi")
 class SnackbarHostTest {
@@ -64,7 +60,7 @@ class SnackbarHostTest {
     }
 
     @Test
-    fun it_leaves_with_an_exit_instead_of_vanishing() {
+    fun leaves_with_exit() {
         show(reduced = false)
         compose.mainClock.autoAdvance = false
         first = false
@@ -75,42 +71,42 @@ class SnackbarHostTest {
     }
 
     @Test
-    fun the_countdown_holds_while_a_finger_is_on_it() {
+    fun countdown_holds_under_finger() {
         show(autoMs = 5_000)
         compose.mainClock.autoAdvance = false
         compose.onNodeWithText("first news").performTouchInput { down(center) }
         compose.mainClock.advanceTimeBy(8_000)
-        assertEquals("held for 8 s, still up", 0, dismissed)
+        assertEquals(0, dismissed)
         compose.onNodeWithText("first news").performTouchInput { up() }
         compose.mainClock.advanceTimeBy(4_000)
         assertEquals(0, dismissed)
         compose.mainClock.advanceTimeBy(1_500)
-        assertEquals("the full 5 s runs once the finger lifts", 1, dismissed)
+        assertEquals(1, dismissed)
     }
 
     @Test
-    fun a_buried_snackbar_does_not_count_down() {
+    fun buried_snackbar_waits() {
         second = true
         show(autoMs = 5_000)
         compose.mainClock.autoAdvance = false
         compose.mainClock.advanceTimeBy(8_000)
-        assertEquals("it was never on screen, so its time never ran", 0, dismissed)
+        assertEquals(0, dismissed)
         second = false
-        // The host hears about the removal from a dispose, which Robolectric only delivers on idle.
+        // the host hears about the removal from a dispose, which Robolectric only runs on idle
         compose.waitForIdle()
         compose.mainClock.advanceTimeBy(6_000)
         assertEquals(1, dismissed)
     }
 
     @Test
-    fun the_inset_lifts_it_clear_of_a_bottom_bar() {
+    fun inset_clears_bottom_bar() {
         show()
         fun bottom(): Dp = compose.onNodeWithText("first news").getUnclippedBoundsInRoot().bottom
         val low = bottom()
         inset = 88.dp
         compose.waitForIdle()
         val root = compose.onRoot().getUnclippedBoundsInRoot().bottom
-        assertTrue("snackbar bottom ${bottom()} must clear an 88 dp bar ending at $root", bottom() <= root - 88.dp)
+        assertTrue(bottom() <= root - 88.dp)
         assertTrue(bottom() < low)
     }
 }

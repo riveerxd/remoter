@@ -11,10 +11,7 @@ import androidx.compose.ui.composed
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 
-/**
- * The refusal shake: 3 x 4 dp over 300 ms. [trigger] changes to play it again.
- * Under reduced motion it doesn't move; the error text carries the meaning.
- */
+// bump trigger to play it again. reduced motion skips it, the error text carries the meaning
 fun Modifier.shake(trigger: Int): Modifier = composed {
     val x = remember { Animatable(0f) }
     val px = with(LocalDensity.current) { 4f * density }
@@ -32,10 +29,7 @@ fun Modifier.shake(trigger: Int): Modifier = composed {
     graphicsLayer { translationX = x.value }
 }
 
-/**
- * Layout entrance: 30 ms apart, first six only, 16 dp rise, 250 ms EaseOut.
- * Data arriving later never uses this; it crossfades in place instead.
- */
+// layout entrance only. data arriving later crossfades in place instead
 fun Modifier.staggerIn(index: Int, play: Boolean): Modifier = composed {
     val reduced = Remoter.reducedMotion
     val p = remember { Animatable(if (play && !reduced) 0f else 1f) }
@@ -54,7 +48,7 @@ fun Modifier.staggerIn(index: Int, play: Boolean): Modifier = composed {
     }
 }
 
-/** Holds a value visible for at least [minMs] once shown, so a skeleton never flickers. */
+// so a skeleton never flickers
 @Composable
 fun rememberHeld(show: Boolean, minMs: Long = 300): Boolean {
     val state = remember { androidx.compose.runtime.mutableStateOf(show) }
@@ -72,7 +66,7 @@ fun rememberHeld(show: Boolean, minMs: Long = 300): Boolean {
     return state.value
 }
 
-/** True only once [active] has stayed true for [afterMs]. Loaders use it so fast loads show nothing. */
+// fast loads show no loader at all
 @Composable
 fun rememberAfter(active: Boolean, afterMs: Long): Boolean {
     val state = remember { androidx.compose.runtime.mutableStateOf(false) }

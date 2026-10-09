@@ -26,7 +26,7 @@ class RootSnackbarsTest {
     @get:Rule val compose = createComposeRule()
 
     @Test
-    fun the_live_snackbar_goes_away_after_six_seconds() {
+    fun live_snackbar_times_out() {
         var ready by mutableStateOf<String?>("remoter")
         var shown = 0
         compose.setContent {

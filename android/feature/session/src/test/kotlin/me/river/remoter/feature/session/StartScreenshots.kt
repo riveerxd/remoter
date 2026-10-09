@@ -76,7 +76,7 @@ internal val startStates: List<Pair<String, StartUi>> = listOf(
     "stuck_end_failed" to ui(StartState.Stuck(id, StuckReason.Untrusted, tail)).copy(endError = AppError.Unreachable),
 )
 
-/** The real sheet on a phone-sized canvas over a stand-in for home, so anchoring and scrim show. */
+// over a stand-in for home so anchoring and scrim show
 @Composable
 internal fun SheetBody(u: StartUi) {
     androidx.compose.foundation.layout.Box(Modifier.fillMaxSize().background(Remoter.colors.bg)) {
@@ -93,7 +93,7 @@ internal fun SheetBody(u: StartUi) {
 
 @RunWith(ParameterizedRobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-// The S25 Ultra: 1440x3120 px is 411x891 dp.
+// S25 Ultra: 1440x3120 px is 411x891 dp
 @Config(qualifiers = "w411dp-h891dp-xxhdpi")
 class StartScreenshots(private val v: Variant) {
     companion object {
@@ -154,7 +154,7 @@ class ReadyRingFrames {
         }
         compose.mainClock.advanceTimeBy(500)
         state.value = ui(StartState.Ready(id, "remoter", link))
-        // One frame for the state to land, then 50 ms steps; each name is the time since Ready.
+        // one frame for the state to land, then 50 ms steps named by time since Ready
         compose.mainClock.advanceTimeByFrame()
         var t = 0
         while (t <= 300) {

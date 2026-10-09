@@ -40,7 +40,7 @@ class HomeUiTest {
     }
 
     @Test
-    fun nothing_running_offers_the_folders_to_start_again() {
+    fun nothing_running_offers_start_again() {
         var started: FolderItem? = null
         show(homeStates.getValue("up_no_sessions"), HomeCallbacks(onFolder = { started = it }))
         compose.onNodeWithText("Nothing running").assertIsDisplayed()
@@ -50,7 +50,7 @@ class HomeUiTest {
     }
 
     @Test
-    fun the_load_card_opens_processes() {
+    fun load_card_opens_processes() {
         var opened = 0
         show(homeStates.getValue("up_load"), HomeCallbacks(onLoad = { opened++ }))
         compose.onNodeWithContentDescription("CPU 23 percent busy", substring = true).assertIsDisplayed()
@@ -61,7 +61,7 @@ class HomeUiTest {
     }
 
     @Test
-    fun connection_details_carry_the_load_too() {
+    fun details_show_load() {
         var opened = 0
         compose.setContent {
             RemoterTheme(dark = true, reducedMotion = true) {
@@ -74,14 +74,14 @@ class HomeUiTest {
     }
 
     @Test
-    fun no_load_card_while_the_laptop_is_away() {
+    fun no_load_card_when_down() {
         show(homeStates.getValue("laptop_down_load"))
         compose.onNodeWithContentDescription("CPU", substring = true).assertDoesNotExist()
         compose.onNode(clickLabelled("Show processes")).assertDoesNotExist()
     }
 
     @Test
-    fun new_opens_the_new_session_sheet() {
+    fun new_opens_sheet() {
         var opened = 0
         show(homeStates.getValue("up_sessions"), HomeCallbacks(onNew = { opened++ }))
         compose.onNodeWithContentDescription("New session").performClick()
@@ -89,7 +89,7 @@ class HomeUiTest {
     }
 
     @Test
-    fun a_ready_card_opens_claude() {
+    fun ready_card_opens_claude() {
         var opened: String? = null
         show(homeStates.getValue("up_sessions"), HomeCallbacks(onOpenClaude = { opened = it.name }))
         compose.onNodeWithContentDescription("Open remoter in Claude").performClick()
@@ -97,7 +97,7 @@ class HomeUiTest {
     }
 
     @Test
-    fun a_row_tap_opens_start_directly() {
+    fun row_tap_opens_start() {
         var started: FolderItem? = null
         show(homeStates.getValue("up_no_sessions"), HomeCallbacks(onFolder = { started = it }))
         compose.onNodeWithText("remoter").performClick()
@@ -105,10 +105,10 @@ class HomeUiTest {
     }
 
     @Test
-    fun vpn_off_offers_wireguard_and_laptop_down_offers_retry() {
+    fun vpn_off_offers_wireguard() {
         var wg = false
         show(homeStates.getValue("vpn_off"), HomeCallbacks(onOpenWireGuard = { wg = true }))
-        // Dot and word are one accessible node, named by its description.
+        // dot and word are one node, named by its description
         compose.onNodeWithContentDescription("WireGuard is off").assertIsDisplayed()
         compose.onNodeWithText("Turn on WireGuard").performClick()
         assertTrue(wg)

@@ -5,7 +5,7 @@ import org.junit.Test
 
 class KeyLevelLabelTest {
     @Test
-    fun enum_names_read_as_people_write_them() {
+    fun enum_names_read_as_words() {
         assertEquals("Hardware (TEE)", keyLevelLabel("Tee"))
         assertEquals("Hardware (TEE)", keyLevelLabel("TEE"))
         assertEquals("Security chip (StrongBox)", keyLevelLabel("StrongBox"))

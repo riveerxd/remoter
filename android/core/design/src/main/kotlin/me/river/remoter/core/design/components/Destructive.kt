@@ -49,12 +49,8 @@ import me.river.remoter.core.design.rememberHaptics
 
 const val HOLD_MS = 500
 
-/**
- * Press and hold to commit: a red fill runs across the button and the action
- * fires when it reaches the end. Letting go early drains it and nothing
- * happens. For actions that are a pain to undo but too common for a dialog.
- * TalkBack can't hold, so its double tap runs the action straight away.
- */
+// for actions that are a pain to undo but too common for a dialog.
+// TalkBack can't hold, so its double tap fires straight away
 @Composable
 fun HoldButton(
     text: String,
@@ -111,11 +107,7 @@ fun HoldButton(
     }
 }
 
-/**
- * The one destructive button style: outlined in danger red, full width, never
- * filled, so it can't be mistaken for the screen's main action. What it
- * destroys is said next to it, not in a dialog after it.
- */
+// outlined, never filled, so it can't pass for the screen's main action
 @Composable
 fun DangerButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, loading: Boolean = false) {
     val busy by rememberUpdatedState(loading)

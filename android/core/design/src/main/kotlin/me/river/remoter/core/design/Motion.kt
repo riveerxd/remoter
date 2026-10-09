@@ -20,9 +20,5 @@ const val StaggerOffsetDp = 16
 
 const val StaggerMaxItems = 6
 
-/**
- * True when the system animator scale is 0. Compose already snaps timed
- * transitions then; this flag additionally stops every looping animation:
- * pulses, shimmer, route dashes.
- */
+// compose already snaps timed transitions at animator scale 0; this also stops the loops
 val LocalReducedMotion = staticCompositionLocalOf { false }

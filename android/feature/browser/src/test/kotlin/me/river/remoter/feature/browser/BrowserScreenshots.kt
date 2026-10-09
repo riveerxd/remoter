@@ -63,7 +63,7 @@ class BrowserScreenshots(private val v: Variant) {
     @Test fun new_folder() = one("new_folder")
     @Test fun new_folder_error() = one("new_folder_error")
     @Test fun loading_first() {
-        // Skeletons only after 1 s; drive the clock there by hand.
+        // skeletons only show after 1 s
         compose.mainClock.autoAdvance = false
         compose.setContent { me.river.remoter.core.design.RemoterTheme(dark = v.dark, reducedMotion = true) { BrowserContent(browserStates.getValue("loading_first"), BrowserCallbacks(), false) } }
         compose.mainClock.advanceTimeBy(1_100)

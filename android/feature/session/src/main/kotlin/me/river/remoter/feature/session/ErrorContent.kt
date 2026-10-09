@@ -31,6 +31,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -54,7 +55,7 @@ import me.river.remoter.core.net.AppError
 import me.river.remoter.core.net.SessionSummary
 import me.river.remoter.core.net.trimmedPath
 
-/** What an error sheet can offer. Anything left null has no button. */
+// anything left null has no button
 data class ErrorActions(
     val onRetry: (() -> Unit)? = null,
     val onLockLaptop: (() -> Unit)? = null,
@@ -62,25 +63,17 @@ data class ErrorActions(
     val onOpenDateSettings: (() -> Unit)? = null,
     val onOpenWireGuard: (() -> Unit)? = null,
     val onEnd: ((SessionSummary) -> Unit)? = null,
-    /** Folder busy: open the session that holds the folder in the Claude app. */
     val onOpenInClaude: ((SessionSummary) -> Unit)? = null,
-    /** Folder busy in a git repo: the same start, as a worktree, which is its own folder. */
     val onUseWorktree: (() -> Unit)? = null,
-    /** Open conversation: start a fresh session from a handoff of it instead. */
     val onHandoffInstead: (() -> Unit)? = null,
     val onDismiss: () -> Unit = {},
-    /** The lock request is in flight: the hold button spins and ignores another hold. */
+    // lock in flight: the hold button spins and ignores another hold
     val locking: Boolean = false,
-    /** Session cap rows whose End is waiting on the finger or the laptop. */
+    // session cap rows waiting on the finger or the laptop
     val endingIds: Set<String> = emptySet(),
-    /** Session cap rows the laptop already ended; they leave the list. */
     val endedIds: Set<String> = emptySet(),
 )
 
-/**
- * The body of an error sheet. Permission sheets carry a lock, Security ones
- * are red, and a session cap lists what is running, each with End.
- */
 @Composable
 fun ErrorContent(error: AppError, host: String, actions: ErrorActions, modifier: Modifier = Modifier) {
     val c = Remoter.colors
@@ -96,8 +89,7 @@ fun ErrorContent(error: AppError, host: String, actions: ErrorActions, modifier:
         copy.body?.let { Text(it, style = t.body, color = c.textMuted) }
         copy.command?.let { CommandBlock(it) }
         if (error is AppError.SessionCap) {
-            // An ended session closes out of the list where it was, and End turns into its spinner in
-            // place, instead of rows vanishing and the ones below jumping up.
+            // rows close in place instead of vanishing and making the ones below jump
             AnimatedItems(error.sessions.filter { it.id !in actions.endedIds }, key = { it.id }) { s ->
                 Row(Modifier.fillMaxWidth().heightIn(min = Touch.row), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
@@ -123,7 +115,7 @@ fun ErrorContent(error: AppError, host: String, actions: ErrorActions, modifier:
                 Row(Modifier.fillMaxWidth().heightIn(min = Touch.row), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text(s.name, style = t.bodyStrong, color = c.text)
-                        // Two sessions of one folder read the same without it: one may be in a worktree.
+                        // two sessions of one folder read the same without it
                         val where = s.worktree?.let { "${trimmedPath(s.path)} · worktree $it" } ?: trimmedPath(s.path)
                         Text(where, style = t.label, color = c.textMuted)
                     }
@@ -141,12 +133,12 @@ fun ErrorContent(error: AppError, host: String, actions: ErrorActions, modifier:
             error is AppError.VpnOff -> actions.onOpenWireGuard?.let { PrimaryButton("Turn on WireGuard", it) }
             error is AppError.RateLimited -> RateLimitButton(error.retryAfterS, actions.onRetry)
             error is AppError.FolderBusy -> actions.onUseWorktree?.let { PrimaryButton("Start in a new worktree", it) }
-            // Closed on the laptop by now, so the same pick goes again, under a new fingerprint.
+            // maybe closed on the laptop by now, so the same pick again under a new fingerprint
             error == AppError.ConversationOpen -> {
                 actions.onHandoffInstead?.let { PrimaryButton("Hand off instead", it) }
                 actions.onRetry?.let { QuietButton("Try again", it, Modifier.align(Alignment.CenterHorizontally)) }
             }
-            // A slot is free now, so the next step is the start that hit the cap.
+            // a slot is free now
             error is AppError.SessionCap && actions.onRetry != null && error.sessions.any { it.id in actions.endedIds } ->
                 PrimaryButton("Start now", actions.onRetry)
             actions.onRetry != null && copy.look in setOf(ErrorLook.Network, ErrorLook.Server) -> PrimaryButton("Retry", actions.onRetry)
@@ -156,15 +148,15 @@ fun ErrorContent(error: AppError, host: String, actions: ErrorActions, modifier:
 }
 
 @Composable
-private fun Spinner(color: androidx.compose.ui.graphics.Color) {
+private fun Spinner(color: Color) {
     if (Remoter.reducedMotion) {
-        CircularProgressIndicator({ 0.3f }, Modifier.size(20.dp), color = color, strokeWidth = 2.dp, trackColor = androidx.compose.ui.graphics.Color.Transparent)
+        CircularProgressIndicator({ 0.3f }, Modifier.size(20.dp), color = color, strokeWidth = 2.dp, trackColor = Color.Transparent)
     } else {
-        CircularProgressIndicator(Modifier.size(20.dp), color = color, strokeWidth = 2.dp, trackColor = androidx.compose.ui.graphics.Color.Transparent)
+        CircularProgressIndicator(Modifier.size(20.dp), color = color, strokeWidth = 2.dp, trackColor = Color.Transparent)
     }
 }
 
-/** Counts down from `retry_after_s` in place; the button stays tappable and says how long. */
+// stays tappable while it counts down, and says how long
 @Composable
 private fun RateLimitButton(seconds: Int, onRetry: (() -> Unit)?) {
     var left by remember(seconds) { mutableStateOf(seconds) }

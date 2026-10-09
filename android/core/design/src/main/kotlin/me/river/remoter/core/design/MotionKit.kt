@@ -49,10 +49,6 @@ fun <T> leave(): FiniteAnimationSpec<T> = tween(Dur.exit, easing = EaseIn)
 
 enum class Press(val scale: Float) { Button(0.97f), Card(0.98f), Icon(0.92f) }
 
-/**
- * Press feedback for anything tappable: sinks under the finger on [PressSpring], springs back.
- * Ripple is off app wide (RemoterTheme).
- */
 @Composable
 fun Modifier.pressable(interaction: InteractionSource, kind: Press = Press.Card): Modifier {
     val pressed by interaction.collectIsPressedAsState()
@@ -72,11 +68,7 @@ fun animatedAlpha(visible: Boolean, label: String = "alpha"): Float =
 private val appearIn: EnterTransition = expandVertically(arrive(), expandFrom = Alignment.Top) + fadeIn(arrive())
 private val appearOut: ExitTransition = shrinkVertically(leave(), shrinkTowards = Alignment.Top) + fadeOut(leave())
 
-/**
- * Something that opens up in a column (an inline error, a note, a choice under a picked row) and
- * closes again. Use it below the finger, never above a control the thumb is heading for: that
- * control would move.
- */
+// only below the finger, never above a control the thumb is heading for: it would move
 @Composable
 fun ColumnScope.Appear(visible: Boolean, modifier: Modifier = Modifier, content: @Composable AnimatedVisibilityScope.() -> Unit) {
     val still = Remoter.reducedMotion
@@ -99,11 +91,8 @@ fun androidx.compose.animation.AnimatedContentTransitionScope<*>.fadeSwap(): Con
     (fadeIn(tween(Dur.base, delayMillis = Dur.exit / 2, easing = EaseOut)) togetherWith fadeOut(leave()))
         .using(SizeTransform(clip = false) { _, _ -> spring<androidx.compose.ui.unit.IntSize>(dampingRatio = 0.86f, stiffness = 520f) })
 
-/**
- * Content keyed on [key] that crossfades when the key changes, and grows or shrinks on the sheet
- * spring. Each side draws from its own [state], never the current one: an error layout fading out
- * once cast the new state and crashed the app.
- */
+// each side draws from its own state, never the current one: an error layout fading out
+// once cast the new state and crashed
 @Composable
 fun <S> FadeSwap(state: S, modifier: Modifier = Modifier, key: (S) -> Any? = { it }, content: @Composable (S) -> Unit) {
     val still = Remoter.reducedMotion
@@ -123,12 +112,8 @@ fun SwapText(
     textAlign: androidx.compose.ui.text.style.TextAlign? = null,
 ) = FadeSwap(text, modifier) { Text(it, style = style, color = color, maxLines = maxLines, overflow = TextOverflow.Ellipsis, textAlign = textAlign) }
 
-/**
- * Rows of a plain column that open in when they arrive and close out when they leave, the way
- * banners do, so a pinned folder visibly moves instead of blinking from one list to another. A row
- * that leaves keeps its place and its last content while it closes. Nothing animates on the first
- * frame: what is there when the screen appears is simply there.
- */
+// so a pinned folder visibly moves instead of blinking from one list to the other.
+// nothing animates on the first frame
 @Composable
 fun <T> ColumnScope.AnimatedItems(items: List<T>, key: (T) -> Any, content: @Composable (T) -> Unit) {
     val first = androidx.compose.runtime.remember { booleanArrayOf(true) }
@@ -171,11 +156,7 @@ val ListFadeOut: FiniteAnimationSpec<Float> = tween(Dur.exit, easing = EaseIn)
 // spring, settles in about the sheets' time
 val SettleSpring = spring<Float>(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = 520f)
 
-/**
- * [pressable] as an Indication, so plain clickables get it for free. RemoterTheme provides the
- * Card one instead of Material's ripple; buttons and icons pass their own via [pressIndication].
- * Only the drawing scales, the hit area stays put.
- */
+// as an Indication so plain clickables get it for free; only the drawing scales, not the hit area
 class PressIndication(private val scale: Float) : androidx.compose.foundation.IndicationNodeFactory {
     override fun create(interactionSource: InteractionSource): androidx.compose.ui.node.DelegatableNode = PressNode(interactionSource, scale)
     override fun equals(other: Any?) = other is PressIndication && other.scale == scale

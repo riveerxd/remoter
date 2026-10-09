@@ -2,10 +2,7 @@ package me.river.remoter.feature.settings
 
 import me.river.remoter.core.design.components.StatusTone
 
-/**
- * The laptop logs machine names (remoterd's action_of, error codes, lock
- * reasons). Anything new it starts logging still reads as words, not snake_case.
- */
+// anything new the laptop starts logging still reads as words, not snake_case
 internal fun auditAction(action: String, result: String): String = when (action) {
     "spawn" -> "Started a session"
     "end" -> "Ended a session"
@@ -22,7 +19,7 @@ internal fun auditAction(action: String, result: String): String = when (action)
     else -> words(action)
 }
 
-/** For a lock the result is the reason, not an outcome, so it never reads as a failure. */
+// a lock's result is the reason, not an outcome, so it never reads as a failure
 internal fun auditResult(action: String, result: String): Pair<String, StatusTone> {
     if (action == "lock") return when (result) {
         "auto" -> "After bad tries" to StatusTone.Warn
@@ -47,7 +44,7 @@ internal fun auditResult(action: String, result: String): Pair<String, StatusTon
     }
 }
 
-/** Paths are relative to home. A signal's is "firefox 2210 term", which no folder is. */
+// a signal's path is "firefox 2210 term", not a folder
 internal fun auditPath(action: String, path: String): String {
     if (action != "signal") return "~/$path"
     val parts = path.split(' ')

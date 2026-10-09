@@ -26,11 +26,8 @@ import me.river.remoter.core.design.Remoter
 import me.river.remoter.core.design.Shapes
 import me.river.remoter.core.design.animatedTone
 
-/**
- * Our own switch. Material's had its own motion and a ripple halo nothing else in the app had.
- * Visual only: the row around it is the toggleable, so label and switch are one target.
- * Off is a textMuted thumb and edge on a raised track, which holds 3:1 in light mode.
- */
+// not Material's: it had its own motion and a ripple halo nothing else here has. visual only,
+// the row around it is the toggleable so label and switch are one target
 @Composable
 fun RemoterSwitch(checked: Boolean, modifier: Modifier = Modifier) {
     val c = Remoter.colors
@@ -58,7 +55,6 @@ private val TrackH = 32.dp
 private val Thumb = 24.dp
 private val Inset = 4.dp
 
-/** The stepper's tick, reused for every completed step. */
 @Composable
 fun SelfDrawingCheck(done: Boolean, modifier: Modifier = Modifier, size: Dp = 20.dp) {
     val c = Remoter.colors

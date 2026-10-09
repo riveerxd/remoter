@@ -54,14 +54,14 @@ class HomeInteractionTest {
     }
 
     @Test
-    fun first_launch_with_wireguard_off_offers_it() {
+    fun cold_vpn_off_offers_wireguard() {
         show(HomeUi(hostname = "r1v3r", link = Link.VpnOff))
         compose.onNodeWithText("Turn on WireGuard").assertIsDisplayed()
         compose.onNodeWithText("once WireGuard is on", substring = true).assertExists()
     }
 
     @Test
-    fun a_failed_first_load_has_try_again() {
+    fun failed_first_load_has_try_again() {
         var refreshed = false
         show(HomeUi(hostname = "r1v3r", link = Link.Up(30), loadFailed = true), HomeCallbacks(onRefresh = { refreshed = true }))
         compose.onNodeWithText("Couldn't load your sessions", substring = true).assertExists()
@@ -78,7 +78,7 @@ class HomeInteractionTest {
     }
 
     @Test
-    fun pins_show_before_the_laptop_ever_answered() {
+    fun pins_show_before_first_answer() {
         show(HomeUi(hostname = "r1v3r", link = Link.LaptopDown(null), pinned = base.pinned))
         compose.onNodeWithText("remoter").assertExists()
     }
@@ -93,7 +93,7 @@ class HomeInteractionTest {
     }
 
     @Test
-    fun exited_banner_clears_by_button_and_a11y_action() {
+    fun exited_clears_by_button_and_action() {
         val cleared = mutableListOf<String>()
         show(base.copy(sessions = persistentListOf(session("rc-c", "site", SessionState.Exited))), HomeCallbacks(onClearSession = { cleared += it }))
         compose.onNodeWithContentDescription("Clear site").performClick()
@@ -104,7 +104,7 @@ class HomeInteractionTest {
     }
 
     @Test
-    fun every_session_gets_a_card_and_the_count_says_how_many() {
+    fun cards_and_running_count() {
         val list = persistentListOf(
             session("a", "one", SessionState.Ready), session("b", "two", SessionState.Ready), session("c", "three", SessionState.Exited),
         )
@@ -114,7 +114,7 @@ class HomeInteractionTest {
     }
 
     @Test
-    fun home_rows_have_a_pin_button_both_ways() {
+    fun rows_pin_and_unpin() {
         val toggled = mutableListOf<Pair<String, Boolean>>()
         show(base, HomeCallbacks(onTogglePin = { f, p -> toggled += f.name to p }))
         compose.onNodeWithContentDescription("Pin remoter").performClick()
@@ -133,7 +133,7 @@ class HomeInteractionTest {
     }
 
     @Test
-    fun the_map_says_it_opens_details() {
+    fun details_link_opens_details() {
         var details = 0
         show(base, HomeCallbacks(onMapDetails = { details++ }))
         compose.onNodeWithText("Details").performClick()
@@ -141,20 +141,20 @@ class HomeInteractionTest {
     }
 
     @Test
-    fun retry_shows_checking_then_still_no_answer() {
+    fun retry_shows_checking() {
         val down = base.copy(link = Link.LaptopDown(null))
         show(down.copy(retrying = true))
         compose.onNodeWithText("Checking…").assertExists()
     }
 
     @Test
-    fun a_retry_that_found_nobody_says_so() {
+    fun still_no_answer() {
         show(base.copy(link = Link.LaptopDown(null), stillDown = 1))
         compose.onNodeWithText("Still no answer from r1v3r", substring = true).assertExists()
     }
 
     @Test
-    fun direct_details_say_the_route_and_the_address_fix() {
+    fun direct_details_route_and_fix() {
         compose.setContent { RemoterTheme(dark = true, reducedMotion = true) { Column { MapDetails(base.copy(direct = true, link = Link.LaptopDown(null))) } } }
         compose.onNodeWithText("Straight to the laptop").assertExists()
         compose.onNodeWithText("turn the tunnel off and on", substring = true).assertExists()
@@ -167,14 +167,14 @@ class HomeInteractionTest {
     }
 
     @Test
-    fun a_handle_drags_at_once_without_a_long_press() {
+    fun handle_drags_without_long_press() {
         val moves = mutableListOf<Pair<Int, Int>>()
         val pins = persistentListOf(FolderItem("a", "alpha", false), FolderItem("b", "beta", false), FolderItem("c", "gamma", false))
         compose.setContent {
             RemoterTheme(dark = true, reducedMotion = true) { Column { Reorder(base.copy(pinned = pins), { f, t -> moves += f to t }) {} } }
         }
         compose.onNodeWithContentDescription("Drag to reorder alpha", useUnmergedTree = true).performTouchInput {
-            // Well inside the long-press timeout: a handle that waits for a long press ignores this.
+            // well inside the long press timeout
             down(center)
             repeat(16) { moveBy(Offset(0f, 8.dp.toPx()), delayMillis = 10) }
             up()

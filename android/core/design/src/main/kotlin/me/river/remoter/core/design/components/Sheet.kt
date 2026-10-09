@@ -68,20 +68,14 @@ import androidx.compose.ui.unit.Velocity
 
 enum class SheetValue { Open, Hidden }
 
-/**
- * Which sheet is up. One at a time: a sheet that opens dismisses the one before it through that
- * sheet's own dismiss, and leaving the app dismisses whichever is up, so nothing stale greets you
- * on return.
- */
+// one sheet at a time. leaving the app dismisses whichever is up, so nothing stale greets you
 class SheetSlot {
     private var holder: Any? = null
     private var holderDismiss: (() -> Unit)? = null
     private var holderHandOff: (() -> Unit)? = null
 
-    /**
-     * [handOff] makes the sheet being replaced vanish without its exit: sliding out under the
-     * new sheet's scrim stacked two scrims and two sheets for the length of the exit.
-     */
+    // the replaced sheet vanishes without its exit: sliding out under the new scrim stacked
+    // two scrims and two sheets for the length of it
     internal fun claim(token: Any, dismiss: () -> Unit, handOff: () -> Unit = {}) {
         if (holder === token) {
             holderDismiss = dismiss
@@ -116,19 +110,13 @@ class SheetSlot {
 
 val LocalSheetSlot = androidx.compose.runtime.staticCompositionLocalOf<SheetSlot?> { null }
 
-/** A flick down faster than this closes the sheet even short of the 40% line, in px/s. */
+// px/s, closes even short of the 40% line
 private const val FlingDismissVelocity = 1800f
 
 private val HeightSpring = spring<IntSize>(dampingRatio = 0.86f, stiffness = 520f)
 
-/**
- * Our own sheet instead of ModalBottomSheet: its height changes a lot between
- * states, and a Material sheet re-anchors and jitters when content resizes.
- * Here the anchors are ours, so a height change is just a spring.
- * Dismisses past 40% of its height with a threshold haptic, and handles
- * predictive back itself: scale to 0.96 following the finger, spring back if
- * cancelled.
- */
+// not ModalBottomSheet: the height changes a lot between states and the Material sheet
+// re-anchors and jitters when content resizes. with our own anchors it's just a spring
 @Composable
 fun RemoterSheet(
     visible: Boolean,
@@ -145,7 +133,6 @@ fun RemoterSheet(
     val state = remember { AnchoredDraggableState(SheetValue.Hidden) }
     var height by remember { mutableFloatStateOf(0f) }
     var shown by remember { mutableStateOf(visible) }
-    // Set when another sheet took the slot: this one leaves without its exit.
     var handedOff by remember { mutableStateOf(false) }
     if (slot != null) {
         androidx.compose.runtime.LaunchedEffect(visible) {
@@ -204,10 +191,8 @@ fun RemoterSheet(
         }
     }
 
-    // The content scrolls, so drags that begin on it reach the scroller first. This hands
-    // the scroller's leftovers to the sheet: a downward drag once the content is at its top
-    // moves the sheet, and while the sheet is pulled down an upward drag lifts it back before
-    // the content scrolls. Without it only the handle could move the sheet.
+    // drags on the content reach the scroller first; without handing the leftovers to the
+    // sheet only the handle could move it
     val settle: suspend (Float) -> Unit = { velocity ->
         nestedFinger = false
         val off = state.offset
@@ -301,8 +286,7 @@ fun RemoterSheet(
                 .animateContentSize(HeightSpring),
         ) {
             DragHandle()
-            // At large font sizes the content can outgrow the screen; it scrolls
-            // inside the sheet instead of being squeezed.
+            // large font sizes can outgrow the screen
             Column(
                 Modifier.verticalScroll(rememberScrollState()).padding(start = Space.sheetPadding, end = Space.sheetPadding, bottom = Space.sheetPadding),
                 content = content,
@@ -311,10 +295,7 @@ fun RemoterSheet(
     }
 }
 
-/**
- * Shows [item] while it isn't null, closes when it is. Keeps drawing the last item while it slides
- * away, otherwise the sheet empties and shrinks mid exit.
- */
+// keeps drawing the last item while it slides away, or the sheet empties and shrinks mid exit
 @Composable
 fun <T : Any> RemoterSheetFor(
     item: T?,

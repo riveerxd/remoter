@@ -32,7 +32,7 @@ import org.junit.Test
 
 private const val ID = "rc-01k6b7y3m4n5p6q7r8s9t0v1w2"
 
-/** Detail used to fetch the whole session every second; the tail now comes down the session stream. */
+// detail used to fetch the whole session every second
 @OptIn(ExperimentalCoroutinesApi::class)
 class DetailStreamTest {
     @get:Rule val main = MainDispatcherRule()
@@ -45,10 +45,10 @@ class DetailStreamTest {
         var refuse = false
         var detailCalls = 0
 
-        /** What a fetch returns as the screen, so it can be told apart from what the stream sent. */
+        // told apart from what the stream sent
         var polledTail = listOf("polled")
         val api = object : RemoterApi by fixture {
-            // Same clock on both ends, so ages read straight.
+            // same clock on both ends
             override suspend fun health() = fixture.health().copy(serverTime = clock.nowMs())
             override fun events(id: String, viewToken: String?, lastEventId: String?): Flow<IdEvent> = flow {
                 val ch = Channel<IdEvent>(Channel.UNLIMITED)
@@ -84,30 +84,30 @@ class DetailStreamTest {
     }
 
     @Test
-    fun the_tail_comes_from_the_stream_without_polling() = runRig { r ->
-        assertTrue("the stream carries the token", r.tokens.last() != null)
+    fun tail_from_stream_no_poll() = runRig { r ->
+        assertTrue("token", r.tokens.last() != null)
         r.tail("$ cargo test", "ok")
         runCurrent()
         assertEquals(listOf("$ cargo test", "ok"), r.ui.tail)
         assertTrue(r.ui.live)
         val calls = r.detailCalls
-        assertEquals("one fetch on open, for a screen that may not change for a while", 1, calls)
+        assertEquals("one fetch on open", 1, calls)
         advanceTimeBy(30_000)
         runCurrent()
-        assertEquals("no polling while the stream is up", calls, r.detailCalls)
+        assertEquals("polled", calls, r.detailCalls)
         r.tail("$ cargo test", "ok", "done")
         runCurrent()
         assertEquals(3, r.ui.tail.size)
     }
 
     @Test
-    fun an_identical_tail_keeps_the_same_list() = runRig { r ->
+    fun same_tail_same_list() = runRig { r ->
         r.tail("a", "b")
         runCurrent()
         val shown = r.ui.tail
         r.tail("a", "b")
         runCurrent()
-        assertTrue("nothing on screen should recompose for the same lines", shown === r.ui.tail)
+        assertTrue("new list", shown === r.ui.tail)
     }
 
     @Test
@@ -125,12 +125,12 @@ class DetailStreamTest {
         r.refuse = true
         r.streams.last().close(java.io.IOException("dropped"))
         runCurrent()
-        assertFalse("not live while the stream is down", r.ui.live)
-        assertTrue("the screen never empties while it reconnects", r.ui.tail.isNotEmpty())
+        assertFalse(r.ui.live)
+        assertTrue("emptied", r.ui.tail.isNotEmpty())
         val calls = r.detailCalls
         advanceTimeBy(3_100)
         runCurrent()
-        assertTrue("polls once a second meanwhile", r.detailCalls >= calls + 3)
+        assertTrue("polls every second", r.detailCalls >= calls + 3)
         assertEquals(listOf("polled"), r.ui.tail)
 
         r.refuse = false
@@ -142,7 +142,7 @@ class DetailStreamTest {
         val after = r.detailCalls
         advanceTimeBy(10_000)
         runCurrent()
-        assertEquals("polling stops once the stream is back", after, r.detailCalls)
+        assertEquals("still polling", after, r.detailCalls)
         assertEquals(listOf("back on the stream"), r.ui.tail)
     }
 
@@ -150,7 +150,7 @@ class DetailStreamTest {
     fun age_counts_from_the_drop() = runRig { r ->
         r.tail("idle prompt")
         runCurrent()
-        // An idle screen sends nothing for minutes; that is still a live screen.
+        // an idle screen sends nothing for minutes and is still live
         advanceTimeBy(120_000)
         runCurrent()
         assertTrue(r.ui.live)

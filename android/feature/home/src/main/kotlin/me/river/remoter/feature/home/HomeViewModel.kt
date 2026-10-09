@@ -24,6 +24,7 @@ import me.river.remoter.core.net.Link
 import me.river.remoter.core.net.LocalStore
 import me.river.remoter.core.net.RecentEntry
 import me.river.remoter.core.net.RemoterApi
+import me.river.remoter.core.net.Resources
 import me.river.remoter.core.net.SessionSummary
 import me.river.remoter.core.net.folderName
 import me.river.remoter.feature.session.SessionsHub
@@ -32,7 +33,7 @@ import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
 
-/** [lastUsedMs] is when a session last started there; only recent rows know it. */
+// lastUsedMs: when a session last started there, only recent rows know it
 data class FolderItem(val path: String, val name: String, val isGit: Boolean, val lastUsedMs: Long? = null)
 
 data class HomeUi(
@@ -47,28 +48,26 @@ data class HomeUi(
     val suggestions: ImmutableList<FolderItem> = persistentListOf(),
     val sessions: ImmutableList<SessionSummary> = persistentListOf(),
     val ending: Set<String> = emptySet(),
-    /** false until the snapshot or first live answer lands */
     val loaded: Boolean = false,
     val loadFailed: Boolean = false,
     val refreshing: Boolean = false,
     val refreshFailed: Boolean = false,
     val retrying: Boolean = false,
-    /** Bumped per retry that ends with the laptop still down, shakes the button. */
+    // bumped per retry that finds the laptop still down, shakes the button
     val stillDown: Int = 0,
     val nowMs: Long = 0,
     val serverFp: String? = null,
     val lastRequestId: String? = null,
     val hidden: Set<String> = emptySet(),
     val undoUnpin: Pair<Int, String>? = null,
-    /** The phone dials the laptop itself, no hub in between. */
     val direct: Boolean = false,
-    /** Null until the live stream sends some, and from a laptop too old to. */
-    val resources: me.river.remoter.core.net.Resources? = null,
+    // null from a laptop too old to send it
+    val resources: Resources? = null,
 )
 
 private const val RetryHoldMs = 600L
 
-/** Past the monitor's worst case (a slow probe plus retries at 1, 2 and 4 s). */
+// past the monitor's worst case: a slow probe plus retries at 1, 2 and 4 s
 private const val RetryTimeoutMs = 30_000L
 
 @HiltViewModel
@@ -129,8 +128,7 @@ class HomeViewModel @Inject constructor(
                 _ui.update { it.copy(sessions = s.orEmpty().toImmutableList(), ending = e) }
             }
         }
-        // The folders aren't on the live stream, so they load whenever the link comes up. Banners
-        // need no polling: the session list arrives through LiveSync as the laptop changes it.
+        // folders aren't on the live stream, so they load whenever the link comes up
         viewModelScope.launch {
             monitor.link.map { it is Link.Up }.distinctUntilChanged().collect { up -> if (up) refresh() }
         }
@@ -147,7 +145,7 @@ class HomeViewModel @Inject constructor(
 
     private fun item(r: RecentEntry) = FolderItem(r.path, r.name, r.isGit, r.lastSpawn)
 
-    /** [manual] is a pull or a Retry tap: only those get told when it fails. */
+    // only a pull or a Retry tap gets told when it fails
     fun refresh(manual: Boolean = false) = viewModelScope.launch {
         _ui.update { it.copy(refreshing = true, refreshFailed = false) }
         val recent = runCatching { api.recent().entries }.getOrNull()
@@ -159,7 +157,7 @@ class HomeViewModel @Inject constructor(
                 refreshing = false,
                 loaded = it.loaded || recent != null,
                 loadFailed = !it.loaded && recent == null,
-                // Before the first load the folder list carries the error and its own Retry.
+                // before the first load the folder list shows the error and its own Retry
                 refreshFailed = manual && failed && (it.loaded || recent != null),
                 recent = recent?.take(5)?.map(::item)?.toImmutableList() ?: it.recent,
                 suggestions = suggestions.toImmutableList(),
@@ -175,7 +173,6 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    /** First run: the most recently changed git repos under the trusted roots. */
     private suspend fun firstRunSuggestions(): List<FolderItem> = runCatching {
         api.list("Projects", hidden = false).entries
             .filter { it.isGit && it.spawnAllowed && !it.unsupported }
@@ -186,11 +183,7 @@ class HomeViewModel @Inject constructor(
 
     fun refreshFailShown() = _ui.update { it.copy(refreshFailed = false) }
 
-    /**
-     * Probes at once and holds the button busy until the link settles, for at least
-     * [RetryHoldMs] so a quick answer still reads as a tap that did something. A retry that
-     * lands on the laptop still down bumps [HomeUi.stillDown].
-     */
+    // held for at least RetryHoldMs so a quick answer still reads as a tap that did something
     fun retry() {
         if (_ui.value.retrying) return
         _ui.update { it.copy(retrying = true) }
@@ -235,7 +228,6 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    /** Exited banners clear locally: the laptop reaps them after an hour anyway. */
+    // local only, the laptop reaps exited ones after an hour anyway
     fun clear(id: String) = _ui.update { it.copy(hidden = it.hidden + id) }
-
 }

@@ -14,14 +14,14 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
-/** Both looks existed but the app only ever followed the phone. */
+// both looks existed but the app only ever followed the phone
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = "w411dp-h891dp-xxhdpi")
 class ThemePickerTest {
     @get:Rule val compose = createComposeRule()
 
     @Test
-    fun picking_dark_sets_the_pref_and_shows_it_picked() {
+    fun picking_dark_sets_pref() {
         var prefs = Prefs()
         compose.setContent {
             RemoterTheme(dark = true, reducedMotion = true) {

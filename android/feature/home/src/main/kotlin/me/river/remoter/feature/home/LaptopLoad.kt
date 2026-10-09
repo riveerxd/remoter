@@ -42,7 +42,7 @@ import me.river.remoter.core.net.Resources
 import java.util.Locale
 import kotlin.math.roundToInt
 
-/** "512 MB", "13.9 GB", "930 GB". Binary units, the way htop and the laptop's own tools count. */
+// binary units, the way htop counts
 internal fun bytes(n: Long): String {
     val gb = n / 1_073_741_824.0
     val mb = n / 1_048_576.0
@@ -56,7 +56,6 @@ internal fun bytes(n: Long): String {
 
 internal fun pct(part: Long, whole: Long): Int = if (whole <= 0) 0 else (part * 100 / whole).toInt().coerceIn(0, 100)
 
-/** One meter's numbers, so home and the process screen say the same thing. */
 internal data class Gauge(val label: String, val pct: Int, val detail: String, val spoken: String) {
     val short get() = "$label $pct%"
 }
@@ -96,11 +95,11 @@ internal fun Meter(g: Gauge, modifier: Modifier = Modifier) {
     }
 }
 
-/** Big fonts can't fit three meters side by side, so the numbers go in one line that wraps. */
+// three meters don't fit side by side at big font sizes
 @Composable
 internal fun isLargeFont() = LocalDensity.current.fontScale > 1.3f
 
-/** Home's version: no detail line, so the card fits between the status and "+ New" on a normal phone. */
+// no detail line so the card fits above + New on a normal phone
 @Composable
 internal fun CompactMeter(g: Gauge, modifier: Modifier = Modifier) {
     val c = Remoter.colors
@@ -135,7 +134,6 @@ internal fun Gauges(r: Resources, modifier: Modifier = Modifier, compact: Boolea
     }
 }
 
-/** CPU, memory and disk on home. The whole card opens the process list. */
 @Composable
 internal fun LoadCard(r: Resources, onOpen: () -> Unit, modifier: Modifier = Modifier) {
     val c = Remoter.colors

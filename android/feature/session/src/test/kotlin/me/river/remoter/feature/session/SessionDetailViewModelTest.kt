@@ -46,7 +46,7 @@ class SessionDetailViewModelTest {
         val ui get() = vm.ui.value
     }
 
-    // The view model ticks forever, so the scope is cancelled by hand or runTest never ends.
+    // the vm ticks forever, cancel it or runTest never ends
     private fun runRig(id: String = LIVE, liveOn: Boolean = true, block: suspend TestScope.(Rig) -> Unit) = runTest(main.dispatcher.scheduler) {
         val r = Rig(this, id, liveOn)
         try {
@@ -63,7 +63,7 @@ class SessionDetailViewModelTest {
         r.signer.gate = gate
         r.vm.end()
         runCurrent()
-        assertTrue("End shows as busy from the tap on", r.ui.ending)
+        assertTrue(r.ui.ending)
         r.vm.end()
         runCurrent()
         gate.complete(Unit)
@@ -103,12 +103,12 @@ class SessionDetailViewModelTest {
     }
 
     @Test
-    fun a_session_that_ends_while_open_turns_gone() = runRig { r ->
+    fun ends_while_open_turns_gone() = runRig { r ->
         runCurrent()
         assertEquals(SessionState.Ready, r.ui.session?.state)
         r.api.endOnLaptop(LIVE)
         runCurrent()
-        assertTrue("the live list says so at once", r.ui.gone)
+        assertTrue(r.ui.gone)
         assertEquals(SessionState.Gone, r.ui.session?.state)
     }
 
@@ -122,11 +122,10 @@ class SessionDetailViewModelTest {
     }
 
     @Test
-    fun an_unreachable_laptop_says_so_under_the_skeleton() = runRig(liveOn = false) { r ->
+    fun unreachable_before_first_load() = runRig(liveOn = false) { r ->
         r.api.unreachable = true
         runCurrent()
         assertTrue(r.ui.unreachable)
         assertFalse(r.ui.gone)
     }
-
 }

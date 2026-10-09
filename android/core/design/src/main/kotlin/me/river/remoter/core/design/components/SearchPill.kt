@@ -26,7 +26,6 @@ import me.river.remoter.core.design.Shapes
 import me.river.remoter.core.design.Space
 import me.river.remoter.core.design.Touch
 
-/** "Where to?" for folders. It sits in the sheet, so it is in the thumb zone. */
 @Composable
 fun SearchPill(onClick: () -> Unit, modifier: Modifier = Modifier, placeholder: String = "Folder name or path") {
     Row(

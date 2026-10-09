@@ -18,7 +18,6 @@ import org.junit.runner.RunWith
 import org.robolectric.ParameterizedRobolectricTestRunner
 import org.robolectric.annotation.Config
 
-/** Every Start state: each control labelled, nothing clipped at 200%. */
 @RunWith(ParameterizedRobolectricTestRunner::class)
 @Config(qualifiers = "w411dp-h891dp-xxhdpi")
 class StartA11yTest(private val name: String) {
@@ -32,7 +31,7 @@ class StartA11yTest(private val name: String) {
     @Test
     fun labelled_and_unclipped_at_200_percent() {
         val u = (startStates + resumeStates.map { "resume_${it.first}" to it.second }).first { it.first == name }.second
-        // A last prompt is a one line preview by design; the title and everything else grow.
+        // the last prompt is a one line preview on purpose
         val previews = (u.past as? PastState.Loaded)?.rows?.mapNotNull { it.conversation.lastPrompt }.orEmpty().toSet()
         compose.setContent {
             val d = LocalDensity.current
@@ -44,7 +43,7 @@ class StartA11yTest(private val name: String) {
         }
         compose.waitForIdle()
         assertEquals("unlabelled", emptyList<String>(), compose.unlabelledClickables())
-        // Terminal lines scroll sideways by design, and never wrap.
+        // terminal lines scroll sideways, they never wrap
         assertEquals("clipped", emptyList<String>(), compose.clippedText { it.startsWith("~/") || it.startsWith("…/") || u.state.hasTail() || it in previews })
     }
 

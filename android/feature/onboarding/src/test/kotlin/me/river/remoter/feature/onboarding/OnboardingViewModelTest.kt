@@ -27,7 +27,7 @@ class OnboardingViewModelTest {
     private fun link(expUnix: Long) = Pairing.Link("10.66.66.3", 8443, 8444, ByteArray(32) { 1 }, ByteArray(32) { 2 }, ByteArray(16) { 3 }, expUnix)
 
     @Test
-    fun connect_step_checks_itself_then_moves_on() = runTest(main.dispatcher.scheduler) {
+    fun connect_checks_itself() = runTest(main.dispatcher.scheduler) {
         val vpn = FakeVpnNetworks().also { it.absent() }
         val reach = FakeReachability(answers = false)
         val vm = OnboardingViewModel(vpn, reach, FakePairer(), MemoryStore(), SchedulerClock(testScheduler))
@@ -67,7 +67,7 @@ class OnboardingViewModelTest {
     }
 
     @Test
-    fun a_server_key_mismatch_is_a_full_stop() = runTest(main.dispatcher.scheduler) {
+    fun key_mismatch_stops() = runTest(main.dispatcher.scheduler) {
         val clock = SchedulerClock(testScheduler)
         val vm = OnboardingViewModel(FakeVpnNetworks(), FakeReachability(), FakePairer(outcome = PairEvent.ServerKeyMismatch), MemoryStore(), clock)
         vm.pair(link(clock.nowMs() / 1000 + 300))
@@ -76,7 +76,7 @@ class OnboardingViewModelTest {
     }
 
     @Test
-    fun a_mangled_paste_is_refused_with_a_hint() = runTest(main.dispatcher.scheduler) {
+    fun mangled_paste_refused() = runTest(main.dispatcher.scheduler) {
         val vm = OnboardingViewModel(FakeVpnNetworks(), FakeReachability(), FakePairer(), MemoryStore(), SchedulerClock(testScheduler))
         vm.pairAgain()
         vm.paste()
@@ -90,7 +90,7 @@ class OnboardingViewModelTest {
     private fun OnboardingViewModel.close() = viewModelScope.cancel()
 
     @Test
-    fun paste_mode_has_a_way_back_to_the_camera() = runTest(main.dispatcher.scheduler) {
+    fun paste_back_to_camera() = runTest(main.dispatcher.scheduler) {
         val vm = vm(this)
         try {
             vm.pairAgain()
@@ -102,7 +102,7 @@ class OnboardingViewModelTest {
     }
 
     @Test
-    fun the_invalid_link_hint_clears_once_you_edit() = runTest(main.dispatcher.scheduler) {
+    fun invalid_hint_clears_on_edit() = runTest(main.dispatcher.scheduler) {
         val vm = vm(this)
         try {
             vm.pairAgain()

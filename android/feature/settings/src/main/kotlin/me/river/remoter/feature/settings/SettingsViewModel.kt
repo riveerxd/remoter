@@ -62,9 +62,8 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { store.update { it.copy(prefs = f(it.prefs)) } }
     }
 
-    /** Making things safer never needs a fingerprint: mTLS only. */
+    // making things safer never needs a fingerprint, mTLS only
     fun lockLaptop() {
-        // no second lock while the first is in flight
         if (_ui.value.busy || _ui.value.locked) return
         _ui.update { it.copy(busy = true, lockError = null) }
         viewModelScope.launch {
@@ -95,7 +94,6 @@ class SettingsViewModel @Inject constructor(
             }
         }
     }
-
 }
 
 data class AuditDay(val label: String, val entries: ImmutableList<AuditEntry>)
@@ -119,11 +117,7 @@ class AuditViewModel @Inject constructor(private val api: RemoterApi, private va
         more()
     }
 
-    /**
-     * 50 at a time; the list asks for more when its skeleton row comes into view,
-     * and Retry comes through here too. The skeleton shows up while init's first
-     * page is still out, so a call in flight swallows the next one.
-     */
+    // the skeleton row shows while init's first page is still out, so a call in flight swallows the next
     fun more() {
         if (_ui.value.end || paging?.isActive == true) return
         _ui.update { it.copy(loading = true, error = null) }
@@ -133,8 +127,7 @@ class AuditViewModel @Inject constructor(private val api: RemoterApi, private va
     private suspend fun page() {
         try {
             val page = api.audit(before)
-            // Fixture pages repeat; a real laptop pages by time, so dedupe either way. By the whole
-            // entry, not the request id: pairing and lock entries all share "-" and would vanish.
+            // dedupe by the whole entry, not the request id: pairing and lock entries all share "-"
             val fresh = page.entries.filter { e -> e !in all }
             all += fresh
             before = page.nextBefore

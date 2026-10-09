@@ -69,5 +69,4 @@ fun AppError.copy(host: String): ErrorCopy = when (this) {
     )
 }
 
-/** Pair again is the only way out of these. */
 val AppError.needsPairAgain get() = this == AppError.DeviceUnknown || this == AppError.KeyInvalidated

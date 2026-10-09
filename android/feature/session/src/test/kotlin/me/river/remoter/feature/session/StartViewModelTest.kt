@@ -61,12 +61,12 @@ class StartViewModelTest {
         advanceUntilIdle()
         val ready = r.state as StartState.Ready
         assertEquals("remoter", ready.name)
-        assertNotNull("Open Claude needs the link", ready.claude)
+        assertNotNull("link", ready.claude)
         assertEquals(1, r.store.state.value!!.startTimesMs.size)
     }
 
     @Test
-    fun a_second_tap_never_starts_a_second_session() = runRig { r ->
+    fun second_tap_starts_nothing() = runRig { r ->
         r.vm.open(target)
         r.vm.start()
         r.vm.start()
@@ -78,7 +78,7 @@ class StartViewModelTest {
     }
 
     @Test
-    fun cancelled_fingerprint_goes_back_to_idle_without_an_error() = runRig { r ->
+    fun cancelled_finger_back_to_idle() = runRig { r ->
         r.signer.outcomes += FakeSigner.Next.Cancel
         r.vm.open(target)
         r.vm.start()
@@ -96,7 +96,7 @@ class StartViewModelTest {
         val na = r.state as StartState.NotAccepted
         assertEquals(AppError.Unreachable, na.error)
         assertEquals(30, r.vm.ui.value.retryLeftS)
-        // advanceTimeBy stops just before the tick at 6 s, so step past it.
+        // advanceTimeBy stops just before the tick at 6 s
         advanceTimeBy(6_001)
         assertEquals(24, r.vm.ui.value.retryLeftS)
 
@@ -104,20 +104,20 @@ class StartViewModelTest {
         r.vm.retry()
         advanceUntilIdle()
         assertTrue(r.state is StartState.Ready)
-        assertEquals("one fingerprint only", 1, r.signer.prompts.size)
+        assertEquals("prompts", 1, r.signer.prompts.size)
         assertEquals(2, r.api.spawnCalls.size)
-        assertSame("the retry resends the exact signed bytes", r.api.spawnCalls[0], r.api.spawnCalls[1])
+        assertSame("same bytes", r.api.spawnCalls[0], r.api.spawnCalls[1])
     }
 
     @Test
-    fun retry_window_expiring_asks_for_a_new_fingerprint() = runRig { r ->
+    fun expired_window_needs_new_fingerprint() = runRig { r ->
         r.api.unreachable = true
         r.vm.open(target)
         r.vm.start()
         runCurrent()
         advanceTimeBy(30_500)
         val na = r.state as StartState.NotAccepted
-        assertNull("button now reads needs fingerprint", na.retryUntilMs)
+        assertNull("needs finger", na.retryUntilMs)
         assertNull(r.vm.ui.value.retryLeftS)
         r.api.unreachable = false
         r.vm.retry()
@@ -145,7 +145,7 @@ class StartViewModelTest {
     }
 
     @Test
-    fun sse_drop_mid_start_holds_the_stepper_and_resumes() = runRig { r ->
+    fun sse_drop_holds_stepper() = runRig { r ->
         r.api.spawnScript = SpawnScript.DropOnce
         r.vm.open(target)
         r.vm.start()
@@ -153,8 +153,8 @@ class StartViewModelTest {
         advanceTimeBy(1_401)
         runCurrent()
         val s = r.state as StartState.Starting
-        assertTrue("reconnecting label shows", s.streamReconnecting)
-        assertEquals("stepper holds where it was", 3, s.steps.count { it.done })
+        assertTrue("reconnecting", s.streamReconnecting)
+        assertEquals("held", 3, s.steps.count { it.done })
         advanceUntilIdle()
         assertTrue(r.state is StartState.Ready)
     }
@@ -173,7 +173,7 @@ class StartViewModelTest {
     }
 
     @Test
-    fun ready_with_the_sheet_open_shows_no_snackbar() = runRig { r ->
+    fun ready_with_sheet_open_no_snack() = runRig { r ->
         r.vm.open(target)
         r.vm.start()
         advanceUntilIdle()
@@ -192,7 +192,7 @@ class StartViewModelTest {
     }
 
     @Test
-    fun exited_carries_the_code() = runRig { r ->
+    fun exited_carries_code() = runRig { r ->
         r.api.spawnScript = SpawnScript.Exited
         r.vm.open(target)
         r.vm.start()
@@ -213,10 +213,10 @@ class StartViewModelTest {
     }
 
     @Test
-    fun invalid_name_waits_for_submit_and_clears_when_fixed() = runRig { r ->
+    fun invalid_name_waits_for_submit() = runRig { r ->
         r.vm.open(target)
         r.vm.setName("-bad")
-        assertEquals("no error while typing", false, r.vm.ui.value.form.nameInvalid)
+        assertEquals("typing", false, r.vm.ui.value.form.nameInvalid)
         r.vm.start()
         assertEquals(true, r.vm.ui.value.form.nameInvalid)
         assertEquals(StartState.Idle, r.state)
@@ -225,7 +225,7 @@ class StartViewModelTest {
     }
 
     @Test
-    fun end_it_from_stuck_signs_a_delete_and_resets() = runRig { r ->
+    fun end_from_stuck_deletes_and_resets() = runRig { r ->
         r.api.spawnScript = SpawnScript.Stuck
         r.vm.open(target)
         r.vm.setMode(SpawnMode.Worktree)

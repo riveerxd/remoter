@@ -22,11 +22,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
-/**
- * The audit log crashed on open: pairing, lock and unlock
- * entries have no request behind them and the laptop logs "-" for each, and
- * the list was keyed by request id.
- */
+// the log crashed on open: pairing and lock entries all log "-" as request id, and the list was keyed by it
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = "w411dp-h891dp-xxhdpi")
@@ -43,7 +39,7 @@ class AuditNoRequestIdTest {
     )
 
     @Test
-    fun entries_sharing_a_dash_request_id_all_render() {
+    fun dash_request_ids_all_render() {
         compose.setContent {
             RemoterTheme(dark = true, reducedMotion = true) {
                 AuditContent(AuditUi(loading = false, end = true, days = persistentListOf(AuditDay("Today", entries.reversed().let { kotlinx.collections.immutable.persistentListOf(*it.toTypedArray()) }))), {}, {}, "r1v3r")
@@ -54,7 +50,7 @@ class AuditNoRequestIdTest {
     }
 
     @Test
-    fun paging_keeps_every_entry_that_shares_a_request_id() = runTest(main.dispatcher.scheduler) {
+    fun paging_keeps_shared_ids() = runTest(main.dispatcher.scheduler) {
         val api = object : RemoterApi by FixtureBackend() {
             override suspend fun audit(before: Long?) = AuditPage(entries, nextBefore = null)
         }

@@ -18,20 +18,13 @@ private fun SemanticsNode.label(): String {
     return listOf(d, t, e).joinToString(" ").trim()
 }
 
-/**
- * Every node a finger can act on says what it is: text or a content
- * description, its own or its children's, which is what a screen reader reads.
- */
 fun ComposeContentTestRule.unlabelledClickables(): List<String> =
     onRoot().fetchSemanticsNode().all()
         .filter { it.config.contains(SemanticsActions.OnClick) || it.config.contains(SemanticsActions.OnLongClick) }
         .filter { n -> n.all().all { it.label().isEmpty() } }
         .map { "clickable at ${it.boundsInRoot}" }
 
-/**
- * Text cut off at this font scale. Paths may trim on purpose (from the left,
- * so the folder name stays); names and copy must grow instead.
- */
+// paths may trim from the left on purpose so the folder name stays; names and copy must grow
 fun ComposeContentTestRule.clippedText(allow: (String) -> Boolean = { it.startsWith("~/") || it.startsWith("…/") }): List<String> =
     onRoot().fetchSemanticsNode().all().mapNotNull { n ->
         val get = n.config.getOrNull(SemanticsActions.GetTextLayoutResult)?.action ?: return@mapNotNull null
@@ -39,9 +32,8 @@ fun ComposeContentTestRule.clippedText(allow: (String) -> Boolean = { it.startsW
         get(out)
         val r = out.firstOrNull() ?: return@mapNotNull null
         val text = r.layoutInput.text.text
-        // With soft wrap on, text clips only by ellipsis or by running out of
-        // height. didOverflowWidth is no guide: letter spacing trips it under
-        // Robolectric, and the one soft-wrap-off text, the terminal, scrolls.
+        // didOverflowWidth is no guide: letter spacing trips it under Robolectric,
+        // and the only text with soft wrap off, the terminal, scrolls
         val clipped = r.didOverflowHeight || r.isLineEllipsized(r.lineCount - 1)
         if (clipped && !allow(text)) "\"$text\"" else null
     }

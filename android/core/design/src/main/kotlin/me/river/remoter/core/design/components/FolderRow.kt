@@ -56,10 +56,7 @@ data class FolderRowModel(
     val pinned: Boolean? = null,
 )
 
-/**
- * The 64 dp row used everywhere. It grows with font scale instead of cutting
- * the name. No swipe actions: One UI takes back from both edges.
- */
+// no swipe actions: One UI takes back from both edges
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun FolderRow(
@@ -113,7 +110,6 @@ fun FolderRow(
                 } else {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(model.path, style = t.label.tnum(), color = c.textMuted, maxLines = 1, overflow = TextOverflow.StartEllipsis, modifier = Modifier.weight(1f, fill = false))
-                        // A folder with a live session says so on home too, not only in the browser.
                         if (model.running > 0) {
                             Spacer(Modifier.width(Space.s8))
                             StatusLabel("${model.running} running", StatusTone.Live)

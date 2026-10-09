@@ -185,10 +185,9 @@ private fun Graph(start: NavKey, root: RootViewModel, entrance: Boolean, onEntra
         (slideOutHorizontally { it } + scaleOut(targetScale = 0.94f))
     val fadeMeta = NavDisplay.transitionSpec { fadeIn(tween(Dur.screen, easing = EaseOut)) togetherWith fadeOut(tween(Dur.exit, easing = EaseIn)) } +
         NavDisplay.popTransitionSpec { fadeIn(tween(Dur.screen, easing = EaseOut)) togetherWith fadeOut(tween(Dur.exit, easing = EaseIn)) } +
-        // Fade screens go back with a fade too, the folder slide looked like a glitch on session
-        // detail. The small scale keeps the gesture feeling attached.
+        // the folder slide looked like a glitch on session detail, so fade screens fade back too.
+        // the leaving page is gone by 60% of the swipe so the two never sit half and half
         NavDisplay.predictivePopTransitionSpec { _ ->
-            // The leaving page is gone by 60% of the swipe, so the two never sit half and half.
             fadeIn(tween(Dur.screen, easing = LinearEasing)) togetherWith
                 (fadeOut(tween(Dur.exit, easing = LinearEasing)) + scaleOut(tween(Dur.screen, easing = LinearEasing), targetScale = 0.97f))
         }
@@ -241,7 +240,6 @@ private fun Graph(start: NavKey, root: RootViewModel, entrance: Boolean, onEntra
                                 hiltViewModel<BrowserViewModel, BrowserViewModel.Factory>(creationCallback = { it.create(k.path) }),
                                 BrowserNav(
                                     onBack = { back.popFrom(k) },
-                                    // breadcrumb tap = pop entries
                                     onCrumb = { p -> if (!back.popTo { it is Browser && it.path == p }) back.add(Browser(p)) },
                                     onOpen = { back.add(Browser(it)) },
                                     onStart = ::startIn,
@@ -330,10 +328,7 @@ private fun Graph(start: NavKey, root: RootViewModel, entrance: Boolean, onEntra
     } }
 }
 
-/**
- * The height of the bar each screen keeps at its bottom, so a snackbar sits above it. Browser's
- * bar is its "Start in X" button with a gutter above and below (BrowserScreen's BottomBar).
- */
+// lifts the snackbar over a screen's bottom bar: browser's "Start in X" plus its gutters
 internal fun snackbarInset(top: NavKey?): Dp = when (top) {
     is Browser -> Touch.primaryButton + Space.gutter * 2
     else -> 0.dp

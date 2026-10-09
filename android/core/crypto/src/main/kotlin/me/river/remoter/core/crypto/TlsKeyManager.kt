@@ -7,11 +7,7 @@ import java.security.cert.X509Certificate
 import javax.net.ssl.SSLEngine
 import javax.net.ssl.X509ExtendedKeyManager
 
-/**
- * Always offers alias `tls` from AndroidKeyStore. The server sends no CA
- * hints, and any it sent would be ignored: the laptop pins the key itself.
- * Client role only.
- */
+// ignores CA hints: the laptop pins the key itself
 class TlsKeyManager(private val keys: Keys) : X509ExtendedKeyManager() {
     override fun chooseClientAlias(keyType: Array<out String>?, issuers: Array<out Principal>?, socket: Socket?) = TLS_ALIAS
     override fun chooseEngineClientAlias(keyType: Array<out String>?, issuers: Array<out Principal>?, engine: SSLEngine?) = TLS_ALIAS

@@ -37,11 +37,8 @@ import me.river.remoter.core.design.Space
 import me.river.remoter.core.design.Touch
 import me.river.remoter.core.design.tnum
 
-/**
- * 56 dp, full width, Uber style. It is never disabled: a blocked action stays
- * tappable and the caller explains why on tap. [loading] keeps the label in
- * place, invisible, so the button never changes size under the spinner.
- */
+// never disabled: a blocked action stays tappable and the caller says why on tap.
+// loading keeps the label's space so the button doesn't resize under the spinner
 @Composable
 fun PrimaryButton(
     text: String,
@@ -80,7 +77,6 @@ private fun PillButton(
         contentAlignment = Alignment.Center,
     ) {
         val style = Remoter.type.bodyStrong.let { if (numeric) it.tnum() else it }
-        // label crossfades, spinner fades over the label's space; size never changes
         val labelAlpha = animatedAlpha(!loading, "label")
         SwapText(text, style, content, Modifier.alpha(labelAlpha))
         if (loading) {
@@ -108,7 +104,6 @@ fun QuietButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier
     }
 }
 
-/** The round button top right, like Uber's account button. */
 @Composable
 fun RoundIconButton(icon: ImageVector, contentDescription: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Box(

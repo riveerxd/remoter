@@ -27,16 +27,13 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
-/**
- * A start went red at 20 s; claude connected at 31 s. Once the sheet
- * showed Stuck it gave up on the session, so a dropped stream meant it never
- * learned about the Ready that followed.
- */
+// a start went red at 20 s and claude connected at 31 s. once Stuck the sheet gave up, so a
+// dropped stream meant it never saw the Ready
 @OptIn(ExperimentalCoroutinesApi::class)
 class LateStartTest {
     @get:Rule val main = MainDispatcherRule()
 
-    /** The stream says Stuck and then drops; a poll afterwards finds the session as the laptop now has it. */
+    // the stream says Stuck and drops, the poll after finds nowState
     private fun rig(reason: StuckReason, nowState: SessionState, block: suspend kotlinx.coroutines.test.TestScope.(StartViewModel) -> Unit) =
         runTest(main.dispatcher.scheduler) {
             val clock = SchedulerClock(testScheduler)
@@ -66,7 +63,7 @@ class LateStartTest {
     }
 
     @Test
-    fun a_real_failure_stays_stuck_and_stops_polling() = rig(StuckReason.Untrusted, SessionState.Ready) { vm ->
+    fun real_failure_stays_stuck() = rig(StuckReason.Untrusted, SessionState.Ready) { vm ->
         vm.open(StartTarget("Projects/remoter", "remoter", true))
         vm.start()
         runCurrent()

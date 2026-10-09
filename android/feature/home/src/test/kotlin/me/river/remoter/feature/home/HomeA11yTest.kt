@@ -48,7 +48,7 @@ class BannerSpeechTest {
     @get:Rule val compose = createComposeRule()
 
     @Test
-    fun a_banner_reads_its_status_in_words() {
+    fun banner_reads_status() {
         val now = 1_790_620_000_000
         val s = SessionSummary("rc-a", "remoter", "Projects/remoter", null, now - (83 * 60 + 7) * 1000L, SessionState.Ready, null, null)
         val ui = homeStates.getValue("up_no_sessions").copy(sessions = persistentListOf(s), nowMs = now)

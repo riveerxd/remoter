@@ -49,7 +49,7 @@ class IntroTest {
                 val anchor = remember { IntroAnchor() }
                 CompositionLocalProvider(LocalIntroAnchor provides anchor) {
                     Box(Modifier.fillMaxSize().background(Remoter.colors.surface)) {
-                        // Stands in for home's route row, high on the screen like the real one.
+                        // stands in for home's route row
                         if (anchored) {
                             Column(Modifier.fillMaxSize()) {
                                 Spacer(Modifier.height(160.dp))
@@ -65,7 +65,7 @@ class IntroTest {
     }
 
     @Test
-    fun holds_the_mark_until_told_to_play() {
+    fun holds_mark_until_play() {
         show(reduced = false)
         compose.mainClock.advanceTimeBy(5_000)
         compose.onNodeWithTag("intro").assertExists()
@@ -73,23 +73,23 @@ class IntroTest {
     }
 
     @Test
-    fun leaves_then_finishes_on_its_own_timeline() {
+    fun leaves_then_finishes() {
         show(reduced = false)
         play = true
         compose.waitForIdle()
         compose.mainClock.advanceTimeBy(IntroTiming.LEAVE - 100L)
-        assertEquals("home must not start its entrance behind the opaque overlay", 0, left)
+        assertEquals("entrance behind the overlay", 0, left)
         compose.mainClock.advanceTimeBy(150)
         assertEquals(1, left)
         assertEquals(0, done)
         compose.mainClock.advanceTimeBy((IntroTiming.TOTAL - IntroTiming.LEAVE).toLong() + 100)
         assertEquals(1, done)
         assertEquals(1, left)
-        assert(IntroTiming.TOTAL < 1_000) { "the whole beat stays under a second" }
+        assert(IntroTiming.TOTAL < 1_000)
     }
 
     @Test
-    fun reduced_motion_draws_nothing_and_finishes_at_once() {
+    fun reduced_motion_finishes_at_once() {
         show(reduced = true)
         compose.onNodeWithTag("intro").assertDoesNotExist()
         play = true
@@ -99,7 +99,6 @@ class IntroTest {
         assertEquals(1, done)
     }
 
-    /** Frames to look at by eye: the handoff, the pop, the draw, the pulse landing, the glide. */
     @Test
     fun frames() {
         show(reduced = false, anchored = true)

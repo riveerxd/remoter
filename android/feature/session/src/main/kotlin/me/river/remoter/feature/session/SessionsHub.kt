@@ -16,17 +16,13 @@ import me.river.remoter.core.net.toAppError
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/** How an End went. Sent and Cancelled both carry no error, which is why they are told apart here. */
 sealed interface EndOutcome {
     data object Sent : EndOutcome
     data object Cancelled : EndOutcome
     data class Failed(val error: AppError) : EndOutcome
 }
 
-/**
- * Running sessions and the view token, shared by home and detail. The token
- * lives in memory only: terminal output is never stored.
- */
+// the view token lives in memory only, terminal output is never stored
 @Singleton
 class SessionsHub @Inject constructor(
     private val api: RemoterApi,
@@ -48,10 +44,9 @@ class SessionsHub @Inject constructor(
 
     suspend fun refresh(): Result<List<SessionSummary>> = runCatching { api.sessions().sessions }.onSuccess(::publish)
 
-    /** The list as the laptop has it, from a fetch or the live stream. An equal list changes nothing. */
     fun publish(list: List<SessionSummary>) {
         _sessions.value = list
-        // Once the laptop stops listing a session it is gone and the banner collapses.
+        // once the laptop stops listing a session it's gone
         _ending.update { e -> e.filterTo(mutableSetOf()) { id -> list.any { it.id == id } } }
     }
 
@@ -59,7 +54,7 @@ class SessionsHub @Inject constructor(
         if (_sessions.value == null) _sessions.value = list
     }
 
-    /** The fingerprint prompt is the confirmation. No "are you sure" on top. */
+    // the fingerprint prompt is the confirmation
     suspend fun end(s: SessionSummary, host: String): EndOutcome {
         val r = signer.sign("DELETE", Paths.session(s.id), ByteArray(0), PromptCopy("End ${s.name} on $host"))
         if (r !is SignResult.Ok) return if (r is SignResult.KeyInvalidated) EndOutcome.Failed(AppError.KeyInvalidated) else EndOutcome.Cancelled

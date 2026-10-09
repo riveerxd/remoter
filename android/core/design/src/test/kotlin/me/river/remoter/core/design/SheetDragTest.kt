@@ -22,11 +22,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
-/**
- * The Start sheet only closed when dragged by its 4 dp handle:
- * the content scrolls, and the scroller swallowed every drag that began on it.
- * A thumb grabs a sheet anywhere.
- */
+// the Start sheet only closed from its 4 dp handle: the scroller swallowed every other drag
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = "w411dp-h891dp-xxhdpi")
 class SheetDragTest {
@@ -45,16 +41,16 @@ class SheetDragTest {
     }
 
     @Test
-    fun dragging_the_content_down_dismisses_the_sheet() {
+    fun content_drag_dismisses() {
         show()
         compose.waitForIdle()
         compose.onNodeWithText("Sheet body").performTouchInput { swipeDown(startY = centerY, endY = centerY + 600f * density, durationMillis = 300) }
         compose.waitForIdle()
-        assertEquals("a drag that starts on the content must close the sheet", 1, dismissed)
+        assertEquals(1, dismissed)
     }
 
     @Test
-    fun a_small_drag_on_the_content_springs_back() {
+    fun small_drag_springs_back() {
         show()
         compose.waitForIdle()
         compose.onNodeWithText("Sheet body").performTouchInput { swipeDown(startY = centerY, endY = centerY + 20f * density, durationMillis = 400) }
@@ -63,15 +59,13 @@ class SheetDragTest {
     }
 
     @Test
-    fun scrolled_content_scrolls_back_before_the_sheet_moves() {
+    fun content_scrolls_back_first() {
         show(tall = true)
         compose.waitForIdle()
-        // Scroll the tall content down a bit, then drag down a little less than that:
-        // the content should scroll back, and the sheet must stay open.
         compose.onNodeWithText("Row 3").performTouchInput { swipeUp(startY = centerY, endY = centerY - 300f * density, durationMillis = 500) }
         compose.waitForIdle()
         compose.onNodeWithText("Row 8").performTouchInput { swipeDown(startY = centerY, endY = centerY + 120f * density, durationMillis = 500) }
         compose.waitForIdle()
-        assertEquals("scrolling content back to its top must not close the sheet", 0, dismissed)
+        assertEquals(0, dismissed)
     }
 }

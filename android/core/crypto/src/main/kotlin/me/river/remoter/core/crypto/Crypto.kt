@@ -3,7 +3,7 @@ package me.river.remoter.core.crypto
 import me.river.remoter.core.net.Signed
 import okhttp3.HttpUrl
 
-/** What the fingerprint prompt says. Built from the same request that gets signed. */
+// built from the same request that gets signed
 data class PromptCopy(val title: String, val subtitle: String? = null)
 
 sealed interface SignResult {
@@ -19,10 +19,6 @@ sealed interface SignResult {
     data object KeyInvalidated : SignResult
 }
 
-/**
- * The StrongBox `sig` key, one fingerprint per signature. The timestamp is
- * taken after the finger, so a slow finger can't push it out of the window.
- */
 interface RequestSigner {
     suspend fun sign(method: String, url: HttpUrl, body: ByteArray, prompt: PromptCopy): SignResult
 }
@@ -46,7 +42,7 @@ sealed interface PairEvent {
     data object Unreachable : PairEvent
 }
 
-/** Generates both keys over the challenge, talks to port 8444 once, and never retries on its own. */
+// one POST to 8444, never retried on its own
 interface Pairer {
     fun pair(link: me.river.remoter.core.net.Pairing.Link, deviceName: String): kotlinx.coroutines.flow.Flow<PairEvent>
 }

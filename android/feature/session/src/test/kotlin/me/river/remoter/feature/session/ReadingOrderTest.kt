@@ -29,7 +29,7 @@ class ReadingOrderTest {
     }
 
     @Test
-    fun the_start_form_reads_top_to_bottom() {
+    fun form_reads_top_to_bottom() {
         show("idle")
         val s = compose.spoken()
         val order = listOf("remoter", "Same folder", "Worktree", "Name", "Bypass permissions", "Start session")
@@ -38,7 +38,7 @@ class ReadingOrderTest {
     }
 
     @Test
-    fun the_stepper_is_a_polite_live_region() {
+    fun stepper_is_live_region() {
         show("starting_accepted")
         compose.onNode(SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Polite), useUnmergedTree = true).assertExists()
     }

@@ -2,8 +2,8 @@ plugins {
     alias(libs.plugins.android.test)
 }
 
-// The device e2e suite. A separate test APK that drives the app's e2e variant
-// through UI Automator, so nothing of it is compiled into the app itself.
+// a separate test APK driving the e2e variant through UI Automator, so none of it
+// ends up compiled into the app
 android {
     namespace = "me.river.remoter.e2e.suite"
     compileSdk = 37
@@ -13,8 +13,7 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     targetProjectPath = ":app"
-    // Runs in its own process and drives the app from outside, so the two never share
-    // a classpath and the suite needs neither the app's signing key nor its internals.
+    // own process, so the suite needs neither the app's signing key nor its internals
     experimentalProperties["android.experimental.self-instrumenting"] = true
     buildTypes {
         create("e2e") {

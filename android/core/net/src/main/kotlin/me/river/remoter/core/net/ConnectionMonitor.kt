@@ -19,13 +19,8 @@ sealed interface Link {
 
 data class Account(val locked: Boolean, val paired: Boolean, val clockSkewMs: Long, val freshUntilMs: Long?)
 
-/**
- * Probes `/health` every 10 s while in the foreground, and at once on any VPN
- * network change. WireGuard handshakes lazily, so the first probe after a
- * network change often fails: a failure means Reconnecting and retries at 1,
- * 2 and 4 s, and only then LaptopDown. Worst case to notice the laptop went
- * away is about 21 s.
- */
+// WireGuard handshakes lazily, so the first probe after a network change often fails.
+// a failure is only Reconnecting until the 1, 2 and 4 s retries run out
 class ConnectionMonitor(
     private val api: RemoterApi,
     private val vpn: VpnNetworks,
@@ -68,10 +63,7 @@ class ConnectionMonitor(
         kick.value++
     }
 
-    /**
-     * A `health` event from the live stream: battery and lock show at once instead of on the next
-     * probe. The skew stays the probe's, so the session age doesn't shift with every push.
-     */
+    // the skew stays the probe's, so session ages don't shift with every push
     fun onLiveHealth(h: Health) {
         _health.value = h
         val skew = _account.value?.clockSkewMs ?: (h.serverTime - clock.nowMs())

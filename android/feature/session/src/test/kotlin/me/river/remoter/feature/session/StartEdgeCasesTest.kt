@@ -51,7 +51,7 @@ class StartEdgeCasesTest {
 
     private fun runRig(block: suspend TestScope.(Rig) -> Unit) = runTest(main.dispatcher.scheduler) { block(Rig(this)) }
 
-    /** Switching to Worktree after a failed send, then Retry, resent the old same folder bytes. */
+    // Worktree after a failed send, then Retry, used to resend the old same folder bytes
     @Test
     fun edit_after_failure_drops_signed_bytes() = runRig { r ->
         r.api.unreachable = true
@@ -69,12 +69,12 @@ class StartEdgeCasesTest {
         r.vm.start()
         runCurrent()
         assertEquals(2, r.signer.prompts.size)
-        assertTrue("the new start is what is on screen", r.api.spawnCalls.last().body.decodeToString().contains("\"worktree\""))
+        assertTrue("old bytes", r.api.spawnCalls.last().body.decodeToString().contains("\"worktree\""))
     }
 
-    /** The name changed under the fingerprint prompt, so the prompt and the screen disagreed. */
+    // the name used to change under the fingerprint prompt
     @Test
-    fun the_form_is_frozen_while_a_request_is_out() = runRig { r ->
+    fun form_frozen_while_request_out() = runRig { r ->
         r.vm.open(target)
         r.vm.start()
         assertEquals(StartState.AwaitingFingerprint, r.state)
@@ -85,9 +85,8 @@ class StartEdgeCasesTest {
         advanceUntilIdle()
     }
 
-    /** An open conversation was a dead end; it can be handed off instead, under a new fingerprint. */
     @Test
-    fun an_open_conversation_can_be_handed_off_instead() = runRig { r ->
+    fun open_conversation_hands_off() = runRig { r ->
         val conv = me.river.remoter.core.net.Conversation("c82d8b5c-edd4-453e-8d59-4748ff325c03", "fix the banner", null, 0, 0, null, open = false)
         r.vm.open(target)
         advanceUntilIdle()
@@ -106,7 +105,7 @@ class StartEdgeCasesTest {
     }
 
     @Test
-    fun stuck_untrusted_retries_as_a_plain_start() = runRig { r ->
+    fun untrusted_retries_plain() = runRig { r ->
         r.api.spawnScript = me.river.remoter.core.testing.SpawnScript.Stuck
         r.vm.open(target)
         r.vm.start()
@@ -121,13 +120,10 @@ class StartEdgeCasesTest {
         assertTrue(r.state is StartState.Ready)
     }
 
-    /**
-     * Found on the emulator: End on a quick laptop left a dead "Gone" detail screen instead of going
-     * home, because the laptop's gone landed before the End call returned. Here the laptop says gone
-     * from inside the call, which is that race made certain.
-     */
+    // End on a quick laptop left a dead Gone screen: the gone landed before the call returned.
+    // here the laptop says gone from inside the call, so the race always happens
     @Test
-    fun a_quick_end_still_goes_home() = runTest(main.dispatcher.scheduler) {
+    fun quick_end_goes_home() = runTest(main.dispatcher.scheduler) {
         val clock = SchedulerClock(testScheduler)
         val fixture = FixtureBackend(nowMs = clock::nowMs)
         lateinit var hub: SessionsHub
@@ -149,7 +145,7 @@ class StartEdgeCasesTest {
             val home = backgroundScope.async { vm.goHome.first() }
             vm.end()
             runCurrent()
-            assertTrue("went home after the End was sent", home.isCompleted)
+            assertTrue(home.isCompleted)
         } finally {
             vm.viewModelScope.cancel()
         }

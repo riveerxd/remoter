@@ -11,14 +11,14 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
-/** Screens that used to be dead ends: a message and nothing to press. */
+// screens that used to be dead ends, a message and nothing to press
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = "w411dp-h891dp-xxhdpi")
 class OnboardingWayOutTest {
     @get:Rule val compose = createComposeRule()
 
     @Test
-    fun a_key_mismatch_offers_start_over() {
+    fun key_mismatch_offers_start_over() {
         var started = 0
         compose.setContent {
             RemoterTheme(dark = true, reducedMotion = true) {
@@ -42,7 +42,7 @@ class OnboardingWayOutTest {
     }
 
     @Test
-    fun paste_fills_the_field_from_the_clipboard() {
+    fun paste_fills_from_clipboard() {
         val ctx = androidx.test.core.app.ApplicationProvider.getApplicationContext<android.content.Context>()
         val cm = ctx.getSystemService(android.content.ClipboardManager::class.java)
         cm.setPrimaryClip(android.content.ClipData.newPlainText("link", "remoter://pair?v=1"))

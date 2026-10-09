@@ -19,7 +19,6 @@ class ConnectionMonitorTest {
         override val link = MutableStateFlow<VpnLink>(VpnLink.Present(1))
     }
 
-    /** Health that answers or fails on command, taking [latency] of virtual time. */
     private class Api(val scope: TestScope) : RemoterApi {
         var up = true
         var latency = 38L
@@ -132,7 +131,6 @@ class ConnectionMonitorTest {
 
     @Test
     fun another_vpn_counts_as_vpn_off() = runTest {
-        // AndroidVpnNetworks reports a foreign VPN as Absent; the monitor must treat it as off.
         val api = Api(this)
         val vpn = Vpn()
         val m = ConnectionMonitor(api, vpn, clock())

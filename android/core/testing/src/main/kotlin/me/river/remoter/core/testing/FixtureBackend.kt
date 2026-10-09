@@ -49,12 +49,8 @@ import me.river.remoter.core.net.ViewTokenResponse
 
 enum class SpawnScript { Ready, Stuck, Exited, Slow, DropOnce, HandoffFailed }
 
-/**
- * Serves the responses remoter-proto writes, so every screen runs without a
- * laptop and shows what the daemon really sends. Tests and the
- * debug build steer it: [failWith] fails every call with that code,
- * [unreachable] makes calls fail as if the laptop never answered.
- */
+// serves remoter-proto's fixtures, so every screen runs without a laptop and shows what
+// the daemon really sends
 class FixtureBackend(
     failWith: ErrorCode? = null,
     unreachable: Boolean = false,
@@ -62,15 +58,11 @@ class FixtureBackend(
     /** Delay between SSE phases. The debug build uses real time, tests virtual. */
     var phaseStepMs: Long = 700,
     var emptyHome: Boolean = false,
-    /**
-     * The laptop's one same-folder session per folder. On in the demo app so folder busy shows up
-     * there; off by default, since most tests start where the sample sessions already run.
-     */
+    // off by default: most tests start where the sample sessions already run
     var oneSessionPerFolder: Boolean = false,
     /** View tokens last 15 minutes from now, like the laptop's, not from the fixture's fixed time. */
     var nowMs: () -> Long = { System.currentTimeMillis() },
 ) : RemoterApi {
-    /** Bumped on every change the laptop would push, so open streams look again. */
     private val version = MutableStateFlow(0)
     private fun changed() {
         version.value++
@@ -298,8 +290,7 @@ class FixtureBackend(
         val first = spawnCalls.indexOfFirst { it.nonce == signed.nonce }
         val resp = get<SpawnResponse>("spawn").let { r -> r.copy(id = r.id.dropLast(1) + ('a' + first % 26), viewTokenExpires = nowMs() + 15 * 60_000) }
         val req = RemoterJson.decodeFromString(SpawnRequest.serializer(), signed.body.decodeToString())
-        // The laptop's rule: one same-folder session per folder at a time. A retry of the same bytes
-        // already got its answer above, so it never trips this.
+        // a retry of the same bytes already got its answer above, so it never trips this
         if (oneSessionPerFolder && first == spawnCalls.lastIndex && req.mode == SpawnMode.SameDir) {
             // like the agent: a start claude refused, or that it stopped at the trust dialog, has no claude left in the folder
             val busy = current().filter { it.path == req.path && it.state != SessionState.Exited && it.state != SessionState.Gone && it.reason != StuckReason.Untrusted }
@@ -375,10 +366,7 @@ class FixtureBackend(
         emit(IdEvent("s", Event.StateEvent(state, reason, code)))
     }
 
-    /**
-     * A session that is already up, as the detail screen opens it: its state and, with a token,
-     * the screen at once, then whatever changes. Ends when the session does, like remoterd's.
-     */
+    // ends when the session does, like remoterd's
     private fun settled(id: String, viewToken: String?): Flow<IdEvent> {
         var state: SessionSummary? = null
         var tailSent = false

@@ -26,16 +26,16 @@ class WorktreeCardTest {
         compose.setContent { RemoterTheme(dark = true, reducedMotion = true) { HomeContent(ui, HomeCallbacks(), false) } }
     }
 
-    /** Two sessions of one folder, one in a worktree, used to look the same. */
+    // two sessions of one folder, one in a worktree, used to look the same
     @Test
-    fun a_worktree_session_says_which_worktree() {
+    fun names_the_worktree() {
         show(plain.copy(id = "rc-b", worktree = "bright-otter-3f2a"))
         compose.onNodeWithText("worktree · bright-otter-3f2a").assertExists()
         compose.onNodeWithContentDescription("Session remoter, ready, running 1 minute, in worktree bright-otter-3f2a").assertExists()
     }
 
     @Test
-    fun a_plain_session_has_no_worktree_line() {
+    fun plain_has_no_worktree_line() {
         show(plain)
         compose.onNodeWithText("worktree", substring = true).assertDoesNotExist()
         compose.onNodeWithContentDescription("Session remoter, ready, running 1 minute").assertExists()

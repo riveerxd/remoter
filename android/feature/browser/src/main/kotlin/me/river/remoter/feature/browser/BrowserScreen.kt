@@ -1,43 +1,17 @@
 package me.river.remoter.feature.browser
 
 import androidx.compose.animation.AnimatedVisibility
-import me.river.remoter.core.design.components.RemoterSwitch
-import me.river.remoter.core.design.ListPlacement
-import me.river.remoter.core.design.ListFadeOut
-import me.river.remoter.core.design.ListFadeIn
-import me.river.remoter.core.design.pressIndication
-import me.river.remoter.core.design.Press
-import me.river.remoter.core.design.animatedAlpha
-import me.river.remoter.core.design.animatedTone
-import me.river.remoter.core.design.SwapText
-import me.river.remoter.core.design.FadeSwap
-import me.river.remoter.core.design.FadeInPlace
-import me.river.remoter.core.design.leave
-import me.river.remoter.core.design.arrive
-import androidx.compose.ui.graphics.TransformOrigin
-import androidx.compose.animation.scaleOut
-import androidx.compose.animation.scaleIn
 import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.semantics.stateDescription
-import me.river.remoter.core.design.Dur
-import me.river.remoter.core.design.EaseIn
-import me.river.remoter.core.design.EaseOut
-import me.river.remoter.core.design.components.StatusDot
-import me.river.remoter.core.design.components.StatusTone
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.wrapContentHeight
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -51,60 +25,89 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.foundation.layout.offset
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.zIndex
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
+import me.river.remoter.core.design.Dur
+import me.river.remoter.core.design.EaseIn
+import me.river.remoter.core.design.EaseOut
+import me.river.remoter.core.design.FadeInPlace
+import me.river.remoter.core.design.FadeSwap
 import me.river.remoter.core.design.Glyphs
+import me.river.remoter.core.design.ListFadeIn
+import me.river.remoter.core.design.ListFadeOut
+import me.river.remoter.core.design.ListPlacement
+import me.river.remoter.core.design.Press
 import me.river.remoter.core.design.Remoter
 import me.river.remoter.core.design.Shapes
 import me.river.remoter.core.design.Space
+import me.river.remoter.core.design.SwapText
 import me.river.remoter.core.design.Touch
+import me.river.remoter.core.design.animatedAlpha
+import me.river.remoter.core.design.animatedTone
+import me.river.remoter.core.design.arrive
+import me.river.remoter.core.design.components.BackButton
 import me.river.remoter.core.design.components.Chip
 import me.river.remoter.core.design.components.FolderRow
 import me.river.remoter.core.design.components.FolderRowModel
 import me.river.remoter.core.design.components.PrimaryButton
 import me.river.remoter.core.design.components.ProgressLine
 import me.river.remoter.core.design.components.QuietButton
-import me.river.remoter.core.design.components.BackButton
+import me.river.remoter.core.design.components.RemoterSwitch
 import me.river.remoter.core.design.components.RowNote
 import me.river.remoter.core.design.components.SecondaryButton
 import me.river.remoter.core.design.components.SkeletonRow
+import me.river.remoter.core.design.components.StatusDot
+import me.river.remoter.core.design.components.StatusTone
+import me.river.remoter.core.design.leave
+import me.river.remoter.core.design.pressIndication
 import me.river.remoter.core.design.rememberAfter
+import me.river.remoter.core.design.rememberHaptics
 import me.river.remoter.core.design.rememberHeld
-import me.river.remoter.core.design.sharedContainer
 import me.river.remoter.core.design.shake
+import me.river.remoter.core.design.sharedContainer
 import me.river.remoter.core.net.AppError
 import me.river.remoter.core.net.DenyReason
 import me.river.remoter.core.net.FsEntry
@@ -140,16 +143,14 @@ fun BrowserContent(ui: BrowserUi, cb: BrowserCallbacks, focusSearch: Boolean, li
     val c = Remoter.colors
     Column(Modifier.fillMaxSize().background(c.bg).windowInsetsPadding(WindowInsets.statusBars).imePadding()) {
         TopBar(ui, cb, focusSearch)
-        // Old list stays while loading. Progress line past 150 ms, skeletons past 1 s (most listings
-        // land well under that), held 300 ms so they don't flicker.
+        // skeletons only past 1 s (most listings land well under), held 300 ms so they don't flicker
         val slow = rememberAfter(ui.loading, 150)
         val skeleton = rememberHeld(rememberAfter(ui.loading && ui.list == null, 1_000), 300)
         Box(Modifier.height(2.dp).fillMaxWidth()) { FadeInPlace(slow) { ProgressLine() } }
         StaleBanner(ui, cb)
         Box(Modifier.weight(1f)) {
-            // The problem side carries its own error so it can still draw while fading out of a
-            // state that has none.
-            val shown: Pair<String, me.river.remoter.core.net.AppError?> = when {
+            // carries its own error so it can still draw while fading out of a state that has none
+            val shown: Pair<String, AppError?> = when {
                 skeleton -> "skeleton" to null
                 ui.list == null && ui.error != null -> "problem" to ui.error
                 ui.list == null -> "none" to null
@@ -173,8 +174,8 @@ private fun TopBar(ui: BrowserUi, cb: BrowserCallbacks, focusSearch: Boolean) {
     val c = Remoter.colors
     val t = Remoter.type
     val focus = remember { FocusRequester() }
-    // Once per entry: coming back to this folder must not pop the keyboard up again.
-    var focusedOnce by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
+    // coming back to this folder must not pop the keyboard up again
+    var focusedOnce by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(focusSearch) {
         if (focusSearch && !focusedOnce) {
             focusedOnce = true
@@ -197,8 +198,7 @@ private fun TopBar(ui: BrowserUi, cb: BrowserCallbacks, focusSearch: Boolean) {
             Icon(Glyphs.search, null, tint = c.text, modifier = Modifier.size(20.dp))
             Spacer(Modifier.width(Space.s8))
             Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
-                // Leaves layout once faded: at 200% it wraps to two lines, and held at alpha 0 it kept the
-                // pill tall under a typed query.
+                // out of layout once faded: at 200% it wraps, and at alpha 0 it kept the pill tall
                 FadeInPlace(ui.query.isEmpty()) { Text("Folder name or path", style = t.body, color = c.textMuted) }
                 BasicTextField(
                     ui.query, cb.onQuery,
@@ -210,7 +210,7 @@ private fun TopBar(ui: BrowserUi, cb: BrowserCallbacks, focusSearch: Boolean) {
                 )
             }
             AnimatedVisibility(ui.query.isNotEmpty(), enter = fadeIn(arrive()) + scaleIn(arrive(), initialScale = 0.6f), exit = fadeOut(leave()) + scaleOut(leave(), targetScale = 0.6f)) {
-                // Pulled into the pill's end padding so the 48 dp target doesn't push the text in.
+                // into the pill's end padding so the 48 dp target doesn't push the text in
                 Box(
                     Modifier
                         .offset(x = Space.s8)
@@ -268,7 +268,7 @@ private fun Listing(ui: BrowserUi, cb: BrowserCallbacks, state: LazyListState) {
         }
         if (entries.isEmpty() && ui.query.isBlank() && !ui.newFolder.editing) {
             item(key = "empty") {
-                // New folder is the row above and Start is the button below, so no buttons here.
+                // New folder is the row above and Start the button below
                 Column(Modifier.animateItem(fadeInSpec = ListFadeIn, placementSpec = ListPlacement, fadeOutSpec = ListFadeOut).fillMaxWidth().padding(Space.s32), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Space.s8)) {
                     Text("No folders in ${ui.name}", style = t.title, color = c.text)
                     Text("Create one, or start a session right here.", style = t.body, color = c.textMuted)
@@ -324,20 +324,15 @@ private fun FsEntry.toModel(pinned: Boolean): FolderRowModel = FolderRowModel(
     pinned = pinned,
 )
 
-/**
- * "+ New folder" turns into a field in place and stays 64 dp: the rules,
- * errors and buttons float just below it over the list, so nothing moves.
- */
+// stays 64 dp: rules, errors and buttons float below it over the list, so nothing moves
 @Composable
 private fun NewFolderRow(ui: BrowserUi, cb: BrowserCallbacks, modifier: Modifier = Modifier) {
     val c = Remoter.colors
     val t = Remoter.type
     val nf = ui.newFolder
     val focus = remember { FocusRequester() }
-    val haptics = me.river.remoter.core.design.rememberHaptics()
+    val haptics = rememberHaptics()
     LaunchedEffect(nf.shake) { if (nf.shake > 0) haptics.reject() }
-    // The button and the field crossfade over each other in the same 64 dp, so opening it moves
-    // nothing; the rules card under it grows out of the row as it fades in.
     Box(modifier.fillMaxWidth().height(Touch.row).zIndex(1f).testTag("new-folder").shake(nf.shake)) {
         AnimatedVisibility(!nf.editing, enter = fadeIn(arrive()), exit = fadeOut(leave())) {
             Row(
@@ -368,7 +363,7 @@ private fun NewFolderRow(ui: BrowserUi, cb: BrowserCallbacks, modifier: Modifier
                 keyboardActions = KeyboardActions(onDone = { cb.onSubmitNew() }),
                 modifier = Modifier.weight(1f).focusRequester(focus).semantics { contentDescription = "New folder name" },
             )
-            // Label and switch are one control, so the switch is read with its name.
+            // one control so the switch is read with its name
             Row(
                 Modifier.heightIn(min = Touch.min).toggleable(nf.gitInit, role = Role.Switch) { cb.onToggleGit() },
                 verticalAlignment = Alignment.CenterVertically,
@@ -382,7 +377,6 @@ private fun NewFolderRow(ui: BrowserUi, cb: BrowserCallbacks, modifier: Modifier
         Column(
             Modifier
                 .fillMaxWidth()
-                // Measured at its own height, not the row's 64 dp, and drawn below the row.
                 .wrapContentHeight(align = Alignment.Top, unbounded = true)
                 .offset(y = Touch.row)
                 .animateEnterExit(enter = scaleIn(arrive(), initialScale = 0.96f, transformOrigin = TransformOrigin(0.5f, 0f)), exit = ExitTransition.None)
@@ -390,8 +384,7 @@ private fun NewFolderRow(ui: BrowserUi, cb: BrowserCallbacks, modifier: Modifier
                 .shadow(if (c.isDark) 0.dp else 8.dp, Shapes.card)
                 .clip(Shapes.card)
                 .background(c.surfaceRaised)
-                // It floats over the rows below, and in dark mode a shadow doesn't show: without an
-                // edge the rows seemed to bleed out from under it, like a layout glitch.
+                // no shadow shows in dark mode, and without an edge the rows seemed to bleed out from under it
                 .then(if (c.isDark) Modifier.border(1.dp, c.line, Shapes.card) else Modifier)
                 .padding(start = Space.s16, end = Space.s8, top = Space.s8),
         ) {
@@ -420,10 +413,7 @@ private fun BottomBar(ui: BrowserUi, cb: BrowserCallbacks) {
     }
 }
 
-/**
- * QuietButton's look with a spinner after the fingerprint. The label stays in
- * place, invisible, so the button keeps its width and Cancel doesn't jump.
- */
+// the label stays, invisible, so the button keeps its width and Cancel doesn't jump
 @Composable
 private fun CreateButton(loading: Boolean, onClick: () -> Unit) {
     val c = Remoter.colors
@@ -448,12 +438,11 @@ private fun CreateButton(loading: Boolean, onClick: () -> Unit) {
     }
 }
 
-/** A reload failed with a list already up: keep it, but say it's the old one. */
 @Composable
 private fun StaleBanner(ui: BrowserUi, cb: BrowserCallbacks) {
     val c = Remoter.colors
     val err = ui.error
-    // NotFound pops the screen, so a banner would only flash on the way out.
+    // NotFound pops the screen, a banner would only flash on the way out
     val stale = ui.list != null && err != null && err != AppError.NotFound && !ui.loading
     AnimatedVisibility(
         stale,
@@ -490,7 +479,6 @@ private fun Problem(error: AppError, host: String, cb: BrowserCallbacks) {
     )
 }
 
-/** The small sheet a blocked Start opens: why, and what to do. [onOpenWireGuard] gives Offline a way out. */
 @Composable
 fun BlockedCopy(b: Blocked, host: String, folder: String, onOpenWireGuard: (() -> Unit)? = null) {
     val (title, body) = when (b) {

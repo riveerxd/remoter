@@ -17,7 +17,7 @@ import org.robolectric.ParameterizedRobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
-/** Fixed, so "Paired" and "Last checked" read the same on every run. */
+// fixed so "Paired" and "Last checked" read the same on every run
 private const val NOW = 1_790_696_400_000L
 private val UTC = java.time.ZoneId.of("UTC")
 

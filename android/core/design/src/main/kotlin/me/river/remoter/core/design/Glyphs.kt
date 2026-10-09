@@ -19,11 +19,7 @@ private fun glyph(name: String, vararg paths: String): ImageVector =
         paths.forEach { addPath(addPathNodes(it), fill = SolidColor(Color.Black)) }
     }.build()
 
-/**
- * The handful of glyphs the app draws. The five the core icon set lacks are
- * drawn here instead of pulling in the extended set, which is several
- * megabytes for five shapes.
- */
+// the extended icon set is several megabytes, so the few missing from core are drawn here
 object Glyphs {
     val search = Icons.Filled.Search
     val back = Icons.AutoMirrored.Filled.ArrowBack
@@ -47,10 +43,9 @@ object Glyphs {
     val relay = glyph("relay", "M4 4h16v6H4V4zm2 2v2h2V6H6zm-2 8h16v6H4v-6zm2 2v2h2v-2H6z")
     val laptop = glyph("laptop", "M4 5h16c.55 0 1 .45 1 1v10H3V6c0-.55.45-1 1-1zm1 2v7h14V7H5zM1 17h22v1c0 .55-.45 1-1 1H2c-.55 0-1-.45-1-1v-1z")
     val copy = glyph("copy", "M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z")
-    /** clock wound back = past conversation */
+    // clock wound back = past conversation
     val history = glyph("history", "M13 3a9 9 0 0 0-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42A8.954 8.954 0 0 0 13 21a9 9 0 0 0 0-18zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z")
     val play = glyph("play", "M8 5v14l11-7z")
-    /** reorder grip, as a menu glyph */
     val reorder = glyph("reorder", "M20 9H4v2h16V9zM4 15h16v-2H4v2z")
     val plus = glyph("plus", "M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z")
     val git = glyph(

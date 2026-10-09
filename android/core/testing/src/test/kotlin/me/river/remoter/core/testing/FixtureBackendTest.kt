@@ -41,7 +41,7 @@ class FixtureBackendTest {
     }
 
     @Test
-    fun live_sends_a_snapshot_then_only_real_changes() = runTest {
+    fun live_sends_only_changes() = runTest {
         val b = FixtureBackend()
         val got = mutableListOf<LiveEvent>()
         val job = backgroundScope.launch { b.live().collect { got += it } }

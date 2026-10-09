@@ -29,7 +29,6 @@ import org.junit.Rule
 import org.junit.Test
 import java.time.ZoneOffset
 
-/** Starting fresh from a past conversation, with a handoff the laptop writes first. */
 @OptIn(ExperimentalCoroutinesApi::class)
 class HandoffViewModelTest {
     @get:Rule val main = MainDispatcherRule()
@@ -66,7 +65,7 @@ class HandoffViewModelTest {
         picked(r)
         r.vm.setHandoff(true)
         r.vm.setMode(SpawnMode.Worktree)
-        assertEquals("a handoff keeps its source when the mode changes", banner, r.ui.form.resume)
+        assertEquals("source kept", banner, r.ui.form.resume)
         assertEquals(SpawnMode.Worktree, r.ui.form.mode)
         r.vm.start()
         runCurrent()
@@ -119,13 +118,13 @@ class HandoffViewModelTest {
         advanceTimeBy(1_500)
         runCurrent()
         val done = (r.ui.state as StartState.Starting).steps.map { it.done }
-        assertEquals("accepted and terminal landed, the handoff hasn't", listOf(true, true, true, false, false, false), done)
+        assertEquals("handoff pending", listOf(true, true, true, false, false, false), done)
         advanceUntilIdle()
         assertTrue(r.ui.state is StartState.Ready)
     }
 
     @Test
-    fun a_plain_start_has_no_handoff_step() = runRig { r ->
+    fun plain_start_no_handoff_step() = runRig { r ->
         r.vm.open(target)
         runCurrent()
         r.vm.start()
@@ -139,17 +138,17 @@ class HandoffViewModelTest {
         r.vm.setHandoff(true)
         r.vm.start()
         runCurrent()
-        // The summarizer takes 30 s here: well past 10 s, and still not slow.
+        // the summarizer takes 30 s here, past 10 s and still not slow
         advanceTimeBy(25_000)
         runCurrent()
         assertFalse((r.ui.state as StartState.Starting).slow)
-        // Handoff lands at about 32 s; Claude and Remote Control follow fast, so it never reads slow.
+        // handoff lands near 32 s and the rest follows fast
         advanceUntilIdle()
         assertTrue(r.ui.state is StartState.Ready)
     }
 
     @Test
-    fun a_plain_start_still_reads_slow_after_ten_seconds() = runRig { r ->
+    fun plain_start_slow_after_10s() = runRig { r ->
         r.api.spawnScript = SpawnScript.Slow
         r.api.phaseStepMs = 4_000
         r.vm.open(target)

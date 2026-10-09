@@ -23,7 +23,7 @@ class WorktreeHeaderTest {
     }
 
     @Test
-    fun the_header_names_the_worktree_under_the_path() {
+    fun header_names_worktree() {
         show(s.copy(worktree = "bright-otter-3f2a"))
         compose.onNodeWithText("~/Projects/remoter").assertExists()
         compose.onNodeWithText("worktree · bright-otter-3f2a").assertExists()

@@ -5,13 +5,10 @@ import me.river.remoter.core.design.components.quadrants
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-/**
- * claude's own welcome-screen sprite, quadrant for quadrant. The grid below was rasterized
- * separately from the Unicode block names, so the two check each other.
- */
+// the grid was rasterized separately from the block names, so the two check each other
 class ClaudeCrabTest {
     @Test
-    fun the_crab_is_claudes_own_sprite() {
+    fun crab_matches_sprite() {
         val px = CRAB_ROWS.flatMap { line ->
             listOf(0, 1).map { half -> line.flatMap { c -> quadrants(c).let { q -> listOf(q[half * 2], q[half * 2 + 1]) } }.joinToString("") { if (it) "#" else "." } }
         }
@@ -28,9 +25,8 @@ class ClaudeCrabTest {
         )
     }
 
-    /** It looked off centre in every disc. Across: the drawn pixels' box sits dead centre. */
     @Test
-    fun the_crab_is_centred_across() {
+    fun crab_centred_across() {
         val px = me.river.remoter.core.design.components.crabPixels()
         val left = px.minOf { it[0] } - me.river.remoter.core.design.components.CRAB_LEFT
         val right = px.maxOf { it[0] + it[2] } - me.river.remoter.core.design.components.CRAB_LEFT
@@ -38,9 +34,9 @@ class ClaudeCrabTest {
         assertEquals("no empty margin right", me.river.remoter.core.design.components.CRAB_W, right, 0.001f)
     }
 
-    /** Down: between the box centre and the weight centre, which is where it reads as centred. */
+    // halfway between box centre and weight centre is where it reads as centred
     @Test
-    fun the_crab_is_centred_by_eye_down() {
+    fun crab_centred_by_eye_down() {
         val px = me.river.remoter.core.design.components.crabPixels()
         val drop = me.river.remoter.core.design.components.CRAB_DROP
         val top = px.minOf { it[1] } + drop

@@ -75,7 +75,7 @@ class ResumeUiTest {
     }
 
     @Test
-    fun two_show_then_the_rest_on_show_more() {
+    fun two_then_show_all() {
         show()
         compose.onNodeWithText("Previous sessions").assertIsDisplayed()
         compose.onNodeWithText("release signing").assertDoesNotExist()
@@ -87,7 +87,7 @@ class ResumeUiTest {
     }
 
     @Test
-    fun picking_one_keeps_the_list_still() {
+    fun pick_keeps_list_still() {
         show()
         compose.onNodeWithText("Worktree").assertExists()
         val label = pastWhen(five[0].updated, clock.nowMs(), vm.zone)
@@ -96,7 +96,7 @@ class ResumeUiTest {
         row.performClick()
         compose.waitForIdle()
         assertEquals(five[0], vm.ui.value.form.resume)
-        assertEquals("the picked row stays under the finger", before, row.fetchSemanticsNode().boundsInRoot)
+        assertEquals("row moved", before, row.fetchSemanticsNode().boundsInRoot)
         compose.onNodeWithContentDescription("Previous session fix the banner, $label").assertIsSelected()
         compose.onNodeWithText("Worktree").assertIsNotSelected()
         compose.onNodeWithText("Resume session").assertExists()
@@ -126,23 +126,23 @@ class ResumeUiTest {
     }
 
     @Test
-    fun the_list_shows_without_a_fingerprint() {
+    fun list_needs_no_fingerprint() {
         show(unlocked = false)
         compose.waitUntil(3_000) { vm.ui.value.past is PastState.Loaded }
         compose.waitForIdle()
         compose.onNodeWithText("fix the banner").assertExists()
-        assertTrue("no fingerprint just to read", signer.prompts.isEmpty())
+        assertTrue(signer.prompts.isEmpty())
     }
 
     @Test
-    fun a_folder_with_no_past_shows_no_section() {
+    fun no_past_no_section() {
         show(emptyList())
         compose.onNodeWithText("Previous sessions").assertDoesNotExist()
         compose.onNodeWithText("Start session").assertExists()
     }
 
     @Test
-    fun a_failed_list_offers_retry() {
+    fun failed_list_offers_retry() {
         api.unreachable = true
         show()
         compose.waitUntil(3_000) { vm.ui.value.past == PastState.Failed }

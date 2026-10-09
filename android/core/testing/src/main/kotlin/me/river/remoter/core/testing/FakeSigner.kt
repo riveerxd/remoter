@@ -14,11 +14,7 @@ import java.security.SecureRandom
 import java.security.Signature
 import java.security.spec.ECGenParameterSpec
 
-/**
- * Signs with a throwaway software key and no prompt. Tests queue what the
- * "finger" does next; the debug build waits [fingerMs] so the prompt moment
- * still shows up in recordings.
- */
+// the debug build waits fingerMs so the prompt moment still shows up in recordings
 class FakeSigner(
     private val clock: Clock,
     private val device: String = "01K6B7Y3M4N5P6Q7R8S9T0V1W2",

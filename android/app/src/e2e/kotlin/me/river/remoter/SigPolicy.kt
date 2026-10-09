@@ -8,12 +8,9 @@ import me.river.remoter.core.crypto.SigAuth
 import me.river.remoter.core.crypto.SigAuthorizer
 import java.security.spec.ECGenParameterSpec
 
-/**
- * The e2e build type only: a `sig` key with no fingerprint, so UI tests can
- * drive every flow. This file is compiled into nothing else; `checkReleaseHasNoE2e`
- * fails the build if [MARKER] ever shows up in release classes. The production
- * laptop refuses this build: its package and signing digest differ.
- */
+// e2e only: a sig key with no fingerprint so UI tests can drive every flow.
+// checkReleaseHasNoE2e fails the build if MARKER ever lands in release classes,
+// and the real laptop refuses this build anyway (package and signing digest differ).
 object SigPolicy {
     const val MARKER = "remoter-e2e-relaxed-signing"
 

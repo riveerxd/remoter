@@ -22,7 +22,7 @@ enum class Uplink { WiFi, Mobile, Ethernet }
 @Immutable
 data class PhoneStats(val batteryPct: Int? = null, val charging: Boolean = false, val uplink: Uplink? = null)
 
-/** "Wi-Fi · 84%": what the phone node says under itself. Parts it doesn't know are left out. */
+// "Wi-Fi · 84%", leaving out what it doesn't know
 internal fun PhoneStats.line(): String? = listOfNotNull(
     when (uplink) {
         Uplink.WiFi -> "Wi-Fi"
@@ -33,11 +33,8 @@ internal fun PhoneStats.line(): String? = listOfNotNull(
     batteryPct?.let { if (charging) "$it% charging" else "$it%" },
 ).joinToString(" · ").ifEmpty { null }
 
-/**
- * Battery and the network under the tunnel, live while home is on screen. The
- * default network is the VPN itself when WireGuard is on; since Android 12 its
- * capabilities carry the transports underneath, which is the part worth showing.
- */
+// with WireGuard on the default network is the VPN; since Android 12 its
+// capabilities carry the transports underneath, which is what we show
 @Composable
 fun rememberPhoneStats(): PhoneStats {
     val context = LocalContext.current.applicationContext

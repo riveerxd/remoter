@@ -23,7 +23,7 @@ data class Variant(val dark: Boolean, val fontScale: Float) {
     }
 }
 
-/** Loops stop so a capture never lands on a random frame; the clock is the test's. */
+// loops stop so a capture never lands on a random frame
 fun ComposeContentTestRule.shot(name: String, v: Variant, content: @Composable () -> Unit) {
     setContent {
         val d = LocalDensity.current

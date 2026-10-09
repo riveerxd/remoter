@@ -3,6 +3,7 @@ package me.river.remoter.feature.home
 import androidx.compose.foundation.background
 import me.river.remoter.core.design.animatedTone
 import me.river.remoter.core.design.PressSpring
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
@@ -61,6 +62,7 @@ import me.river.remoter.core.design.Glyphs
 import me.river.remoter.core.design.components.RemoterSheetFor
 import me.river.remoter.core.design.components.RemoterSnackbar
 import me.river.remoter.core.design.tnum
+import me.river.remoter.core.net.B64
 import me.river.remoter.core.net.Link
 import me.river.remoter.core.net.SessionSummary
 import me.river.remoter.core.net.displayPath
@@ -143,8 +145,7 @@ fun HomeScreen(vm: HomeViewModel, nav: HomeNav, entrance: Boolean) {
             when (s) {
                 is HomeSheet.Menu -> {
                     MenuHeader(s.f.name, displayPath(s.f.path))
-                    // Start takes the one sheet slot, which drops this menu without its exit so two
-                    // sheets never slide past each other. No slot (preview, test): close it here.
+                    // same as onFolder: no slot in previews and tests, so close it here
                     MenuRow(Glyphs.play, "Start here", { if (slot == null) sheet = null; nav.onStart(s.f) }, divider = false)
                     if (s.pinned) {
                         MenuRow(Glyphs.pin, "Unpin", { sheet = null; vm.unpin(s.f.path) })
@@ -164,14 +165,9 @@ fun HomeScreen(vm: HomeViewModel, nav: HomeNav, entrance: Boolean) {
     }
 }
 
-/** Long enough to read the path, short enough to be out of the way: the copy itself was instant. */
 internal const val CopiedMs = 2_000L
 
-/**
- * Drag a handle and the row lifts and follows the finger; the others slide out of its way
- * as it passes their middle, and it lands where it was let go. TalkBack gets Move up and
- * Move down on each row instead.
- */
+// TalkBack can't drag, it gets Move up and Move down on each row
 @Composable
 internal fun ColumnScope.Reorder(ui: HomeUi, move: (Int, Int) -> Unit, onDone: () -> Unit) {
     val c = Remoter.colors
@@ -200,7 +196,7 @@ internal fun ColumnScope.Reorder(ui: HomeUi, move: (Int, Int) -> Unit, onDone: (
                 else -> 0f
             }
             val lift by animateFloatAsState(if (lifted && !Remoter.reducedMotion) 1.02f else 1f, PressSpring, label = "lift")
-            val liftShadow by androidx.compose.animation.core.animateDpAsState(if (lifted) 8.dp else 0.dp, tween(Dur.base, easing = EaseOut), label = "lift shadow")
+            val liftShadow by animateDpAsState(if (lifted) 8.dp else 0.dp, tween(Dur.base, easing = EaseOut), label = "lift shadow")
             // Snaps home on drop: the reordered list already puts every row where it lands.
             val shift by animateFloatAsState(
                 target,
@@ -257,7 +253,7 @@ internal fun ColumnScope.Reorder(ui: HomeUi, move: (Int, Int) -> Unit, onDone: (
     QuietButton("Done", onDone, Modifier.align(Alignment.CenterHorizontally))
 }
 
-/** Two columns of three dots, the usual grip. There's no such glyph in the icon set. */
+// the icon set has no grip glyph
 @Composable
 private fun DragDots(color: Color) {
     Canvas(Modifier.size(width = 10.dp, height = 16.dp)) {
@@ -320,6 +316,6 @@ private fun Fact(k: String, v: String) {
 
 /** First 16 hex characters in four groups of four: `A1F3 09CE 77B2 5D10`. */
 fun groupFingerprint(b64: String): String {
-    val bytes = me.river.remoter.core.net.B64.decode(b64) ?: return b64
-    return me.river.remoter.core.net.B64.hex(bytes).uppercase().take(16).chunked(4).joinToString(" ")
+    val bytes = B64.decode(b64) ?: return b64
+    return B64.hex(bytes).uppercase().take(16).chunked(4).joinToString(" ")
 }

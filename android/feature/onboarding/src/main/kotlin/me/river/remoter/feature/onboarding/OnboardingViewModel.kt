@@ -26,12 +26,11 @@ import javax.inject.Inject
 
 enum class HardStop { Expired, ServerKeyMismatch, NoStrongBox }
 
-/** Why Pair again appears, in plain words on its one screen. */
 @kotlinx.serialization.Serializable
 enum class PairAgainReason { KeyInvalidated, Revoked, Unpaired }
 
 sealed interface OnboardingStep {
-    /** Step 1. [tunnel] is our VPN network present, [laptop] the TCP connect answered. */
+    // tunnel: our VPN network is up. laptop: a TCP connect answered
     data class Connect(val tunnel: Boolean, val laptop: Boolean) : OnboardingStep
     data class Scan(val pasting: Boolean = false, val pasteInvalid: Boolean = false, val rejected: Boolean = false, val unreachable: Boolean = false) : OnboardingStep
     data object Pairing : OnboardingStep
@@ -64,7 +63,6 @@ class OnboardingViewModel @Inject constructor(
         watchConnect()
     }
 
-    /** The step checks itself: our VPN network shows up, then a TCP connect to the laptop succeeds. */
     private fun watchConnect() {
         watch?.cancel()
         watch = viewModelScope.launch {
@@ -92,10 +90,10 @@ class OnboardingViewModel @Inject constructor(
 
     fun paste() = _step.update { (it as? OnboardingStep.Scan)?.copy(pasting = true) ?: it }
 
-    /** Back from paste to the camera. Onboarding is the root, so without this system back leaves the app. */
+    // onboarding is the root, so without this system back leaves the app
     fun scanInstead() = _step.update { (it as? OnboardingStep.Scan)?.copy(pasting = false, pasteInvalid = false) ?: it }
 
-    /** The "not a full link" hint is about the text that was submitted, not the text being typed now. */
+    // the hint is about the submitted text, not what's being typed now
     fun linkEdited() = _step.update { s -> (s as? OnboardingStep.Scan)?.takeIf { it.pasteInvalid }?.copy(pasteInvalid = false) ?: s }
 
     fun submitLink(text: String) {
@@ -107,7 +105,7 @@ class OnboardingViewModel @Inject constructor(
         pair(link)
     }
 
-    /** One attempt. A key mismatch or an expired code is a full stop, never a retry. */
+    // a key mismatch or an expired code is a full stop, never a retry
     fun pair(link: Pairing.Link) {
         if (pairing?.isActive == true) return
         if (link.expiresUnix * 1000 < clock.nowMs()) {
@@ -140,18 +138,14 @@ class OnboardingViewModel @Inject constructor(
         _step.value = OnboardingStep.Scan()
     }
 
-    /**
-     * The other stops never retry on their own, but after a network switch the
-     * user has to be able to go again without clearing app data. Back to step 1,
-     * so the tunnel and the laptop get checked afresh.
-     */
+    // after a network switch you have to be able to go again without clearing app data
     fun startOver() {
         pairing?.cancel()
         watchConnect()
     }
 }
 
-/** 1 of 3, 2 of 3, 3 of 3. It starts at a third: installing the app was step zero. */
+// starts at a third: installing the app was step zero
 fun OnboardingStep.progress(): Float = when (this) {
     is OnboardingStep.Connect -> 1f / 3
     is OnboardingStep.Scan, OnboardingStep.Pairing -> 2f / 3

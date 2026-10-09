@@ -57,11 +57,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
-/**
- * Google's accessibility checks (ATF) over every screen, on a device, where
- * the results mean something (they are inconclusive under Robolectric).
- * Any ERROR fails: touch targets, labels, contrast as ATF measures it.
- */
+// on a device because ATF results are inconclusive under Robolectric
 @RunWith(AndroidJUnit4::class)
 class AccessibilityChecksTest {
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
@@ -69,8 +65,7 @@ class AccessibilityChecksTest {
     @Before
     fun checks() {
         val screenBottom = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext.resources.displayMetrics.heightPixels
-        // The one exception: an element cut by the bottom of the screen, like a row of the
-        // home sheet below its peek. ATF measures the visible sliver; the full row is 64 dp.
+        // a row cut off by the screen bottom (home sheet below its peek): ATF measures the sliver
         val cutByScreenEdge = object : org.hamcrest.TypeSafeMatcher<com.google.android.apps.common.testing.accessibility.framework.AccessibilityViewCheckResult>() {
             override fun describeTo(d: org.hamcrest.Description) {
                 d.appendText("touch target cut by the bottom of the screen")

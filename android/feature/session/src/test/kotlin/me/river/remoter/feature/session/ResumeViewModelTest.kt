@@ -33,7 +33,7 @@ class ResumeViewModelTest {
 
     private val target = StartTarget("Projects/remoter", "remoter", isGit = true)
 
-    // 2026-10-07 12:00 UTC, so "yesterday" and "today" are fixed.
+    // 2026-10-07 12:00 UTC
     private val now = 1_791_374_400_000L
     private val banner = Conversation("c82d8b5c-edd4-453e-8d59-4748ff325c03", "Fix: the banner's overlap", "check the sheet", now - 26 * 3_600_000L, now - 20 * 3_600_000L, "main", open = false)
     private val busy = Conversation("1170e57c-4a8e-4fb2-9437-21f0fdc2cef3", "remoter", null, now - 7_200_000L, now - 60_000L, null, open = true)
@@ -66,9 +66,8 @@ class ResumeViewModelTest {
         assertEquals(listOf(banner, busy), r.rows().map { it.conversation })
     }
 
-    /** No app lock any more: the list loads with the phone's key alone. */
     @Test
-    fun the_list_loads_without_a_fingerprint() = runRig { r ->
+    fun list_needs_no_fingerprint() = runRig { r ->
         r.vm.open(target)
         runCurrent()
         assertEquals(2, r.rows().size)
@@ -77,7 +76,7 @@ class ResumeViewModelTest {
     }
 
     @Test
-    fun a_failure_offers_retry() = runRig { r ->
+    fun failure_offers_retry() = runRig { r ->
         r.api.unreachable = true
         r.vm.open(target)
         runCurrent()
@@ -106,7 +105,7 @@ class ResumeViewModelTest {
     }
 
     @Test
-    fun tapping_a_mode_card_drops_the_pick() = runRig { r ->
+    fun mode_card_drops_pick() = runRig { r ->
         r.unlocked()
         r.vm.open(target)
         runCurrent()
@@ -118,15 +117,15 @@ class ResumeViewModelTest {
     }
 
     @Test
-    fun an_open_conversation_is_picked_only_as_a_handoff() = runRig { r ->
+    fun open_conversation_only_hands_off() = runRig { r ->
         r.unlocked()
         r.vm.open(target)
         runCurrent()
         r.vm.selectResume(busy)
         assertEquals(busy, r.ui.form.resume)
-        assertTrue("reading an open one is fine, resuming it isn't", r.ui.form.handoff)
+        assertTrue("handoff", r.ui.form.handoff)
         r.vm.setHandoff(false)
-        assertTrue("Continue it stays refused", r.ui.form.handoff)
+        assertTrue("still handoff", r.ui.form.handoff)
     }
 
     @Test
@@ -146,7 +145,7 @@ class ResumeViewModelTest {
     }
 
     @Test
-    fun a_plain_start_sends_no_resume() = runRig { r ->
+    fun plain_start_no_resume() = runRig { r ->
         r.unlocked()
         r.vm.open(target)
         runCurrent()
@@ -193,7 +192,7 @@ class ResumeViewModelTest {
         r.api.unreachable = false
         r.vm.start()
         advanceUntilIdle()
-        assertNull("the cleared pick is what got signed", r.body(1).resume)
+        assertNull("old pick signed", r.body(1).resume)
         assertEquals(2, r.signer.prompts.size)
     }
 
@@ -206,6 +205,6 @@ class ResumeViewModelTest {
         r.vm.expandPast()
         assertEquals(true, r.ui.pastExpanded)
         r.vm.open(target)
-        assertEquals("a fresh sheet starts folded", false, r.ui.pastExpanded)
+        assertEquals("folded", false, r.ui.pastExpanded)
     }
 }

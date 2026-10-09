@@ -6,10 +6,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import me.river.remoter.core.net.ClaudeLink
 
-/**
- * Where Open Claude goes. Each URL is tried against the Claude app alone,
- * because any browser resolves an https link and would hide the fallbacks.
- */
+// URLs go to the Claude app alone: any browser resolves an https link and would hide the fallbacks
 object ClaudeOpener {
     const val PACKAGE = "com.anthropic.claude"
 
@@ -39,7 +36,6 @@ object ClaudeOpener {
         return null
     }
 
-    /** With no link yet this still opens the app: the URL rungs are skipped and the launcher answers. */
     fun open(context: Context, link: ClaudeLink?): Boolean {
         val (_, intent) = resolve(context.packageManager, link) ?: return false
         return runCatching { context.startActivity(intent) }.isSuccess

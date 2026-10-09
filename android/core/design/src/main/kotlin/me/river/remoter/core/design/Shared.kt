@@ -9,17 +9,13 @@ import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 
-/** Provided by the app per navigation entry; null in tests and previews, where nothing is shared. */
+// null in tests and previews
 class SharedScopes(val shared: SharedTransitionScope, val animated: AnimatedVisibilityScope)
 
 val LocalSharedScopes = compositionLocalOf<SharedScopes?> { null }
 
 private val Container = BoundsTransform { _, _ -> tween(Dur.screen, easing = EaseOut) }
 
-/**
- * The search pill growing into the browser field, a banner growing into
- * session detail. A no-op when there is no transition to share.
- */
 @OptIn(ExperimentalSharedTransitionApi::class)
 fun Modifier.sharedContainer(key: String, onlyOnEnter: Boolean = false): Modifier = composed {
     val s = LocalSharedScopes.current ?: return@composed this

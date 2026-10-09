@@ -20,11 +20,8 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
-/**
- * Seen on a real phone: once pulled all the way up the sheet couldn't be dragged
- * or backed down, and what rode its edge was drawn over it. Screen is 891 dp, peek
- * is 440 dp, so a collapsed sheet's top sits near 451 dp.
- */
+// pulled all the way up, the sheet once couldn't be dragged or backed down, and + New was
+// drawn over it. screen 891 dp, peek 440 dp, so a collapsed sheet's top sits near 451 dp
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = "w411dp-h891dp-xxhdpi")
 class HomeSheetTest {
@@ -36,20 +33,20 @@ class HomeSheetTest {
     private fun headerTop() = compose.onNodeWithText("Sessions").getUnclippedBoundsInRoot().top
 
     private fun expand() {
-        // Grab the drag handle, a few dp below the sheet's top edge, the way a thumb does.
+        // the handle, just below the sheet's top edge
         val handleY = headerTop() - 40.dp
         compose.onRoot().performTouchInput { swipeUp(startY = handleY.toPx(), endY = 20.dp.toPx(), durationMillis = 400) }
         compose.waitForIdle()
-        assertTrue("sheet should be expanded, header at ${headerTop()}", headerTop() < 200.dp)
+        assertTrue("header at ${headerTop()}", headerTop() < 200.dp)
     }
 
     private fun assertCollapsed() {
         compose.waitForIdle()
-        assertTrue("sheet should be back at its peek, header at ${headerTop()}", headerTop() > 400.dp)
+        assertTrue("header at ${headerTop()}", headerTop() > 400.dp)
     }
 
     @Test
-    fun an_expanded_sheet_drags_back_down() {
+    fun expanded_sheet_drags_down() {
         show()
         expand()
         compose.onNodeWithText("Sessions").performTouchInput { swipeDown(startY = centerY, endY = centerY + 700f * density, durationMillis = 300) }
@@ -57,39 +54,39 @@ class HomeSheetTest {
     }
 
     @Test
-    fun back_collapses_an_expanded_sheet_instead_of_leaving() {
+    fun back_collapses_sheet() {
         show()
         expand()
         compose.runOnUiThread { compose.activity.onBackPressedDispatcher.onBackPressed() }
         assertCollapsed()
-        assertFalse("back must not finish the activity while it only has a sheet to close", compose.activity.isFinishing)
+        assertFalse(compose.activity.isFinishing)
     }
 
     @Test
-    fun new_hands_over_to_the_header_once_raised() {
+    fun new_moves_to_header_when_raised() {
         show()
-        assertEquals("only the floating one at the peek", 1, compose.newNodes().size)
+        assertEquals("floating one only", 1, compose.newNodes().size)
         expand()
         val sheetTop = headerTop() - 48.dp
         val shown = compose.newNodes().filter { it.isDisplayed() }
-        assertEquals("one New, in the header", 1, shown.size)
-        assertTrue("and not floating over the sheet", shown.single().getUnclippedBoundsInRoot().top >= sheetTop)
+        assertEquals("header one only", 1, shown.size)
+        assertTrue("over the sheet", shown.single().getUnclippedBoundsInRoot().top >= sheetTop)
     }
 
     @Test
-    fun new_sits_above_the_sheet_at_the_peek() {
+    fun new_above_sheet_at_peek() {
         show()
         val sheetTop = headerTop() - 48.dp
-        compose.newNodes().forEach { assertTrue("+ New overlaps the sheet", it.getUnclippedBoundsInRoot().bottom <= sheetTop) }
+        compose.newNodes().forEach { assertTrue("overlaps the sheet", it.getUnclippedBoundsInRoot().bottom <= sheetTop) }
     }
 
     @Test
-    fun pull_to_refresh_still_works_from_the_peek() {
+    fun pull_refreshes_at_peek() {
         var refreshed = false
         show(HomeCallbacks(onRefresh = { refreshed = true }))
         compose.onNodeWithText("Sessions").performTouchInput { swipeDown(startY = centerY, endY = centerY + 300f * density, durationMillis = 400) }
         compose.waitForIdle()
-        assertTrue("pulling down at the peek refreshes", refreshed)
+        assertTrue(refreshed)
     }
 
     private fun androidx.compose.ui.test.junit4.AndroidComposeTestRule<*, *>.newNodes(): List<androidx.compose.ui.test.SemanticsNodeInteraction> {

@@ -2,10 +2,7 @@ package me.river.remoter.core.net
 
 import okhttp3.HttpUrl
 
-/**
- * Every URL the app calls, built with OkHttp so the signed target is the one
- * that goes over the wire.
- */
+// built with OkHttp so the signed target is exactly what goes over the wire
 object Paths {
     private val base: HttpUrl = HttpUrl.Builder().scheme("https").host(LAPTOP_ADDR).port(8443).build()
 

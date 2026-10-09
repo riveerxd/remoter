@@ -1,9 +1,6 @@
 package me.river.remoter.core.net
 
-/**
- * Every failure the UI can be in, by what the user can do about it.
- * The server's message never reaches the screen.
- */
+// grouped by what the user can do about it; the server's message never reaches the screen
 sealed interface AppError {
     data object VpnOff : AppError
     data object LaptopDown : AppError

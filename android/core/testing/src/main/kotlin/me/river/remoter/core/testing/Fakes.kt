@@ -16,7 +16,6 @@ class FakeClock(var now: Long = 1_790_611_106_000, var uptime: Long = 0) : Clock
     }
 }
 
-/** Stands in for the ConnectivityManager callback: tests flip the VPN on, off, or to a foreign VPN. */
 class FakeVpnNetworks(initial: VpnLink = VpnLink.Present(1)) : VpnNetworks {
     private val state = MutableStateFlow(initial)
     override val link: StateFlow<VpnLink> = state

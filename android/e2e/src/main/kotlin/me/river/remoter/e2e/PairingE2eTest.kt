@@ -20,7 +20,7 @@ class PairingE2eTest {
         val link = Args.pairLink
         assumeTrue("no pair_link argument", link != null)
         p.launch()
-        // Step 1 ticks on its own once our VPN network is up and the laptop answers.
+        // the first step ticks on its own once the tunnel is up and the laptop answers
         p.text("Scan the code from your laptop", 30_000)
         p.tap("Paste the pairing link instead")
         p.type(By.clazz("android.widget.EditText"), link!!)

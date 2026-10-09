@@ -14,7 +14,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
-/** Load failures used to look like an empty log, or a skeleton that never stopped. */
+// load failures used to look like an empty log, or a skeleton that never stopped
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = "w411dp-h891dp-xxhdpi")
 class AuditScreenTest {
@@ -46,6 +46,6 @@ class AuditScreenTest {
         compose.onNodeWithText("Couldn't load more").assertExists()
         compose.onNodeWithText("Started a session").assertExists()
         compose.onNodeWithText("Retry").performClick()
-        assertEquals("only the tap asked, no skeleton fired on its own", 1, more)
+        assertEquals("skeleton fired", 1, more)
     }
 }

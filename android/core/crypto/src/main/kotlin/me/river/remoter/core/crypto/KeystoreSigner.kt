@@ -22,13 +22,8 @@ fun interface PromptHost {
     fun current(): FragmentActivity?
 }
 
-/**
- * The Signature is initialised first, then handed to the prompt as
- * a CryptoObject, so the key only signs once this very finger is accepted.
- * The timestamp and nonce come after the finger, so a slow finger can't push
- * the request out of the 30 s window. Fingerprint only: no device credential,
- * because a PIN can be watched over a shoulder.
- */
+// timestamp and nonce come after the finger, so a slow finger can't push the request out
+// of the 30 s window. no device credential: a PIN can be watched over a shoulder
 class KeystoreSigner(
     private val keys: Keys,
     private val clock: Clock,

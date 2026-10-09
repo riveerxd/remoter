@@ -24,10 +24,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
-/**
- * Lock and unpair failed in silence: the view model set a snack and an error
- * that no screen ever showed, and a double tap on Lock sent two requests.
- */
+// lock and unpair used to fail in silence, and a double tap on Lock sent two requests
 @OptIn(ExperimentalCoroutinesApi::class)
 class SettingsViewModelTest {
     @get:Rule val main = MainDispatcherRule()
@@ -44,9 +41,8 @@ class SettingsViewModelTest {
         try { block(vm) } finally { vm.viewModelScope.cancel() }
     }
 
-
     @Test
-    fun a_double_press_on_lock_sends_one_request() {
+    fun double_lock_sends_one() {
         val api = FixtureBackend()
         rig(api) { vm ->
             vm.lockLaptop()
@@ -58,18 +54,18 @@ class SettingsViewModelTest {
     }
 
     @Test
-    fun a_failed_lock_says_why_next_to_the_button() {
+    fun failed_lock_says_why() {
         val api = FixtureBackend(failWith = ErrorCode.AgentDown)
         rig(api) { vm ->
             vm.lockLaptop()
             runCurrent()
             assertEquals(AppError.AgentDown, vm.ui.value.lockError)
-            assertTrue("the button comes back for another try", !vm.ui.value.busy)
+            assertTrue(!vm.ui.value.busy)
         }
     }
 
     @Test
-    fun a_failed_unpair_says_why_and_lets_you_retry() {
+    fun failed_unpair_says_why() {
         val api = FixtureBackend(failWith = ErrorCode.AgentDown)
         rig(api) { vm ->
             vm.unpair()
@@ -78,5 +74,4 @@ class SettingsViewModelTest {
             assertTrue(!vm.ui.value.unpairing)
         }
     }
-
 }

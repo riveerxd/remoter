@@ -31,10 +31,8 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
-/**
- * A second session in a folder that already had one used to get
- * a bare "exited with code 1": claude allows one Remote Control per folder.
- */
+// a second session in a busy folder used to get a bare "exited with code 1":
+// claude allows one Remote Control per folder
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = "w411dp-h891dp-xxhdpi")
 class FolderBusyTest {

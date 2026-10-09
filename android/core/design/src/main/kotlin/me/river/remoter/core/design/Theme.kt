@@ -27,10 +27,7 @@ object Remoter {
         @Composable @ReadOnlyComposable get() = LocalReducedMotion.current
 }
 
-/**
- * Dynamic color stays off: status colors must mean the same thing every day.
- * [reducedMotion] is only overridden by tests; the app follows the system.
- */
+// no dynamic color: status colours must mean the same thing every day
 @Composable
 fun RemoterTheme(
     dark: Boolean = isSystemInDarkTheme(),
@@ -66,10 +63,7 @@ fun RemoterTheme(
     }
 }
 
-/**
- * The palette walking to [target] together, so a theme switch is one 250 ms blend instead of a flash.
- * isDark flips at once: it picks shapes like the light-mode focus ring, which can't be halfway.
- */
+// isDark flips at once: it picks things like the light mode focus ring, which can't be halfway
 @Composable
 private fun blended(target: RemoterColors): RemoterColors {
     @Composable

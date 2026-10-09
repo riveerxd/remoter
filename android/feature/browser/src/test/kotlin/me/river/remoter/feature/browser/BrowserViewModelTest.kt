@@ -39,19 +39,19 @@ class BrowserViewModelTest {
         assertTrue(vm.ui.value.deeper.isEmpty())
         vm.setQuery("re")
         advanceTimeBy(249)
-        assertTrue("not before 250 ms idle", vm.ui.value.deeper.isEmpty())
+        assertTrue("too early", vm.ui.value.deeper.isEmpty())
         advanceTimeBy(2)
         runCurrent()
         assertTrue(vm.ui.value.deeper.isNotEmpty())
     }
 
     @Test
-    fun new_folder_validates_on_submit_and_clears_once_valid() = runTest(main.dispatcher.scheduler) {
+    fun new_folder_validates_on_submit() = runTest(main.dispatcher.scheduler) {
         val (vm, api, signer) = rig(this)
         advanceUntilIdle()
         vm.openNewFolder()
         vm.setNewName("-bad")
-        assertEquals("no error while typing", null, vm.ui.value.newFolder.error)
+        assertEquals("typing", null, vm.ui.value.newFolder.error)
         vm.submitNewFolder()
         assertEquals(AppError.Validation(ErrorCode.NameInvalid), vm.ui.value.newFolder.error)
         assertEquals("nothing signed", 0, signer.prompts.size)
@@ -62,11 +62,11 @@ class BrowserViewModelTest {
         assertEquals(1, api.mkdirCalls.size)
         assertTrue(signer.prompts.single().title.startsWith("Create ~/Projects/good-name on"))
         val names = vm.ui.value.list!!.entries.map { it.name }
-        assertTrue("lands in its sorted spot", names.indexOf("good-name") < names.indexOf("remoter"))
+        assertTrue("sorted", names.indexOf("good-name") < names.indexOf("remoter"))
     }
 
     @Test
-    fun a_refused_mkdir_shakes_collapses_and_offers_retry() = runTest(main.dispatcher.scheduler) {
+    fun refused_mkdir_offers_retry() = runTest(main.dispatcher.scheduler) {
         val (vm, api, _) = rig(this)
         advanceUntilIdle()
         api.failWith = ErrorCode.Locked

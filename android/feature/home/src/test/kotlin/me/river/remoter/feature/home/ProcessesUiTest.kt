@@ -42,14 +42,14 @@ class ProcessesUiTest {
     @get:Rule val compose = createComposeRule()
 
     @Test
-    fun rows_say_their_numbers_and_their_session() {
+    fun rows_read_numbers_and_session() {
         compose.setContent { RemoterTheme(dark = true, reducedMotion = true) { ProcessesContent(procsUi, ProcsCallbacks()) } }
         compose.onNodeWithContentDescription("claude, CPU 104.5%, memory 488 MB, remoter session remoter").assertIsDisplayed()
         compose.onNodeWithContentDescription("rustc, CPU 96.3%, memory 1.3 GB").assertIsDisplayed()
     }
 
     @Test
-    fun a_row_opens_its_sheet_and_the_buttons_signal() {
+    fun row_opens_sheet_and_signals() {
         var ui by mutableStateOf(procsUi)
         val sent = mutableListOf<Pair<Int, Signal>>()
         compose.setContent {
@@ -64,7 +64,7 @@ class ProcessesUiTest {
     }
 
     @Test
-    fun someone_elses_process_has_no_buttons() {
+    fun root_process_has_no_buttons() {
         val sshd = procList.first { it.name == "sshd" }
         compose.setContent { RemoterTheme(dark = true, reducedMotion = true) { ProcessesContent(procsUi.copy(selected = sshd), ProcsCallbacks()) } }
         compose.onNodeWithText("it runs as root", substring = true).assertIsDisplayed()
@@ -73,7 +73,7 @@ class ProcessesUiTest {
     }
 
     @Test
-    fun sorting_is_a_tap() {
+    fun chip_sorts() {
         var sorted: ProcSort? = null
         compose.setContent { RemoterTheme(dark = true, reducedMotion = true) { ProcessesContent(procsUi, ProcsCallbacks(onSort = { sorted = it })) } }
         compose.onNode(androidx.compose.ui.test.hasText("Memory") and androidx.compose.ui.test.hasClickAction()).performClick()

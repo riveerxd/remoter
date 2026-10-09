@@ -16,12 +16,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
-/**
- * The mark: a bold chevron, phone to laptop, with a volt dot at its tip. The
- * geometry is the splash AVD's (res/drawable/splash_mark.xml in :app), in the
- * same 288 unit canvas, so the intro can draw it exactly where the splash
- * icon sat and the handoff doesn't move a pixel.
- */
+// same geometry and 288 unit canvas as app's res/drawable/splash_mark.xml, so the intro
+// draws it exactly where the splash icon sat
 object MarkGeometry {
     const val CANVAS = 288f
     val chevron = listOf(Offset(112f, 100f), Offset(162f, 144f), Offset(112f, 188f))
@@ -36,7 +32,6 @@ fun Mark(
     size: Dp = 288.dp,
     chevronColor: Color = Remoter.colors.text,
     dotColor: Color = Remoter.colors.volt,
-    /** 0 to 1, trimPathEnd of the chevron. */
     trim: Float = 1f,
     dotScale: Float = 1f,
 ) {

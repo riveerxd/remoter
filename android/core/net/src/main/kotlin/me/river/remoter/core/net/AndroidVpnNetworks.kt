@@ -12,11 +12,8 @@ import java.net.Inet4Address
 
 const val PHONE_ADDR = "10.66.66.2"
 
-/**
- * Tracks the one VPN network whose addresses include 10.66.66.2. Samsung
- * Secure Wi-Fi or any other VPN is ignored, and with ours gone the app sends
- * nothing, because every socket comes from [network]'s factory.
- */
+// any other VPN (Samsung Secure Wi-Fi included) is ignored. every socket comes from
+// network's factory, so with ours gone nothing is sent at all
 class AndroidVpnNetworks(context: Context) : VpnNetworks {
     private val cm = context.getSystemService(ConnectivityManager::class.java)
     private val state = MutableStateFlow<VpnLink>(VpnLink.Absent)

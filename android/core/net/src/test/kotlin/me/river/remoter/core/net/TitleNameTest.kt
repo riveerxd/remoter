@@ -6,7 +6,7 @@ import org.junit.Test
 
 class TitleNameTest {
     @Test
-    fun prose_titles_become_names_the_laptop_takes() {
+    fun titles_become_valid_names() {
         val cases = mapOf(
             "Fix: the banner's overlap" to "Fix the banner s overlap",
             "remoter" to "remoter",
@@ -24,7 +24,7 @@ class TitleNameTest {
     }
 
     @Test
-    fun a_cut_at_48_never_leaves_a_trailing_space() {
+    fun cut_leaves_no_trailing_space() {
         val n = Names.sessionNameFromTitle("a".repeat(47) + " bcd")
         assertEquals("a".repeat(47), n)
     }

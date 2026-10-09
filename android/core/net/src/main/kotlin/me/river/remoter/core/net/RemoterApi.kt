@@ -2,10 +2,7 @@ package me.river.remoter.core.net
 
 import kotlinx.coroutines.flow.Flow
 
-/**
- * A mutation already signed with the fingerprint key. The API layer only ever
- * sends these bytes as they are, so a retry is byte for byte the same request.
- */
+// sent exactly as signed, so a retry is byte for byte the same request
 class Signed(
     val method: String,
     val target: String,
@@ -20,10 +17,7 @@ class Signed(
 
 data class IdEvent(val id: String?, val event: Event)
 
-/**
- * Everything the app asks the laptop. Reads need mTLS only; mutations carry a
- * signature built by the caller, so this layer never sees the key.
- */
+// mutations arrive already signed, so this layer never sees the key
 interface RemoterApi {
     suspend fun health(): Health
     suspend fun list(path: String, hidden: Boolean): ListResponse

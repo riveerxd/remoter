@@ -28,7 +28,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
-/** Ripple is gone app wide; every clickable still reacts to a press. */
 @RunWith(RobolectricTestRunner::class)
 class PressAndSwitchTest {
     @get:Rule val compose = createComposeRule()
@@ -46,11 +45,11 @@ class PressAndSwitchTest {
         compose.onNodeWithText("tap me").performClick()
         compose.onNodeWithText("tap me").performClick()
         assertEquals(2, taps)
-        assertTrue("our press, not Material's ripple: $indication", indication is PressIndication)
+        assertTrue("$indication", indication is PressIndication)
     }
 
     @Test
-    fun the_token_switch_follows_its_row() {
+    fun switch_follows_its_row() {
         compose.setContent {
             RemoterTheme(dark = false, reducedMotion = false) {
                 var on by remember { mutableStateOf(false) }

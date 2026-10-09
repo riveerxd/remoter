@@ -36,7 +36,7 @@ class BrowserLoadAndCreateTest {
     }
 
     @Test
-    fun the_new_folder_row_keeps_its_height_when_editing() {
+    fun new_folder_row_keeps_height() {
         val ui = mutableStateOf(browserStates.getValue("listing"))
         compose.setContent { RemoterTheme(dark = true, reducedMotion = true) { BrowserContent(ui.value, BrowserCallbacks(), false) } }
         val before = compose.onNodeWithTag("new-folder").getUnclippedBoundsInRoot().height
@@ -47,7 +47,7 @@ class BrowserLoadAndCreateTest {
     }
 
     @Test
-    fun a_refused_new_folder_buzzes_reject() {
+    fun refused_new_folder_buzzes() {
         val view = HapticRecorder(ApplicationProvider.getApplicationContext())
         val ui = mutableStateOf(browserStates.getValue("new_folder"))
         compose.setContent {

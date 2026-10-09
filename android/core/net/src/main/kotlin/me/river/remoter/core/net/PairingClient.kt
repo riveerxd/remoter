@@ -26,11 +26,8 @@ sealed interface PairOutcome {
     data object Unreachable : PairOutcome
 }
 
-/**
- * The one pairing POST to port 8444: TLS with the laptop's key checked
- * against the link's fingerprint, no client certificate. It waits while the
- * code is typed on the laptop, so the read timeout covers the whole window.
- */
+// no client certificate yet. the request waits while the code is typed on the laptop,
+// so the read timeout covers the whole window
 class PairingClient(private val network: () -> Network?) {
     suspend fun post(link: Pairing.Link, body: PairRequest): PairOutcome = withContext(Dispatchers.IO) {
         val n = network() ?: return@withContext PairOutcome.Unreachable

@@ -18,7 +18,6 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
-/** Gestures that follow the finger, rows that move instead of blinking. */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = "w411dp-h891dp-xxhdpi")
 class HomeMotionTest {
@@ -33,7 +32,7 @@ class HomeMotionTest {
     }
 
     @Test
-    fun a_short_swipe_on_an_exited_card_springs_back() {
+    fun short_swipe_springs_back() {
         val cleared = mutableListOf<String>()
         show(cleared)
         compose.onNodeWithContentDescription("Session old-session", substring = true).performTouchInput { swipeRight(startX = centerX, endX = centerX + 40f) }
@@ -42,7 +41,7 @@ class HomeMotionTest {
     }
 
     @Test
-    fun a_long_swipe_on_an_exited_card_clears_it() {
+    fun long_swipe_clears() {
         val cleared = mutableListOf<String>()
         show(cleared)
         compose.onNodeWithContentDescription("Session old-session", substring = true).performTouchInput { swipeLeft(startX = right - 10f, endX = left + 10f) }
@@ -50,9 +49,8 @@ class HomeMotionTest {
         assertEquals(listOf("rc-x"), cleared)
     }
 
-    /** Pinning moves a folder from Recent to Pinned through the row animations, once, without a crash. */
     @Test
-    fun pinning_moves_the_row_between_lists() {
+    fun pinning_moves_row() {
         val base = homeStates.getValue("up_no_sessions")
         val folder = base.recent.first()
         val ui = mutableStateOf(base.copy(pinned = persistentListOf()))

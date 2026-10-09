@@ -48,7 +48,7 @@ class BrowserSearchPinRetryTest {
     fun searching_flag_set_on_keystroke() = runTest(main.dispatcher.scheduler) {
         rig { r ->
             r.vm.setQuery("xy")
-            assertTrue("searching before the 250 ms wait", r.vm.ui.value.searching)
+            assertTrue("searching", r.vm.ui.value.searching)
             r.vm.setQuery("x")
             assertEquals(false, r.vm.ui.value.searching)
         }
@@ -64,7 +64,7 @@ class BrowserSearchPinRetryTest {
             assertEquals(false, r.vm.ui.value.searching)
             r.api.unreachable = false
             r.vm.retrySearch()
-            assertNull("retry clears it at once", r.vm.ui.value.searchError)
+            assertNull("cleared", r.vm.ui.value.searchError)
             advanceUntilIdle()
             assertNull(r.vm.ui.value.searchError)
             assertTrue(r.vm.ui.value.deeper.isNotEmpty())
@@ -72,7 +72,7 @@ class BrowserSearchPinRetryTest {
     }
 
     @Test
-    fun a_failed_create_says_why() = runTest(main.dispatcher.scheduler) {
+    fun failed_create_says_why() = runTest(main.dispatcher.scheduler) {
         rig { r ->
             advanceUntilIdle()
             r.api.failWith = ErrorCode.Locked
@@ -82,12 +82,12 @@ class BrowserSearchPinRetryTest {
             val snack = r.vm.ui.value.snack!!
             assertTrue(snack, snack.startsWith("Couldn't create 'x': "))
             assertTrue(snack, snack.endsWith("is locked"))
-            assertNull("a create error isn't a listing error", r.vm.ui.value.error)
+            assertNull("listing error", r.vm.ui.value.error)
         }
     }
 
     @Test
-    fun undo_puts_an_unpin_back_in_place() = runTest(main.dispatcher.scheduler) {
+    fun undo_restores_pin_in_place() = runTest(main.dispatcher.scheduler) {
         rig(pinned = listOf("a", "Projects/remoter", "b")) { r ->
             r.vm.togglePin("Projects/remoter")
             advanceUntilIdle()
@@ -111,7 +111,7 @@ class BrowserSearchPinRetryTest {
     }
 
     @Test
-    fun retry_after_a_failed_first_load_lists_the_folder() = runTest(main.dispatcher.scheduler) {
+    fun retry_after_failed_load_lists() = runTest(main.dispatcher.scheduler) {
         val clock = SchedulerClock(testScheduler)
         val api = FixtureBackend(unreachable = true)
         val vm = BrowserViewModel("Projects", api, FakeSigner(clock), MemoryStore(), ConnectionMonitor(api, FakeVpnNetworks(), clock), clock)

@@ -2,6 +2,7 @@ package me.river.remoter.feature.home
 
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animateFloatAsState
 import me.river.remoter.core.design.SheetSpring
 import me.river.remoter.core.design.pressIndication
 import me.river.remoter.core.design.Press
@@ -70,15 +71,18 @@ import androidx.compose.runtime.key
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
@@ -132,7 +136,9 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import kotlinx.coroutines.launch
+import kotlin.math.abs
 import kotlin.math.roundToInt
+import kotlin.math.sign
 
 data class HomeCallbacks(
     val onSettings: () -> Unit = {},
@@ -164,10 +170,7 @@ private val directNodes = persistentListOf(
     RouteNode(Glyphs.laptop, "Laptop"),
 )
 
-/**
- * Uber style: live map on top, a persistent sheet with the running sessions, and
- * "+ New" riding the sheet's edge. [entrance] plays the stagger once, after the splash.
- */
+// [entrance] plays the stagger once, after the splash
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeContent(ui: HomeUi, cb: HomeCallbacks, entrance: Boolean) {
@@ -179,24 +182,19 @@ fun HomeContent(ui: HomeUi, cb: HomeCallbacks, entrance: Boolean) {
     BackHandler(enabled = expanded) { scope.launch { sheet.bottomSheetState.partialExpand() } }
     val phone = rememberPhoneStats()
     var newPx by remember { mutableIntStateOf(0) }
-    // Map height when nothing squeezes it. "+ New" only gets the room left above the sheet, or at
-    // large fonts it rides up over "Connected". Measured unsqueezed so nothing feeds back.
+    // measured unsqueezed so it can't feed back. without it, at large fonts + New rides up over Connected
     var mapNaturalPx by remember { mutableIntStateOf(0) }
     BoxWithConstraints(Modifier.fillMaxSize().background(c.bg)) {
-        // The grid runs the full height, under the sheet too: stopping it halfway down the map
-        // left a bare band above the sheet that read as a layout bug.
+        // full height, under the sheet too: stopping at the map left a bare band that looked broken
         DotGrid()
         MapGlow(ui.link is Link.Up)
-        // Everything above the sheet's peek, less the button that rides on the sheet's edge.
         val newDp = with(LocalDensity.current) { newPx.toDp() } + Space.s16
         val mapNaturalDp = with(LocalDensity.current) { mapNaturalPx.toDp() }
         val mapHeight = (maxHeight - PeekHeight - newDp).coerceAtLeast(mapNaturalDp)
         val statusTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-        // A full-height sheet would slide its handle under the status bar, where it can't be
-        // grabbed. Capping the content stops the sheet with its handle just below it.
+        // a full height sheet slides its handle under the status bar, where it can't be grabbed
         val contentMax = maxHeight - statusTop - Touch.min
-        // "+ New" rides just above the sheet's top edge and fades as the sheet rises over the map,
-        // where the header's plus takes over, so it's never drawn on top of the sheet.
+        // + New fades as the sheet rises and the header's plus takes over
         val density = LocalDensity.current
         val layoutPx = with(density) { maxHeight.toPx() }
         val peekTopPx = layoutPx - with(density) { PeekHeight.toPx() }
@@ -213,8 +211,8 @@ fun HomeContent(ui: HomeUi, cb: HomeCallbacks, entrance: Boolean) {
             sheetShape = Shapes.sheet,
             sheetContainerColor = c.surfaceRaised,
             sheetShadowElevation = if (c.isDark) 0.dp else 8.dp,
-            // The handle is drawn in the content: Material's own handle slot wraps it in a second
-            // clickable on the same spot, which the accessibility checks flag and TalkBack reads twice.
+            // Material's handle slot wraps it in a second clickable on the same spot, which the
+            // accessibility checks flag and TalkBack reads twice
             sheetDragHandle = null,
             containerColor = Color.Transparent,
             sheetContent = {
@@ -274,10 +272,9 @@ private fun MapArea(ui: HomeUi, cb: HomeCallbacks, phone: PhoneStats, onNaturalH
             FadeInPlace(ui.refreshing && rememberAfter(ui.refreshing, 1_000)) { ProgressLine() }
         }
         Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
-            // Unbounded, so its measured height is what it needs, whatever room it's given.
+            // unbounded so it measures what it needs, not what it's given
             Column(Modifier.fillMaxWidth().wrapContentHeight(unbounded = true).onSizeChanged { middlePx = it.height }) {
-                // Skeletons only until the link has a state. Gating on the folder load left first runs
-                // with WireGuard off or the laptop asleep stuck on skeletons forever.
+                // gating on the folder load left first runs with WireGuard off stuck on skeletons
                 FadeSwap(!ui.loaded && shown == null) { pending -> Column(Modifier.fillMaxWidth()) {
                 if (pending) {
                     Row(Modifier.fillMaxWidth().padding(horizontal = Space.s24), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -296,7 +293,7 @@ private fun MapArea(ui: HomeUi, cb: HomeCallbacks, phone: PhoneStats, onNaturalH
                         Modifier
                             .padding(horizontal = Space.s24)
                             .clickable(role = Role.Button, onClickLabel = "Connection details", onClick = cb.onMapDetails)
-                            // The splash intro's nodes glide onto this row as it hands over to home.
+                            // the splash's nodes glide onto this row
                             .introAnchor(),
                         nodeSize = 64.dp, lineWidth = 8.dp,
                     )
@@ -305,12 +302,11 @@ private fun MapArea(ui: HomeUi, cb: HomeCallbacks, phone: PhoneStats, onNaturalH
                 }
                 } }
                 Spacer(Modifier.height(Space.s16))
-                // min height so the map doesn't jump on status change. large fonts can still grow it
-                // Numbers from before the link dropped would only look current, so they go with it.
-                // At big fonts there's no room left above "+ New"; the details sheet has it then.
+                // stale numbers would look current, so they go with the link. no room at big fonts,
+                // the details sheet has them then
                 val load = ui.resources.takeIf { shown is Link.Up && !isLargeFont() }
-                // The 96 dp floor keeps the map still between states with a button. Connected has
-                // none, so with the load card under it the floor would only push "+ New" onto the card.
+                // the floor keeps the map still between states. with the load card it would only
+                // push + New onto the card
                 Box(Modifier.fillMaxWidth().heightIn(min = if (load != null) 0.dp else 96.dp).padding(horizontal = Space.gutter)) {
                     Crossfade(shown, animationSpec = tween(Dur.base, easing = EaseOut), label = "status") { l -> if (l != null) StatusLine(l, ui, cb) }
                 }
@@ -322,11 +318,7 @@ private fun MapArea(ui: HomeUi, cb: HomeCallbacks, phone: PhoneStats, onNaturalH
     }
 }
 
-/**
- * A name and one or two facts under each node, so every hop of the route says
- * something, not just the laptop. The edge columns hug the screen edges and the
- * middle one centres on the relay, which is where each node actually sits.
- */
+// edge columns hug the screen edges, the middle one centres on the relay, where the nodes sit
 @Composable
 private fun NodeStats(l: Link?, ui: HomeUi, phone: PhoneStats, modifier: Modifier = Modifier) {
     val c = Remoter.colors
@@ -341,7 +333,7 @@ private fun NodeStats(l: Link?, ui: HomeUi, phone: PhoneStats, modifier: Modifie
         is Link.Up -> listOfNotNull(
             ui.battery?.let { b ->
                 val onBattery = ui.onAc == false
-                // Sessions die when the laptop sleeps, so a low battery gets the warning color.
+                // sessions die when the laptop sleeps
                 (if (onBattery) "On battery · $b%" else "Plugged in · $b%") to (if (onBattery && b < 20) c.warn else c.textMuted)
             },
             (if (ui.account?.locked == true) "Locked" to c.warn else null),
@@ -351,9 +343,8 @@ private fun NodeStats(l: Link?, ui: HomeUi, phone: PhoneStats, modifier: Modifie
         is Link.LaptopDown -> listOf("Offline" to c.danger)
         else -> emptyList()
     }
-    // At big font sizes the facts would push the status under the banners. They all live in
-    // the connection details sheet too, so here the names alone stay.
-    val large = LocalDensity.current.fontScale > 1.3f
+    // at big fonts the facts push the status under the banners. the details sheet has them too
+    val large = isLargeFont()
     val phoneFacts = if (large) emptyList() else listOfNotNull(phone.line()?.let { it to c.textMuted })
     Box(modifier.fillMaxWidth()) {
         NodeLabel("This phone", phoneFacts, Alignment.Start, Modifier.align(Alignment.TopStart))
@@ -372,7 +363,7 @@ private fun NodeLabel(name: String, facts: List<Pair<String, Color>>, align: Ali
         else -> TextAlign.Center
     }
     Column(modifier.widthIn(max = 116.dp), horizontalAlignment = align) {
-        Text(name, style = t.label.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold), color = Remoter.colors.text, textAlign = textAlign)
+        Text(name, style = t.label.copy(fontWeight = FontWeight.SemiBold), color = Remoter.colors.text, textAlign = textAlign)
         facts.forEach { (f, col) -> Text(f, style = t.label.tnum(), color = col, textAlign = textAlign) }
     }
 }
@@ -414,7 +405,7 @@ private fun StatusLine(l: Link, ui: HomeUi, cb: HomeCallbacks) {
                     t.label.tnum(), c.text, textAlign = TextAlign.Center,
                 )
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    // The label stays under the spinner for screen readers, which can't see a spinner.
+                    // the label stays under the spinner for TalkBack
                     SecondaryButton(if (ui.retrying) "Checking…" else "Retry", cb.onRetry, Modifier.width(160.dp).shake(ui.stillDown), loading = ui.retrying)
                     DetailsLink(cb.onMapDetails)
                 }
@@ -423,7 +414,7 @@ private fun StatusLine(l: Link, ui: HomeUi, cb: HomeCallbacks) {
     }
 }
 
-/** Says out loud that the map opens connection details; a tappable map alone looked like art. */
+// a tappable map alone looked like decoration
 @Composable
 private fun DetailsLink(onClick: () -> Unit) {
     Row(
@@ -441,14 +432,14 @@ private fun DetailsLink(onClick: () -> Unit) {
 
 @Composable
 private fun MapGlow(live: Boolean) {
-    val alpha by androidx.compose.animation.core.animateFloatAsState(if (live) 1f else 0f, tween(Dur.screen, easing = EaseOut), label = "glow")
+    val alpha by animateFloatAsState(if (live) 1f else 0f, tween(Dur.screen, easing = EaseOut), label = "glow")
     if (alpha == 0f) return
     val volt = Remoter.colors.volt
     val strength = if (Remoter.colors.isDark) 0.10f else 0.16f
     Canvas(Modifier.fillMaxSize()) {
         val center = Offset(size.width / 2, size.height * 0.24f)
         drawRect(
-            androidx.compose.ui.graphics.Brush.radialGradient(
+            Brush.radialGradient(
                 listOf(volt.copy(alpha = strength * alpha), Color.Transparent),
                 center = center,
                 radius = size.width * 0.75f,
@@ -476,10 +467,9 @@ private fun DotGrid() {
 
 private fun HomeUi.visibleSessions() = sessions.filter { it.id !in hidden }
 
-/** Still has a window on the laptop. The laptop node and the folder rows count the same thing. */
+// still has a window on the laptop
 private fun SessionSummary.isAlive() = state != SessionState.Exited && state != SessionState.Gone
 
-/** The pill on the sheet's edge. Same weight as Start in the start sheet: it's the one way in. */
 @Composable
 private fun NewButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
     val c = Remoter.colors
@@ -501,11 +491,7 @@ private fun NewButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
     }
 }
 
-/**
- * One session with the room a floating banner never had: status and age, name and
- * folder, then what can be done about it. Exited ones swipe away sideways, since the
- * sheet already owns vertical drags.
- */
+// exited ones swipe away sideways, the sheet already owns vertical drags
 @Composable
 private fun SessionCard(s: SessionSummary, ui: HomeUi, cb: HomeCallbacks, modifier: Modifier = Modifier) {
     val c = Remoter.colors
@@ -513,7 +499,7 @@ private fun SessionCard(s: SessionSummary, ui: HomeUi, cb: HomeCallbacks, modifi
     val ending = s.id in ui.ending
     val (word, tone) = s.statusWord(ending)
     val exited = s.state == SessionState.Exited
-    // There is no exit time on the wire, only the start, so an exited card says which one it shows.
+    // the wire has no exit time, only the start
     val spoken = if (exited) {
         "Session ${s.name}, ${word.lowercase()}, started at ${clockTime(s.started)}"
     } else {
@@ -529,7 +515,7 @@ private fun SessionCard(s: SessionSummary, ui: HomeUi, cb: HomeCallbacks, modifi
             .padding(horizontal = Space.gutter, vertical = Space.s4)
             .graphicsLayer {
                 translationX = drag.value
-                alpha = 1f - (kotlin.math.abs(drag.value) / (threshold * 2)).coerceIn(0f, 0.9f)
+                alpha = 1f - (abs(drag.value) / (threshold * 2)).coerceIn(0f, 0.9f)
             }
             .sharedContainer("session-${s.id}")
             .clickable(null, pressIndication(Press.Card), role = Role.Button, onClick = { cb.onSession(s) })
@@ -542,8 +528,8 @@ private fun SessionCard(s: SessionSummary, ui: HomeUi, cb: HomeCallbacks, modifi
                         detectHorizontalDragGestures(
                             onDragEnd = {
                                 scope.launch {
-                                    if (kotlin.math.abs(drag.value) > threshold) {
-                                        drag.animateTo(kotlin.math.sign(drag.value) * size.width, tween(Dur.exit, easing = EaseIn))
+                                    if (abs(drag.value) > threshold) {
+                                        drag.animateTo(sign(drag.value) * size.width, tween(Dur.exit, easing = EaseIn))
                                         cb.onClearSession(s.id)
                                     } else {
                                         drag.animateTo(0f, SheetSpring)
@@ -555,7 +541,7 @@ private fun SessionCard(s: SessionSummary, ui: HomeUi, cb: HomeCallbacks, modifi
                         ) { change, d ->
                             change.consume()
                             scope.launch { drag.snapTo(drag.value + d) }
-                            val now = kotlin.math.abs(drag.value + d) > threshold
+                            val now = abs(drag.value + d) > threshold
                             if (now && !past) haptics.threshold()
                             past = now
                         }
@@ -575,11 +561,11 @@ private fun SessionCard(s: SessionSummary, ui: HomeUi, cb: HomeCallbacks, modifi
             Column(Modifier.weight(1f)) {
                 Text(s.name, style = t.title, color = c.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    // The status and the ending spinner crossfade in place, so nothing jumps when End lands.
+                    // crossfade in place so nothing jumps when End lands
                     FadeSwap(ending) { isEnding ->
                         if (isEnding) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                // Reduced motion freezes the loop, so it holds a steady partial ring instead.
+                                // reduced motion freezes the loop, so a steady partial ring
                                 if (Remoter.reducedMotion) {
                                     CircularProgressIndicator({ 0.3f }, Modifier.size(14.dp), color = c.textMuted, strokeWidth = 2.dp, trackColor = Color.Transparent)
                                 } else {
@@ -604,7 +590,7 @@ private fun SessionCard(s: SessionSummary, ui: HomeUi, cb: HomeCallbacks, modifi
             when {
                 ending -> {}
                 exited -> Box(
-                    // Swiping clears it too, but a gesture nobody can see can't be the only way.
+                    // swiping clears it too, but nobody can see a gesture
                     Modifier
                         .size(Touch.min)
                         .offset(x = Space.s8)
@@ -645,9 +631,8 @@ private fun SheetBody(ui: HomeUi, cb: HomeCallbacks, entrance: Boolean, atPeek: 
         }
     }
     val list = ui.visibleSessions()
-    // Pull to refresh only works at the peek. Pulling down from there has nowhere else to go,
-    // but on a raised sheet the same drag has to bring the sheet down, and a refresh gesture
-    // sitting on top of it once made an expanded sheet impossible to close.
+    // peek only: on a raised sheet the same drag has to bring the sheet down, and a refresh
+    // gesture on top of it once made an expanded sheet impossible to close
     Box(
         Modifier.fillMaxSize().pullToRefresh(
             isRefreshing = ui.refreshing,
@@ -676,7 +661,7 @@ private fun SheetBody(ui: HomeUi, cb: HomeCallbacks, entrance: Boolean, atPeek: 
                     )
                 }
                 Spacer(Modifier.weight(1f))
-                // At the peek "+ New" sits right above; raised, the sheet hides it and this takes over.
+                // takes over from + New once the sheet hides it
                 Box(Modifier.size(Touch.min).graphicsLayer { alpha = plusAlpha() }) {
                     if (!atPeek) RoundIconButton(Glyphs.plus, "New session", cb.onNew)
                 }
@@ -707,10 +692,6 @@ private fun SheetBody(ui: HomeUi, cb: HomeCallbacks, entrance: Boolean, atPeek: 
     }
 }
 
-/**
- * The sheet with nothing running: the folders you'd start in again, one tap each,
- * so "+ New" is never the long way round. First run gets the explanation instead.
- */
 @Composable
 private fun ColumnScope.NothingRunning(ui: HomeUi, cb: HomeCallbacks) {
     val c = Remoter.colors
@@ -730,10 +711,7 @@ private fun ColumnScope.NothingRunning(ui: HomeUi, cb: HomeCallbacks) {
     }
 }
 
-/**
- * Before the first answer an empty list means nothing yet, not nothing running. Skeletons
- * while one can still come, otherwise why it hasn't.
- */
+// before the first answer an empty list means nothing yet, not nothing running
 @Composable
 private fun SessionsPending(ui: HomeUi, cb: HomeCallbacks) {
     val note = when {
@@ -751,7 +729,7 @@ private fun SessionsPending(ui: HomeUi, cb: HomeCallbacks) {
         verticalArrangement = Arrangement.spacedBy(Space.s8),
     ) {
         Text(note, style = Remoter.type.body, color = Remoter.colors.textMuted)
-        // The down states already have their action on the map; only a failed load needs one here.
+        // the down states have their action on the map already
         if (ui.link is Link.Up && ui.loadFailed) SecondaryButton("Try again", cb.onRefresh)
     }
     // pins live on the phone, so they're there to start from even before the laptop answers
@@ -763,11 +741,6 @@ private fun SessionsPending(ui: HomeUi, cb: HomeCallbacks) {
 
 private const val QuickStarts = 4
 
-/**
- * What "+ New" opens: search, browse, and the pinned and recent folders that used to
- * fill the home sheet. Lives in a [me.river.remoter.core.design.components.RemoterSheet],
- * whose own padding the rows reach past so their text lines up with the title.
- */
 @Composable
 internal fun ColumnScope.NewSession(ui: HomeUi, cb: HomeCallbacks) {
     val c = Remoter.colors
@@ -779,8 +752,7 @@ internal fun ColumnScope.NewSession(ui: HomeUi, cb: HomeCallbacks) {
     Spacer(Modifier.height(Space.s8))
     Column(Modifier.bleed(Space.gutter)) {
         FolderRow(FolderRowModel("Browse ~", path = "Every folder in your home", isGit = false), onClick = cb.onBrowseHome)
-        // Pins live on the phone, so they show even when the laptop never answered. Pinning
-        // collapses the row out of one list and opens it in the other so the move reads.
+        // pins live on the phone, so they show even when the laptop never answered
         Appear(ui.pinned.isNotEmpty()) {
             SectionLabel("Pinned", if (ui.pinned.size > 1) ({ QuietLink("Reorder", cb.onReorder) }) else null)
         }
@@ -801,17 +773,13 @@ internal fun ColumnScope.NewSession(ui: HomeUi, cb: HomeCallbacks) {
     }
 }
 
-/** Lets full width rows reach [x] past their parent's padding on both sides. */
-private fun Modifier.bleed(x: androidx.compose.ui.unit.Dp) = layout { m, cons ->
+// rows reach past the sheet's padding so their text lines up with the title
+private fun Modifier.bleed(x: Dp) = layout { m, cons ->
     val px = x.roundToPx()
     val p = m.measure(cons.copy(minWidth = cons.minWidth + 2 * px, maxWidth = cons.maxWidth + 2 * px))
     layout(cons.maxWidth, p.height) { p.place(-px, 0) }
 }
 
-/**
- * The folder list before the first load. Skeletons only while an answer can still come;
- * with the link down or the load failed it says why, so the sheet never spins forever.
- */
 @Composable
 private fun FoldersPending(ui: HomeUi, cb: HomeCallbacks) {
     val note = when {
@@ -829,7 +797,7 @@ private fun FoldersPending(ui: HomeUi, cb: HomeCallbacks) {
         verticalArrangement = Arrangement.spacedBy(Space.s8),
     ) {
         Text(note, style = Remoter.type.body, color = Remoter.colors.textMuted)
-        // The down states already have their action on the map; only a failed load needs one here.
+        // the down states have their action on the map already
         if (ui.link is Link.Up && ui.loadFailed) SecondaryButton("Try again", cb.onRefresh)
     }
 }
@@ -840,7 +808,7 @@ private fun SectionLabel(text: String, trailing: (@Composable () -> Unit)? = nul
         Text(text, style = Remoter.type.label, color = Remoter.colors.textMuted, modifier = Modifier.padding(start = Space.gutter, top = Space.s8, bottom = Space.s4))
         return
     }
-    // The 48 dp link already gives the row its air, so the label drops its own padding and centers on it.
+    // the 48 dp link gives the row its height
     Row(Modifier.fillMaxWidth().padding(start = Space.gutter, end = Space.s8), verticalAlignment = Alignment.CenterVertically) {
         Text(text, style = Remoter.type.label, color = Remoter.colors.textMuted, modifier = Modifier.weight(1f))
         trailing()
@@ -855,7 +823,7 @@ private fun QuietLink(text: String, onClick: () -> Unit, modifier: Modifier = Mo
     ) { Text(text, style = Remoter.type.label, color = Remoter.colors.text) }
 }
 
-/** [pinned] null is a suggestion: no pin, just the chevron. */
+// pinned == null is a suggestion: no pin, just the chevron
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun HomeRow(f: FolderItem, pinned: Boolean?, cb: HomeCallbacks, modifier: Modifier, ui: HomeUi? = null) {
@@ -896,7 +864,6 @@ private fun FirstRun(ui: HomeUi, cb: HomeCallbacks) {
     }
 }
 
-/** "just now", "12 min ago", "3 h ago", "2 d ago": when a folder last had a session start. */
 internal fun agoShort(ms: Long): String {
     val m = ms / 60_000
     return when {

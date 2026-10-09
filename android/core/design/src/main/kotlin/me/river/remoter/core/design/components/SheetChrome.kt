@@ -19,8 +19,7 @@ import me.river.remoter.core.design.Space
 
 @Composable
 fun DragHandle(modifier: Modifier = Modifier) {
-    // The home sheet makes its handle tappable (expand, collapse), so it needs a name.
-    // 48 dp to touch, 4 dp to see.
+    // home's handle is tappable, so it needs a name
     Box(modifier.fillMaxWidth().heightIn(min = me.river.remoter.core.design.Touch.min).semantics { contentDescription = "Drag handle" }, contentAlignment = Alignment.Center) {
         Box(Modifier.size(width = 36.dp, height = 4.dp).clip(RoundedCornerShape(2.dp)).background(Remoter.colors.line))
     }

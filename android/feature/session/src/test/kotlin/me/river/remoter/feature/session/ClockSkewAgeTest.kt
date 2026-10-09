@@ -26,10 +26,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Rule
 import org.junit.Test
 
-/**
- * A laptop took its time from a router that ran 11.2 s slow, and the
- * session page's "Updated" flickered between 9 and 10 s on every poll.
- */
+// a laptop ran 11.2 s slow and "Updated" flickered between 9 and 10 s on every poll
 @OptIn(ExperimentalCoroutinesApi::class)
 class ClockSkewAgeTest {
     @get:Rule val main = MainDispatcherRule()
@@ -43,7 +40,7 @@ class ClockSkewAgeTest {
             override suspend fun health(): Health = real.health().copy(serverTime = clock.nowMs() - laptopBehindMs)
             override suspend fun session(id: String, viewToken: String): SessionDetail =
                 real.session(id, viewToken).copy(tailAt = clock.nowMs() - laptopBehindMs)
-            // The stream is down, so the age comes from fetched captures and their tail_at alone.
+            // stream down, so the age comes from fetched captures alone
             override fun events(id: String, viewToken: String?, lastEventId: String?): Flow<IdEvent> =
                 flow { throw java.io.IOException("stream down") }
         }

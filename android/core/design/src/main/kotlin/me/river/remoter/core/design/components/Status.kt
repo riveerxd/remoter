@@ -41,10 +41,7 @@ private fun StatusTone.color(): Color = when (this) {
     StatusTone.Muted -> Remoter.colors.textMuted
 }
 
-/**
- * Status is never color alone: the dot always has its word. A volt dot on
- * white would be 1.34:1, so in light mode it gets a `text` ring.
- */
+// volt on white is 1.34:1, so in light mode the dot gets a text ring
 @Composable
 fun StatusDot(tone: StatusTone, modifier: Modifier = Modifier, pulsing: Boolean = false) {
     val alpha = if (pulsing && !Remoter.reducedMotion) {

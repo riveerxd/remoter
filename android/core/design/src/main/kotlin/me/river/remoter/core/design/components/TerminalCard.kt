@@ -17,11 +17,7 @@ import me.river.remoter.core.design.Remoter
 import me.river.remoter.core.design.Shapes
 import me.river.remoter.core.design.Space
 
-/**
- * Always dark, 4 dp corners. Lines never wrap: the laptop window is far wider
- * than a phone, and wrapping would break every table and box Claude draws, so
- * the block scrolls sideways as one.
- */
+// lines never wrap: that breaks every table and box claude draws, so the block scrolls sideways
 @Composable
 fun TerminalCard(lines: ImmutableList<String>, modifier: Modifier = Modifier, fontSize: TextUnit = 12.sp) {
     Column(

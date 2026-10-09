@@ -23,9 +23,7 @@ import me.river.remoter.core.design.Shapes
 import me.river.remoter.core.design.Space
 import me.river.remoter.core.design.Touch
 
-/**
- * Breadcrumb chip. Looks 32 dp tall, hit area is the full 48.
- */
+// looks 32 dp tall, hit area is the full 48
 @Composable
 fun Chip(text: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val c = Remoter.colors

@@ -13,21 +13,21 @@ class AuditLabelsTest {
     }
 
     @Test
-    fun unknown_names_still_read_as_words() {
+    fun unknown_names_read_as_words() {
         assertEquals("Some new thing", auditAction("some_new_thing", "ok"))
         assertEquals("Spawn failed" to StatusTone.Danger, auditResult("spawn", "spawn_failed"))
         assertEquals("Error 502" to StatusTone.Danger, auditResult("spawn", "http_502"))
     }
 
     @Test
-    fun a_lock_reason_is_not_a_failure() {
+    fun lock_reason_not_failure() {
         assertEquals("From phone" to StatusTone.Muted, auditResult("lock", "phone"))
         assertEquals("OK" to StatusTone.Muted, auditResult("spawn", "ok"))
         assertEquals("Bad signature" to StatusTone.Danger, auditResult("spawn", "sig_invalid"))
     }
 
     @Test
-    fun a_signal_reads_as_what_was_stopped() {
+    fun signal_reads_as_stop() {
         assertEquals("Stopped a process", auditAction("signal", "ok"))
         assertEquals("firefox · 2210 · SIGTERM", auditPath("signal", "firefox 2210 term"))
         assertEquals("4242 · SIGKILL", auditPath("signal", "4242 kill"))

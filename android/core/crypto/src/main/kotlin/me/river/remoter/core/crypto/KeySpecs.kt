@@ -7,10 +7,7 @@ import java.security.spec.ECGenParameterSpec
 const val SIG_ALIAS = "sig"
 const val TLS_ALIAS = "tls"
 
-/**
- * No switch in here on purpose: the e2e build's relaxed `sig` key lives in that
- * build type's own source set, so it can't get compiled into anything else.
- */
+// no switch here on purpose: the e2e relaxed sig key lives in its own source set
 object KeySpecs {
     // TEE for now. still hardware
     const val TLS_IN_STRONGBOX = false
