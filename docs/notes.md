@@ -25,9 +25,9 @@ some update. Versions are what I saw it on.
 
 - `claude remote-control` never shows a prompt in an untrusted folder. It
   prints `Error: Workspace not trusted.` and exits 1 before any debug line.
-- Interactive claude, which remoter runs, does show one. 2.1.295 drew "Accessing workspace: ...
-  Quick safety check" with `❯ No, exit` and `Yes, I trust this folder` and
-  waited, in a folder with no entry of its own under a trusted `~/Projects`.
+- Interactive claude, which remoter runs, does show one. 2.1.295 drew
+  "Accessing workspace: ... Quick safety check" with `❯ No, exit` and
+  `Yes, I trust this folder` and waited, in a folder with no entry of its own under a trusted `~/Projects`.
   The same setup didn't ask again later, so what triggers it is unclear.
 - Trust is inherited from the nearest ancestor that has an entry in
   `~/.claude.json`. An explicit `hasTrustDialogAccepted: false` on a child wins
@@ -103,22 +103,31 @@ some update. Versions are what I saw it on.
   the `import-environment DISPLAY XAUTHORITY` line. kitty is started with
   `WAYLAND_DISPLAY` removed, since one left over from a Wayland login would win
   over `DISPLAY`.
-- The i3 path is tested against a real i3 on its own Xvfb (`i3_on_xvfb`), which
-  runs the whole session suite there in kitty and in Alacritty.
-- Alacritty can't be asked for its text the way `kitty @ get-text` can. So in
-  Alacritty, remoter-exec runs claude on a pty of its own, passes everything
-  through, renders it with the `vt100` crate, and keeps the screen plus 200
-  lines of scrollback in `screen.txt`. It's a snapshot rewritten every 200 ms
-  at most, not a log, because /run is RAM and sessions run for days.
-- Two things vt100 does differently from a terminal, both fixed in remoter-exec:
-  a shrink cuts rows off the bottom, where the newest output is (a new window
-  tiling in shrinks the others), and wrapped rows come out as separate lines,
-  which broke matching claude's long error lines. Lines come out whole now, as
-  from kitty.
-- `auto` (the default for both) is decided per start: Hyprland when
+- `i3_on_xvfb` runs the whole session suite in kitty and Alacritty on a real
+  i3, on an Xvfb of its own so nothing lands on your desktop.
+- Alacritty has nothing like `kitty @ get-text`. In Alacritty, remoter-exec runs
+  claude on a pty of its own, passes everything through, renders it with the
+  `vt100` crate and keeps the screen plus 200 lines of scrollback in
+  `screen.txt`. A snapshot, not a log: /run is RAM and sessions run for days.
+- vt100 cuts rows off the bottom when the screen shrinks, which is where the
+  newest output is, and every new window tiling in shrinks the others. It also
+  hands back wrapped lines as separate rows, which broke matching claude's long
+  error lines. remoter-exec undoes both.
+- `auto`, the default for both, is decided per start: Hyprland when
   `HYPRLAND_INSTANCE_SIGNATURE` is set, else i3 when `DISPLAY` is; kitty when
   `kitty_bin` exists, else Alacritty.
 - Sessions die when the window manager exits or you log out. That's accepted.
+
+## Processes
+
+- CPU only exists as the difference between two readings of `/proc`, so the
+  agent keeps the last one. A reading under a second old is handed out again,
+  so two screens polling don't slice a second into noise.
+- A kill opens a pidfd first and only then checks the start time, so a pid
+  that got reused in between can't be hit. Only your own processes, never the
+  agent or what started it.
+- kitty moves a window's shell into a scope of its own, so a process finds its
+  session by walking up to the scope remoter made.
 
 ## NoNewPrivileges
 

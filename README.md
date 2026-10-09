@@ -11,7 +11,7 @@
   <img src="https://img.shields.io/badge/Rust-2024-B7410E?style=flat-square&logo=rust&logoColor=white" alt="Rust 2024" />
   <img src="https://img.shields.io/badge/WireGuard-88171A?style=flat-square&logo=wireguard&logoColor=white" alt="WireGuard" />
   <img src="https://img.shields.io/badge/minSdk-34-3a3f4b?style=flat-square" alt="minSdk 34" />
-  <img src="https://img.shields.io/badge/tests-277%20Rust%20+%20753%20JVM-2FD98A?style=flat-square" alt="Tests" />
+  <img src="https://img.shields.io/badge/tests-328%20Rust%20+%20868%20JVM-2FD98A?style=flat-square" alt="Tests" />
   <a href="LICENSE"><img src="https://img.shields.io/badge/licence-MIT-3a3f4b?style=flat-square" alt="MIT" /></a>
 </p>
 
@@ -61,15 +61,15 @@ browses its folders, and starting a session takes one tap and one finger.
 | **Open in Claude** | Ready sessions get a button straight into the Claude app. |
 | **Resume** | A folder's past conversations are listed with their title and last prompt. Bring one back as it was, or start fresh from a summary of it. |
 | **End it** | One finger, and the window on the laptop closes with it. |
-| **Keep an eye on it** | CPU, memory and disk on the home screen. Tap them for the process list, sort by CPU or memory, and quit or kill anything of yours, one finger each. Processes from remoter sessions are tagged with the session's name. |
+| **Keep an eye on it** | CPU, memory and disk on the home screen. Tap them for the process list, sorted by CPU or memory, and quit or kill anything of yours. Processes from a session carry its name. |
 
 <div align="center">
   <img src="docs/screens/start.png" width="640" alt="The start sheet with previous sessions, and a session coming up" />
 </div>
 
 Sessions open as kitty or Alacritty windows on workspace 9 of Hyprland or i3,
-each in its own systemd scope. They don't steal focus, and restarting remoter never kills them. When
-you get back to the laptop, they're just there.
+each in its own systemd scope. They don't steal focus, and restarting remoter
+never kills them. When you get back to the laptop, they're just there.
 
 Claude Code asks before it works in a folder it doesn't trust, and nobody is at
 the laptop to answer. So remoter marks each folder trusted right before it
@@ -85,10 +85,10 @@ Sessions run with bypass permissions, so whoever can start one can run
 anything as you. That shaped most of the design.
 
 > [!IMPORTANT]
-> Every start, end, mkdir and resume is signed by a P-256 key in the phone's
-> StrongBox that needs a fingerprint **per signature**. The laptop checks that
-> signature twice, once in the network daemon and again in the process that
-> actually starts sessions. Even a compromised network daemon can't start
+> Every start, end, mkdir, resume and process kill is signed by a P-256 key in
+> the phone's StrongBox that needs a fingerprint **per signature**. The laptop
+> checks that signature twice, once in the network daemon and again in the
+> process that actually starts sessions. Even a compromised network daemon can't start
 > anything.
 
 <div align="center">
@@ -129,7 +129,7 @@ flowchart LR
     V -->|WireGuard| D["remoterd<br/>mTLS :8443"]
     subgraph L["Laptop 10.66.66.3"]
         D -->|unix socket| A["remoter-agent<br/>your user"]
-        A -->|systemd-run --scope| K["kitty"]
+        A -->|systemd-run --scope| K["kitty or Alacritty"]
         K --> X["remoter-exec"] --> C["claude"]
     end
     style D fill:#11151f,stroke:#C3F53C,color:#ffffff
@@ -147,8 +147,8 @@ flowchart LR
   signature and the rate limits, then forwards to the agent.
 - **remoter-agent** runs as you. It checks the signature again, guards every
   path against leaving home, and starts sessions.
-- **remoter-exec** runs inside the kitty window, starts `claude` and keeps the
-  window open after it exits so you can see why.
+- **remoter-exec** runs inside the window, starts `claude` and keeps the window
+  open after it exits so you can see why.
 - **remoterctl** is the admin tool: `init`, `pair`, `devices`, `revoke`,
   `lock on|off`, `log`, `status`, `doctor`.
 
@@ -158,10 +158,11 @@ flowchart LR
 <br/>
 
 [docs/notes.md](docs/notes.md) collects the undocumented behaviour of Claude
-Code, kitty and Hyprland that the code relies on: which debug log lines mean
-ready, why remoter trusts every folder itself instead of relying on Claude
-Code's inherited trust, why remoter has to refuse a second resume of an open
-conversation, and why nothing you type ever ends up on kitty's command line.
+Code, the terminals and the window managers that the code relies on: which
+debug log lines mean ready, why remoter trusts every folder itself instead of
+relying on Claude Code's inherited trust, why it refuses a second resume of an
+open conversation, how it reads the screen of a terminal that won't say what's
+on it, and why nothing you type ever ends up on kitty's command line.
 
 </details>
 
@@ -170,9 +171,8 @@ conversation, and why nothing you type ever ends up on kitty's command line.
 ## Install
 
 You need a laptop running a systemd user session with Hyprland or i3 and kitty
-or Alacritty, a VPS
-you can ssh into with sudo (or a home router you can forward a port on, see
-below), and an Android 14+ phone with StrongBox.
+or Alacritty, a VPS you can ssh into with sudo (or a home router you can forward
+a port on, see below), and an Android 14+ phone with StrongBox.
 
 1. **The tunnel.** `infra/vps/setup.sh check <host>` looks at the VPS without
    changing anything. Then on the laptop:
@@ -261,10 +261,11 @@ cd android
 ```
 
 Release builds are signed with `android/tools/make-release-key.sh` and
-`sign-release.sh`. The key stays out of the repo.
+`sign-release.sh`. The key stays out of the repo. Releases are git tags,
+starting at `v1.0.0`; main between them carries a `-dev` version.
 
 <details>
-<summary><b>Tests: 277 Rust + 753 JVM</b></summary>
+<summary><b>Tests: 328 Rust + 868 JVM</b></summary>
 
 <br/>
 
@@ -273,7 +274,7 @@ replayed signatures, skewed clocks, someone on the LAN routing the tunnel addres
 at the laptop, a folder swapped out while a session starts. `e2e-host` runs the real
 daemons against a fake `claude` and a software phone.
 
-The app side covers the view models, the UI, accessibility and 378 Roborazzi
+The app side covers the view models, the UI, accessibility and 457 Roborazzi
 screenshots in light and dark, at 100% and 200% font size.
 
 - Some tests create unix sockets under `daemon/target/tmp`. In a deeply nested
@@ -301,8 +302,3 @@ screenshots in light and dark, at 100% and 200% font size.
 MIT, see [LICENSE](LICENSE). The attestation test vectors in
 `daemon/remoter-attest/testdata/keyattestation` come from Google's
 keyattestation library and keep their Apache 2.0 licence.
-
-<div align="center">
-  <br/>
-  <sub>Built because the best ideas show up when the laptop is in another room.</sub>
-</div>
