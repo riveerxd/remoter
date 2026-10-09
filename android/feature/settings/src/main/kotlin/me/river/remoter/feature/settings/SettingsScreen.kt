@@ -170,7 +170,7 @@ private fun DangerZone(ui: SettingsUi, host: String, onUnpair: () -> Unit) {
     val c = Remoter.colors
     val t = Remoter.type
     Column(verticalArrangement = Arrangement.spacedBy(Space.s8)) {
-        Text("Danger zone", style = t.title, color = c.text, modifier = Modifier.semantics { heading() })
+        Text("Unpair", style = t.title, color = c.text, modifier = Modifier.semantics { heading() })
         Column(
             Modifier.fillMaxWidth().clip(Shapes.card).background(c.surface).border(1.dp, c.danger.copy(alpha = 0.4f), Shapes.card).padding(Space.cardPadding),
             verticalArrangement = Arrangement.spacedBy(Space.s8),

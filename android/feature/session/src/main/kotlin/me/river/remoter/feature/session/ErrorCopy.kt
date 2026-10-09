@@ -31,11 +31,11 @@ fun AppError.copy(host: String): ErrorCopy = when (this) {
             requestId = requestId,
         )
         ErrorCode.SpawnFailed -> ErrorCopy(ErrorLook.Server, "$host couldn't start the session", "Run this on the laptop to see why.", "remoterctl doctor", requestId)
-        else -> ErrorCopy(ErrorLook.Server, "Something went wrong on $host", "Run this on the laptop to see why.", "remoterctl doctor", requestId)
+        else -> ErrorCopy(ErrorLook.Server, "$host returned an error", "Run this on the laptop to see why.", "remoterctl doctor", requestId)
     }
     AppError.Locked -> ErrorCopy(ErrorLook.Permission, "$host is locked", "Nothing can start until you unlock it on the laptop.", "sudo remoterctl lock off")
-    AppError.DeviceUnknown -> ErrorCopy(ErrorLook.Permission, "$host doesn't know this phone anymore", "It was unpaired or revoked. Pair again to keep going.")
-    AppError.KeyInvalidated -> ErrorCopy(ErrorLook.Permission, "A new fingerprint was added, so remoter's key was wiped", "That's on purpose. Pair again to keep going.")
+    AppError.DeviceUnknown -> ErrorCopy(ErrorLook.Permission, "$host doesn't know this phone anymore", "It was unpaired or revoked on the laptop.")
+    AppError.KeyInvalidated -> ErrorCopy(ErrorLook.Permission, "A new fingerprint was added, so remoter's key was wiped", "Android does that on purpose. Pairing again makes a new one.")
     is AppError.Security -> ErrorCopy(
         ErrorLook.Security, "$host rejected this phone's signature",
         "If you didn't just reinstall the app, lock the laptop.", requestId = requestId,
@@ -44,7 +44,7 @@ fun AppError.copy(host: String): ErrorCopy = when (this) {
         ErrorLook.Security, "This phone couldn't prove it's unchanged",
         "$host checks every day that the bootloader is still locked. If you didn't change anything, lock the laptop.",
     )
-    is AppError.RateLimited -> ErrorCopy(ErrorLook.Limits, "Too many requests", "The laptop limits how fast this phone can ask. The button counts down.")
+    is AppError.RateLimited -> ErrorCopy(ErrorLook.Limits, "Too many requests", "The laptop limits how fast this phone can ask.")
     is AppError.FolderBusy -> ErrorCopy(
         ErrorLook.Limits, "A session is already running in this folder",
         "Claude takes one per folder. Open that one, or start this one in its own worktree.",

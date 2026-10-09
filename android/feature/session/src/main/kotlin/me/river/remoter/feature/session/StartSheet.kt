@@ -644,7 +644,7 @@ private fun Run(ui: StartUi, cb: StartCallbacks) {
 }
 
 fun reasonText(r: StuckReason?): String = when (r) {
-    StuckReason.Untrusted -> "Claude asked to trust this folder anyway, so the laptop stopped it. Try again"
+    StuckReason.Untrusted -> "Claude asked to trust this folder anyway, so the laptop stopped it. Try again."
     StuckReason.NotLoggedIn -> "Claude isn't logged in on the laptop"
     StuckReason.FolderChanged -> "Folder changed while starting"
     StuckReason.Network -> "The laptop couldn't reach Claude"
