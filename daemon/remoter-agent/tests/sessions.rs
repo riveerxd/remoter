@@ -212,8 +212,22 @@ fn tmux() -> Box<dyn Launcher> {
     Box::new(TmuxLauncher { tmux_bin: "/usr/bin/tmux".into(), socket: "remoter-test".into(), exec_bin: exec_bin() })
 }
 
+static TMUX_TURN: Mutex<()> = Mutex::new(());
+
+thread_local! {
+    static HOLDS_TURN: std::cell::RefCell<Option<std::sync::MutexGuard<'static, ()>>> = const { std::cell::RefCell::new(None) };
+}
+
+// One tmux test at a time. Twenty of them each polling systemctl for their
+// scope can stall the user manager past the spawn's scope wait. The agent
+// itself spawns one at a time. The turn ends when the test's thread does.
 fn no_tmux() -> bool {
-    !Path::new("/usr/bin/tmux").exists()
+    if !Path::new("/usr/bin/tmux").exists() {
+        return true;
+    }
+    let turn = TMUX_TURN.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    HOLDS_TURN.with(|h| *h.borrow_mut() = Some(turn));
+    false
 }
 
 fn never() -> bool {
