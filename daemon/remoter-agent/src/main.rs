@@ -53,7 +53,7 @@ fn launcher(cfg: &AgentConfig) -> Box<dyn Launcher> {
     }
     Box::new(KittyLauncher {
         kitty_bin: cfg.kitty_bin.clone(),
-        hyprctl_bin: cfg.hyprctl_bin.clone(),
+        wm: cfg.wm(),
         exec_bin: cfg.exec_bin.clone(),
         workspace: cfg.workspace,
     })

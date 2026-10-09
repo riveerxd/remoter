@@ -11,7 +11,12 @@ pub struct AgentConfig {
     pub home: PathBuf,
     pub claude_bin: PathBuf,
     pub kitty_bin: PathBuf,
+    #[serde(default)]
+    pub desktop: Desktop,
+    #[serde(default = "d_hyprctl")]
     pub hyprctl_bin: PathBuf,
+    #[serde(default = "d_i3msg")]
+    pub i3msg_bin: PathBuf,
     pub exec_bin: PathBuf,
     pub workspace: u32,
     pub max_sessions: u32,
@@ -47,6 +52,21 @@ pub struct AgentConfig {
     pub claude_dir: Option<PathBuf>,
     #[serde(skip)]
     pub clock_window_s: u32,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Desktop {
+    #[default]
+    Hyprland,
+    I3,
+}
+
+fn d_hyprctl() -> PathBuf {
+    "/usr/bin/hyprctl".into()
+}
+fn d_i3msg() -> PathBuf {
+    "/usr/bin/i3-msg".into()
 }
 
 fn d_remoterd_user() -> String {
@@ -94,6 +114,13 @@ impl AgentConfig {
         Ok(agent)
     }
 
+    pub fn wm(&self) -> crate::launcher::Wm {
+        match self.desktop {
+            Desktop::Hyprland => crate::launcher::Wm::Hyprland { hyprctl_bin: self.hyprctl_bin.clone() },
+            Desktop::I3 => crate::launcher::Wm::I3 { i3msg_bin: self.i3msg_bin.clone() },
+        }
+    }
+
     pub fn locked_flag(&self) -> PathBuf {
         self.lock_dir.join("locked")
     }
@@ -118,6 +145,7 @@ impl AgentConfig {
             ("claude_bin", &self.claude_bin),
             ("kitty_bin", &self.kitty_bin),
             ("hyprctl_bin", &self.hyprctl_bin),
+            ("i3msg_bin", &self.i3msg_bin),
             ("exec_bin", &self.exec_bin),
         ] {
             if !p.is_absolute() {
@@ -223,6 +251,20 @@ app_package     = "me.river.remoter"
         assert_eq!(AgentConfig::parse(&w).expect("parses").clock_window_s, 45);
         let bad = SAMPLE.replace("port            = 8443", "port = 8443\nclock_window_s = 0");
         assert!(AgentConfig::parse(&bad).is_err());
+    }
+
+    #[test]
+    fn desktop_defaults_to_hyprland_and_takes_i3() {
+        use crate::launcher::Wm;
+        let c = AgentConfig::parse(SAMPLE).expect("parses");
+        assert_eq!(c.wm(), Wm::Hyprland { hyprctl_bin: "/usr/bin/hyprctl".into() });
+        let i3 = SAMPLE.replace("hyprctl_bin     = \"/usr/bin/hyprctl\"", "desktop = \"i3\"");
+        assert_eq!(AgentConfig::parse(&i3).expect("i3").wm(), Wm::I3 { i3msg_bin: "/usr/bin/i3-msg".into() });
+        let own = SAMPLE.replace("hyprctl_bin     = \"/usr/bin/hyprctl\"", "desktop = \"i3\"\ni3msg_bin = \"/opt/i3/i3-msg\"");
+        assert_eq!(AgentConfig::parse(&own).expect("own").wm(), Wm::I3 { i3msg_bin: "/opt/i3/i3-msg".into() });
+        for bad in ["desktop = \"sway\"", "desktop = \"i3\"\ni3msg_bin = \"i3-msg\""] {
+            assert!(AgentConfig::parse(&SAMPLE.replace("hyprctl_bin     = \"/usr/bin/hyprctl\"", bad)).is_err(), "{bad}");
+        }
     }
 
     #[test]

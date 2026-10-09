@@ -1,5 +1,6 @@
-//! Same bodies run on both launchers:
-//! kitty (real windows on workspace 9, `cargo test -- --ignored`) and
+//! Same bodies run on every launcher:
+//! kitty on Hyprland (real windows on workspace 9, `cargo test -- --ignored`),
+//! kitty on an i3 of its own under Xvfb (`i3_on_xvfb`, also ignored) and
 //! headless (`script` pty, `--features e2e-test`). claude is always a fake script.
 
 use std::os::unix::fs::PermissionsExt;
@@ -10,7 +11,7 @@ use std::time::{Duration, Instant};
 
 use remoter_agent::AgentError;
 use remoter_agent::guard::Home;
-use remoter_agent::launcher::{KittyLauncher, Launcher};
+use remoter_agent::launcher::{KittyLauncher, Launcher, Wm};
 use remoter_agent::sessions::{Sessions, SessionsConfig, active_scopes};
 use remoter_agent::transcripts::{Transcripts, project_dir_name};
 use remoter_agent::trust::Trust;
@@ -170,10 +171,28 @@ fn exec_bin() -> PathBuf {
 fn kitty() -> Box<dyn Launcher> {
     Box::new(KittyLauncher {
         kitty_bin: "/usr/bin/kitty".into(),
-        hyprctl_bin: "/usr/bin/hyprctl".into(),
+        wm: Wm::Hyprland { hyprctl_bin: "/usr/bin/hyprctl".into() },
         exec_bin: exec_bin(),
         workspace: 9,
     })
+}
+
+fn kitty_i3() -> Box<dyn Launcher> {
+    Box::new(KittyLauncher {
+        kitty_bin: "/usr/bin/kitty".into(),
+        wm: Wm::I3 { i3msg_bin: "/usr/bin/i3-msg".into() },
+        exec_bin: exec_bin(),
+        workspace: 9,
+    })
+}
+
+fn never() -> bool {
+    false
+}
+
+// the i3 suite needs the Xvfb that i3_on_xvfb starts and points DISPLAY at
+fn outside_i3_lab() -> bool {
+    std::env::var_os("REMOTER_I3_LAB").is_none()
 }
 
 #[cfg(feature = "e2e-test")]
@@ -901,146 +920,225 @@ fn t_worktree_is_tracked_then_cleaned_up(l: Box<dyn Launcher>) {
 }
 
 macro_rules! suite {
-    ($m:ident, $make:path, $attr:meta) => {
+    ($m:ident, $make:path, $skip:path, $attr:meta) => {
         mod $m {
             use super::*;
             #[$attr]
             #[test]
             fn ready_argv_cwd_phases_and_kill() {
+                if $skip() {
+                    return;
+                }
                 t_ready_argv_cwd_phases_and_kill($make());
             }
             #[$attr]
             #[test]
             fn hang_is_stuck_on_timeout() {
+                if $skip() {
+                    return;
+                }
                 t_hang_is_stuck_on_timeout($make());
             }
             #[$attr]
             #[test]
             fn exit1_is_exited_with_its_code() {
+                if $skip() {
+                    return;
+                }
                 t_exit1_is_exited_with_its_code($make());
             }
             #[$attr]
             #[test]
             fn untrusted_text_is_stuck_untrusted() {
+                if $skip() {
+                    return;
+                }
                 t_untrusted_text_is_stuck_untrusted($make());
             }
             #[$attr]
             #[test]
             fn untrusted_screen_arriving_late_is_still_untrusted() {
+                if $skip() {
+                    return;
+                }
                 t_untrusted_screen_arriving_late_is_still_untrusted($make());
             }
             #[$attr]
             #[test]
             fn kill_escalates_past_ignored_sigint() {
+                if $skip() {
+                    return;
+                }
                 t_kill_escalates_past_ignored_sigint($make());
             }
             #[$attr]
             #[test]
             fn slow_start_is_ready_not_stuck() {
+                if $skip() {
+                    return;
+                }
                 t_slow_start_is_ready_not_stuck($make());
             }
             #[$attr]
             #[test]
             fn a_start_past_the_timeout_still_turns_ready() {
+                if $skip() {
+                    return;
+                }
                 t_a_start_past_the_timeout_still_turns_ready($make());
             }
             #[$attr]
             #[test]
             fn every_folder_is_trusted_before_start() {
+                if $skip() {
+                    return;
+                }
                 t_every_folder_is_trusted_before_start($make());
             }
             #[$attr]
             #[test]
             fn resume_trusts_the_folder_first() {
+                if $skip() {
+                    return;
+                }
                 t_resume_trusts_the_folder_first($make());
             }
             #[$attr]
             #[test]
             fn worktree_trusts_the_worktree_too() {
+                if $skip() {
+                    return;
+                }
                 t_worktree_trusts_the_worktree_too($make());
             }
             #[$attr]
             #[test]
             fn a_trust_dialog_is_stuck_untrusted_in_seconds() {
+                if $skip() {
+                    return;
+                }
                 t_a_trust_dialog_is_stuck_untrusted_in_seconds($make());
             }
             #[$attr]
             #[test]
             fn second_session_in_a_folder_is_folder_busy() {
+                if $skip() {
+                    return;
+                }
                 t_second_session_in_a_folder_is_folder_busy($make());
             }
             #[$attr]
             #[test]
             fn folder_served_elsewhere_is_stuck_folder_busy() {
+                if $skip() {
+                    return;
+                }
                 t_folder_served_elsewhere_is_stuck_folder_busy($make());
             }
             #[$attr]
             #[test]
             fn cap_holds_under_two_concurrent_spawns() {
+                if $skip() {
+                    return;
+                }
                 t_cap_holds_under_two_concurrent_spawns($make());
             }
             #[$attr]
             #[test]
             fn agent_restart_loses_nothing() {
+                if $skip() {
+                    return;
+                }
                 t_agent_restart_loses_nothing($make(), $make());
             }
             #[$attr]
             #[test]
             fn folder_name_cant_fake_ready() {
+                if $skip() {
+                    return;
+                }
                 t_folder_name_cant_fake_ready($make());
             }
             #[$attr]
             #[test]
             fn folder_swapped_between_check_and_exec() {
+                if $skip() {
+                    return;
+                }
                 t_folder_swapped_between_check_and_exec($make());
             }
             #[$attr]
             #[test]
             fn live_wakes_on_spawn_and_kill() {
+                if $skip() {
+                    return;
+                }
                 t_live_wakes_on_spawn_and_kill($make());
             }
             #[$attr]
             #[test]
             fn resume_reaches_ready_and_holds_the_conversation() {
+                if $skip() {
+                    return;
+                }
                 t_resume_reaches_ready_and_holds_the_conversation($make());
             }
             #[$attr]
             #[test]
             fn handoff_written_then_session_starts() {
+                if $skip() {
+                    return;
+                }
                 t_handoff_written_then_session_starts($make());
             }
             #[$attr]
             #[test]
             fn a_failed_handoff_is_stuck_handoff_failed() {
+                if $skip() {
+                    return;
+                }
                 t_a_failed_handoff_is_stuck_handoff_failed($make());
             }
             #[$attr]
             #[test]
             fn a_slow_handoff_never_reads_as_stuck() {
+                if $skip() {
+                    return;
+                }
                 t_a_slow_handoff_never_reads_as_stuck($make());
             }
             #[$attr]
             #[test]
             fn a_refused_start_doesnt_hold_its_folder() {
+                if $skip() {
+                    return;
+                }
                 t_a_refused_start_doesnt_hold_its_folder($make());
             }
             #[$attr]
             #[test]
             fn a_slow_stuck_start_still_holds_its_folder() {
+                if $skip() {
+                    return;
+                }
                 t_a_slow_stuck_start_still_holds_its_folder($make());
             }
             #[$attr]
             #[test]
             fn worktree_is_tracked_then_cleaned_up() {
+                if $skip() {
+                    return;
+                }
                 t_worktree_is_tracked_then_cleaned_up($make());
             }
         }
     };
 }
 
-suite!(kitty_ws9, kitty, ignore = "opens real kitty windows on Hyprland workspace 9: cargo test -- --ignored");
+suite!(kitty_ws9, kitty, never, ignore = "opens real kitty windows on Hyprland workspace 9: cargo test -- --ignored");
+suite!(kitty_i3, kitty_i3, outside_i3_lab, ignore = "run by i3_on_xvfb");
 #[cfg(feature = "e2e-test")]
-suite!(headless_pty, headless, allow(unused_attributes));
+suite!(headless_pty, headless, never, allow(unused_attributes));
 
 // refusals, no launch needed, run in every build
 
@@ -1293,4 +1391,148 @@ fn an_ended_sessions_commits_keep_their_branch() {
     assert!(!wt.exists(), "a clean worktree goes even with new commits");
     assert!(has_branch(&repo, "worktree-proud-heron"), "the unmerged branch stays");
     assert_eq!(git(&repo, &["log", "-1", "--format=%s", "worktree-proud-heron"]).trim(), "the work");
+}
+
+// i3 gets an X server of its own, so nothing lands on the desktop in front of you
+
+struct Xlab {
+    procs: Vec<std::process::Child>,
+    dir: PathBuf,
+    display: String,
+}
+
+impl Xlab {
+    fn start() -> Xlab {
+        use std::io::BufRead;
+        let dir = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(format!("i3-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("mkdir");
+        let mut xvfb = std::process::Command::new("Xvfb")
+            .args(["-displayfd", "1", "-nolisten", "tcp", "-screen", "0", "1280x800x24"])
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::null())
+            .spawn()
+            .expect("Xvfb");
+        let mut line = String::new();
+        std::io::BufReader::new(xvfb.stdout.take().expect("stdout")).read_line(&mut line).expect("display number");
+        let mut lab = Xlab { procs: vec![xvfb], dir, display: format!(":{}", line.trim()) };
+        lab.config("");
+        let i3 = lab.cmd("i3").arg("-c").arg(lab.dir.join("i3.conf")).stdout(std::process::Stdio::null()).stderr(std::process::Stdio::null()).spawn().expect("i3");
+        lab.procs.push(i3);
+        let deadline = Instant::now() + Duration::from_secs(10);
+        while !lab.i3msg(&["-t", "get_version"]).status.success() {
+            assert!(Instant::now() < deadline, "i3 never answered");
+            std::thread::sleep(Duration::from_millis(100));
+        }
+        lab
+    }
+
+    fn cmd(&self, bin: &str) -> std::process::Command {
+        let mut c = std::process::Command::new(bin);
+        c.env("DISPLAY", &self.display).env_remove("WAYLAND_DISPLAY").env_remove("I3SOCK");
+        c
+    }
+
+    fn i3msg(&self, args: &[&str]) -> std::process::Output {
+        self.cmd("i3-msg").args(args).output().expect("i3-msg")
+    }
+
+    fn config(&self, extra: &str) {
+        std::fs::write(self.dir.join("i3.conf"), format!("font pango:monospace 8\n{extra}\n")).expect("i3 config");
+    }
+
+    /// Reruns this binary's tests matching `filters` against the lab's i3.
+    fn run(&self, filters: &[&str]) -> usize {
+        let exe = std::env::current_exe().expect("exe");
+        let listed = self.cmd(exe.to_str().expect("utf8")).args(filters).args(["--ignored", "--list"]).output().expect("list");
+        let want = String::from_utf8_lossy(&listed.stdout).lines().filter(|l| l.ends_with(": test")).count();
+        let out = self
+            .cmd(exe.to_str().expect("utf8"))
+            .args(filters)
+            .args(["--ignored", "--test-threads", "4"])
+            .env("REMOTER_I3_LAB", "1")
+            // left behind by a Wayland login earlier on, kitty must not follow it
+            .env("WAYLAND_DISPLAY", "wayland-remoter-gone")
+            .output()
+            .expect("rerun");
+        let text = format!("{}\n{}", String::from_utf8_lossy(&out.stdout), String::from_utf8_lossy(&out.stderr));
+        assert!(out.status.success() && text.contains(&format!("{want} passed")), "{text}");
+        want
+    }
+}
+
+impl Drop for Xlab {
+    fn drop(&mut self) {
+        for p in self.procs.iter_mut().rev() {
+            let _ = p.kill();
+            let _ = p.wait();
+        }
+        let _ = std::fs::remove_dir_all(&self.dir);
+    }
+}
+
+#[test]
+#[ignore = "starts Xvfb and i3, then runs the kitty suite on them"]
+fn i3_on_xvfb() {
+    let lab = Xlab::start();
+    assert_eq!(lab.run(&["--exact", "i3_lab::refuses_without_the_rule"]), 1);
+    lab.config(&remoter_agent::launcher::i3_assign_line(9));
+    assert!(lab.i3msg(&["reload"]).status.success());
+    assert!(lab.run(&["kitty_i3::", "i3_lab::places_the_window_without_taking_focus"]) > 20);
+}
+
+mod i3_lab {
+    use super::*;
+
+    #[test]
+    #[ignore = "run by i3_on_xvfb"]
+    fn refuses_without_the_rule() {
+        if outside_i3_lab() {
+            return;
+        }
+        let err = kitty_i3().prepare().expect_err("refused");
+        assert_eq!(err.code, ErrorCode::SpawnFailed);
+        assert!(err.detail.contains(r#"assign [class="^remoter-rc$"] number 9"#), "{}", err.detail);
+    }
+
+    /// (workspace of the window titled `title`, focused workspace)
+    fn where_is(title: &str) -> (Option<String>, String) {
+        fn walk(n: &serde_json::Value, ws: Option<&str>, title: &str, found: &mut Option<String>) {
+            let ws = if n["type"] == "workspace" { n["name"].as_str() } else { ws };
+            if n["window_properties"]["title"] == title {
+                *found = ws.map(String::from);
+            }
+            for kid in n["nodes"].as_array().into_iter().chain(n["floating_nodes"].as_array()).flatten() {
+                walk(kid, ws, title, found);
+            }
+        }
+        let tree = std::process::Command::new("i3-msg").args(["-t", "get_tree"]).output().expect("tree");
+        let mut found = None;
+        walk(&serde_json::from_slice(&tree.stdout).expect("json"), None, title, &mut found);
+        let spaces = std::process::Command::new("i3-msg").args(["-t", "get_workspaces"]).output().expect("workspaces");
+        let spaces: serde_json::Value = serde_json::from_slice(&spaces.stdout).expect("json");
+        let focused = spaces.as_array().expect("list").iter().find(|w| w["focused"] == true).expect("focused")["name"].as_str().expect("name").to_owned();
+        (found, focused)
+    }
+
+    #[test]
+    #[ignore = "run by i3_on_xvfb"]
+    fn places_the_window_without_taking_focus() {
+        if outside_i3_lab() {
+            return;
+        }
+        let w = World::new();
+        let s = w.sessions(w.cfg("ready"), kitty_i3());
+        let id = s.spawn(&req("Projects/remoter", "placed"), None).expect("spawn");
+        wait_state(&s, &id, SessionState::Ready, Duration::from_secs(15));
+        let deadline = Instant::now() + Duration::from_secs(5);
+        let mut at = where_is(&id);
+        while at.0.is_none() && Instant::now() < deadline {
+            std::thread::sleep(Duration::from_millis(100));
+            at = where_is(&id);
+        }
+        assert_eq!(at.0.as_deref(), Some("9"));
+        assert_ne!(at.1, "9", "the window took focus");
+        s.kill(&id).expect("kill");
+        wait_gone(&s, &id, Duration::from_secs(10));
+    }
 }

@@ -14,7 +14,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use remoter_agent::guard::{Home, parse_rel};
-use remoter_agent::launcher::KittyLauncher;
+use remoter_agent::launcher::{KittyLauncher, Wm};
 use remoter_agent::sessions::{Sessions, SessionsConfig};
 use remoter_agent::transcripts::{Transcripts, project_dir_name};
 use remoter_agent::trust::Trust;
@@ -108,7 +108,7 @@ fn real_resume() {
         },
         Home::open(&home()).expect("home"),
         Trust::new(home().join(".claude.json")),
-        Box::new(KittyLauncher { kitty_bin: "/usr/bin/kitty".into(), hyprctl_bin: "/usr/bin/hyprctl".into(), exec_bin: exec, workspace: 9 }),
+        Box::new(KittyLauncher { kitty_bin: "/usr/bin/kitty".into(), wm: Wm::Hyprland { hyprctl_bin: "/usr/bin/hyprctl".into() }, exec_bin: exec, workspace: 9 }),
     )
     .expect("sessions");
 
@@ -223,7 +223,7 @@ fn real_handoff() {
         },
         Home::open(&home()).expect("home"),
         Trust::new(home().join(".claude.json")),
-        Box::new(KittyLauncher { kitty_bin: "/usr/bin/kitty".into(), hyprctl_bin: "/usr/bin/hyprctl".into(), exec_bin: exec, workspace: 9 }),
+        Box::new(KittyLauncher { kitty_bin: "/usr/bin/kitty".into(), wm: Wm::Hyprland { hyprctl_bin: "/usr/bin/hyprctl".into() }, exec_bin: exec, workspace: 9 }),
     )
     .expect("sessions");
     let before = jsonl_ids();
@@ -302,7 +302,7 @@ fn real_untrusted_folder() {
         },
         Home::open(&home()).expect("home"),
         trust,
-        Box::new(KittyLauncher { kitty_bin: "/usr/bin/kitty".into(), hyprctl_bin: "/usr/bin/hyprctl".into(), exec_bin: exec, workspace: 9 }),
+        Box::new(KittyLauncher { kitty_bin: "/usr/bin/kitty".into(), wm: Wm::Hyprland { hyprctl_bin: "/usr/bin/hyprctl".into() }, exec_bin: exec, workspace: 9 }),
     )
     .expect("sessions");
 

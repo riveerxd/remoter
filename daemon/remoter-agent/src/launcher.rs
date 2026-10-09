@@ -1,4 +1,4 @@
-//! Opens a session's window. Kitty in real builds, headless only with `e2e-test`.
+//! Opens a session's window. Kitty on Hyprland or i3 in real builds, headless only with `e2e-test`.
 
 use std::path::Path;
 use std::process::{Command, Stdio};
@@ -50,9 +50,15 @@ fn spawn_detached(mut cmd: Command) -> Result<(), AgentError> {
     Ok(())
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Wm {
+    Hyprland { hyprctl_bin: std::path::PathBuf },
+    I3 { i3msg_bin: std::path::PathBuf },
+}
+
 pub struct KittyLauncher {
     pub kitty_bin: std::path::PathBuf,
-    pub hyprctl_bin: std::path::PathBuf,
+    pub wm: Wm,
     pub exec_bin: std::path::PathBuf,
     pub workspace: u32,
 }
@@ -63,24 +69,65 @@ impl KittyLauncher {
     pub fn window_rule(&self) -> String {
         format!("match:class ^({WINDOW_CLASS})$, workspace {} silent", self.workspace)
     }
-}
 
-impl Launcher for KittyLauncher {
-    fn prepare(&self) -> Result<(), AgentError> {
-        for var in ["WAYLAND_DISPLAY", "HYPRLAND_INSTANCE_SIGNATURE"] {
+    fn need_env(vars: &[&str]) -> Result<(), AgentError> {
+        for var in vars {
             if std::env::var_os(var).is_none_or(|v| v.is_empty()) {
                 return Err(AgentError::new(ErrorCode::DesktopDown, format!("{var} not set")));
             }
         }
-        // a Hyprland reload drops runtime rules, so set it every time
-        let out = Command::new(&self.hyprctl_bin)
-            .args(["keyword", "windowrule", &self.window_rule()])
-            .stdin(Stdio::null())
-            .output()
-            .map_err(|e| AgentError::new(ErrorCode::DesktopDown, format!("hyprctl: {e}")))?;
-        let said = String::from_utf8_lossy(&out.stdout);
-        if !out.status.success() || said.trim() != "ok" {
-            return Err(AgentError::new(ErrorCode::DesktopDown, format!("hyprctl said {:?}", said.trim())));
+        Ok(())
+    }
+}
+
+/// The line the i3 config needs. i3 has no runtime window rules, so the agent
+/// can only check for it.
+pub fn i3_assign_line(workspace: u32) -> String {
+    format!("assign [class=\"^{WINDOW_CLASS}$\"] number {workspace}")
+}
+
+/// `text` is what `i3-msg -t get_config` printed: the loaded config, includes
+/// already pasted in. Any `assign` or `for_window` naming the class will do.
+pub fn i3_places_windows(text: &str) -> bool {
+    text.lines().map(str::trim).any(|l| (l.starts_with("assign ") || l.starts_with("for_window ")) && l.contains(WINDOW_CLASS))
+}
+
+impl Launcher for KittyLauncher {
+    fn prepare(&self) -> Result<(), AgentError> {
+        match &self.wm {
+            Wm::Hyprland { hyprctl_bin } => {
+                Self::need_env(&["WAYLAND_DISPLAY", "HYPRLAND_INSTANCE_SIGNATURE"])?;
+                // a Hyprland reload drops runtime rules, so set it every time
+                let out = Command::new(hyprctl_bin)
+                    .args(["keyword", "windowrule", &self.window_rule()])
+                    .stdin(Stdio::null())
+                    .output()
+                    .map_err(|e| AgentError::new(ErrorCode::DesktopDown, format!("hyprctl: {e}")))?;
+                let said = String::from_utf8_lossy(&out.stdout);
+                if !out.status.success() || said.trim() != "ok" {
+                    return Err(AgentError::new(ErrorCode::DesktopDown, format!("hyprctl said {:?}", said.trim())));
+                }
+            }
+            Wm::I3 { i3msg_bin } => {
+                Self::need_env(&["DISPLAY"])?;
+                let out = Command::new(i3msg_bin)
+                    .args(["-t", "get_config"])
+                    .env_remove("WAYLAND_DISPLAY")
+                    .stdin(Stdio::null())
+                    .output()
+                    .map_err(|e| AgentError::new(ErrorCode::DesktopDown, format!("i3-msg: {e}")))?;
+                if !out.status.success() {
+                    let said = String::from_utf8_lossy(&out.stderr);
+                    return Err(AgentError::new(ErrorCode::DesktopDown, format!("i3-msg said {:?}", said.trim())));
+                }
+                // without it the window lands on whatever workspace is in front
+                if !i3_places_windows(&String::from_utf8_lossy(&out.stdout)) {
+                    return Err(AgentError::new(
+                        ErrorCode::SpawnFailed,
+                        format!("the i3 config needs `{}`", i3_assign_line(self.workspace)),
+                    ));
+                }
+            }
         }
         Ok(())
     }
@@ -99,6 +146,11 @@ impl Launcher for KittyLauncher {
             .arg(&self.exec_bin)
             .arg("--spec")
             .arg(dir.join(SPEC_FILE));
+        if matches!(self.wm, Wm::I3 { .. }) {
+            // a WAYLAND_DISPLAY left in the user manager from another login
+            // would send kitty there instead of the X server i3 runs on
+            cmd.env_remove("WAYLAND_DISPLAY");
+        }
         spawn_detached(cmd)
     }
 
@@ -209,8 +261,17 @@ mod tests {
 
     #[test]
     fn window_rule_text() {
-        let k = KittyLauncher { kitty_bin: "/k".into(), hyprctl_bin: "/h".into(), exec_bin: "/e".into(), workspace: 9 };
+        let k = KittyLauncher { kitty_bin: "/k".into(), wm: Wm::Hyprland { hyprctl_bin: "/h".into() }, exec_bin: "/e".into(), workspace: 9 };
         assert_eq!(k.window_rule(), "match:class ^(remoter-rc)$, workspace 9 silent");
+    }
+
+    #[test]
+    fn i3_rule_lines() {
+        assert_eq!(i3_assign_line(9), r#"assign [class="^remoter-rc$"] number 9"#);
+        assert!(i3_places_windows(&format!("bindsym $mod+Return exec kitty\n  {}\n", i3_assign_line(9))));
+        assert!(i3_places_windows(r#"for_window [class="remoter-rc"] move container to workspace 9"#));
+        assert!(!i3_places_windows("bindsym $mod+9 workspace 9\n# assign [class=\"^remoter-rc$\"] 9\n"));
+        assert!(!i3_places_windows(""));
     }
 
     #[cfg(feature = "e2e-test")]
