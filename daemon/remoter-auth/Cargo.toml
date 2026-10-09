@@ -9,7 +9,7 @@ rust-version.workspace = true
 [dependencies]
 libc = "0.2.189"
 p256 = { version = "0.14.0", features = ["ecdsa", "pkcs8"] }
-remoter-proto = { version = "1.0.0", path = "../remoter-proto" }
+remoter-proto = { version = "1.1.0-dev", path = "../remoter-proto" }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"
 sha2 = "0.11.0"

@@ -17,10 +17,10 @@ hyper-util = { version = "0.1.21", features = ["tokio"] }
 libc = "0.2.189"
 p256 = { version = "0.14.0", features = ["ecdsa", "pkcs8"] }
 rcgen = { version = "0.14.10", default-features = false, features = ["crypto", "aws_lc_rs"] }
-remoter-attest = { version = "1.0.0", path = "../remoter-attest", features = ["testkit"] }
-remoter-auth = { version = "1.0.0", path = "../remoter-auth", features = ["testkit"] }
-remoter-proto = { version = "1.0.0", path = "../remoter-proto" }
-remoterctl = { version = "1.0.0", path = "../remoterctl" }
+remoter-attest = { version = "1.1.0-dev", path = "../remoter-attest", features = ["testkit"] }
+remoter-auth = { version = "1.1.0-dev", path = "../remoter-auth", features = ["testkit"] }
+remoter-proto = { version = "1.1.0-dev", path = "../remoter-proto" }
+remoterctl = { version = "1.1.0-dev", path = "../remoterctl" }
 rustls = { version = "0.23.45", default-features = false, features = ["aws_lc_rs", "std"] }
 serde_json = "1.0.151"
 sha2 = "0.11.0"

@@ -8,7 +8,7 @@ rust-version.workspace = true
 
 [dependencies]
 libc = "0.2.189"
-remoter-proto = { version = "1.0.0", path = "../remoter-proto" }
+remoter-proto = { version = "1.1.0-dev", path = "../remoter-proto" }
 serde_json = "1.0.151"
 vt100 = "0.16.2"
 
