@@ -530,7 +530,13 @@ mod tests {
 
     fn sleeper() -> (std::process::Child, u64) {
         let child = std::process::Command::new("sleep").arg("30").spawn().expect("sleep");
-        let s = std::fs::read_to_string(format!("/proc/{}/stat", child.id())).ok().and_then(|s| parse_stat(&s)).expect("stat");
+        // spawn returns before exec renames the child, and the test reads that name
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        while std::fs::read_to_string(format!("/proc/{}/comm", child.id())).is_ok_and(|c| c.trim() != "sleep") {
+            assert!(std::time::Instant::now() < deadline, "sleep never ran");
+            std::thread::sleep(std::time::Duration::from_millis(1));
+        }
+        let s =std::fs::read_to_string(format!("/proc/{}/stat", child.id())).ok().and_then(|s| parse_stat(&s)).expect("stat");
         (child, s.start)
     }
 
