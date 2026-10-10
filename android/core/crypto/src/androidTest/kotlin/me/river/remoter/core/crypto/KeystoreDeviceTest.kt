@@ -9,7 +9,6 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeFalse
 import org.junit.Assume.assumeTrue
@@ -53,8 +52,12 @@ class KeystoreDeviceTest {
         assumeFalse("this device has StrongBox", strongBox)
         val keys = Keys()
         keys.generatePair(challenge)
-        assertEquals(SecurityLevel.Tee, keys.level(SIG_ALIAS))
+        val weak = weaknesses(keys.level(SIG_ALIAS), Attestation.rootOfTrust(keys.chain(SIG_ALIAS).first()))
+        android.util.Log.i("remoter-weak", "${keys.level(SIG_ALIAS)}: ${weak.joinToString()}")
+        assertTrue(me.river.remoter.core.net.Weakness.NoStrongBox in weak)
         assertTrue(keys.keyInfo(SIG_ALIAS).isUserAuthenticationRequired)
+        // an emulator has no TEE, its keystore is software
+        assertEquals(SecurityLevel.Tee, keys.level(SIG_ALIAS))
     }
 
     @Test
