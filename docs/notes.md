@@ -152,6 +152,23 @@ some update. Versions are what I saw it on.
 - kitty moves a window's shell into a scope of its own, so a process finds its
   session by walking up to the scope remoter made.
 
+## Weaker phones
+
+- Asking for StrongBox on a phone without it throws
+  `StrongBoxUnavailableException`. The app then makes the same signing key in
+  the TEE, with the same flags.
+- The phone reads its own lock state and boot state from the `rootOfTrust` in
+  its signing key's attestation, so it can warn before the code is typed. The
+  laptop reads them from the chain itself and never takes the phone's word.
+- The pair response didn't change. The app parses it strictly, so a new field
+  there would break every older app pairing with a newer laptop.
+- The device file keeps what pairing let through as `weaknesses`, written only
+  when there are some, so a clean phone's record still reads in older daemons.
+- The daily check compares against that list. Anything new on it means the
+  phone changed since pairing, and it's refused.
+- A key in software, a chain that doesn't end at Google's roots, a revoked
+  certificate, another app or another signing cert are still refused outright.
+
 ## NoNewPrivileges
 
 remoter-agent.service has `NoNewPrivileges=yes`, and sessions inherit it, so

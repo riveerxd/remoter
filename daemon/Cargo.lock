@@ -969,6 +969,7 @@ dependencies = [
  "p256",
  "rcgen",
  "remoter-attest",
+ "remoter-proto",
  "serde",
  "serde_json",
  "sha2",

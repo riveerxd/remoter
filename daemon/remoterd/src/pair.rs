@@ -14,7 +14,7 @@ use axum::routing::post;
 use axum::{Json, Router};
 use hyper_util::rt::{TokioExecutor, TokioIo};
 use hyper_util::service::TowerToHyperService;
-use remoter_proto::admin::{PairCandidate, PairStarted, PairStatus};
+use remoter_proto::admin::{PairCandidate, PairStarted, PairStatus, Weakness};
 use remoter_proto::api::{ErrorBody, PairRequest, PairResponse};
 use remoter_proto::{ErrorCode, b64, local, pair};
 use sha2::{Digest, Sha256};
@@ -179,13 +179,20 @@ async fn handle(State(app): State<Arc<App>>, body: Result<Bytes, BytesRejection>
         Err(e) => return fail(&app, &format!("attestation: {e}")),
     };
     let hex = |b: &[u8]| b.iter().map(|x| format!("{x:02x}")).collect::<String>();
+    let weaknesses = remoter_attest::weaknesses(&tls, &sig);
+    let boot = |w| !weaknesses.contains(&w);
     let candidate = PairCandidate {
         name,
         manufacturer: sig.manufacturer.clone(),
         model: sig.model.clone(),
         sig_level: sig.attestation_security_level,
         tls_level: tls.attestation_security_level,
-        boot_state: "verified, locked".into(),
+        boot_state: format!(
+            "{}, {}",
+            if boot(Weakness::BootNotVerified) { "verified" } else { "not verified" },
+            if boot(Weakness::BootloaderUnlocked) { "locked" } else { "unlocked" }
+        ),
+        weaknesses,
         boot_key_prefix: hex(&sig.verified_boot_key).chars().take(8).collect(),
         code: pair::confirmation_code(&secret, &transcript),
         tls_spki_sha256: b64::encode(&Sha256::digest(&tls_spki)),

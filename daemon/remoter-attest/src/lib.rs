@@ -11,6 +11,7 @@ pub mod keydesc;
 pub mod testkit;
 
 pub use chain::{Revoked, Roots};
+pub use remoter_proto::admin::Weakness;
 
 /// SHA-256 of the DER SPKI of Google's hardware attestation roots, as served
 /// by https://android.googleapis.com/attestation/root and listed in
@@ -94,7 +95,7 @@ pub struct Policy {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Role {
-    /// The fingerprint key: StrongBox, fingerprint for every use.
+    /// The fingerprint key: StrongBox if the phone has one, fingerprint for every use.
     Sig,
     /// The TLS key: TEE or StrongBox.
     Tls,
@@ -129,6 +130,8 @@ pub struct Attested {
     pub model: Option<String>,
     pub device: Option<String>,
     pub remotely_provisioned: bool,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub weaknesses: Vec<Weakness>,
 }
 
 mod hexbytes {
@@ -180,14 +183,13 @@ pub fn check(chain: &[Vec<u8>], challenge: &[u8], role: Role, policy: &Policy, r
     let sw: &AuthList = &kd.software;
 
     rule(kd.challenge == challenge, "attestationChallenge")?;
-    let levels_ok = match role {
-        Role::Sig => kd.attestation_security_level == SECURITY_STRONGBOX && kd.keymint_security_level == SECURITY_STRONGBOX,
-        Role::Tls | Role::Reattest => {
-            [SECURITY_TEE, SECURITY_STRONGBOX].contains(&kd.attestation_security_level)
-                && [SECURITY_TEE, SECURITY_STRONGBOX].contains(&kd.keymint_security_level)
-        }
-    };
+    let mut weaknesses = Vec::new();
+    // hardware either way, a key in software is still refused
+    let levels_ok = [SECURITY_TEE, SECURITY_STRONGBOX].contains(&kd.attestation_security_level) && [SECURITY_TEE, SECURITY_STRONGBOX].contains(&kd.keymint_security_level);
     rule(levels_ok, "security level")?;
+    if role == Role::Sig && (kd.attestation_security_level != SECURITY_STRONGBOX || kd.keymint_security_level != SECURITY_STRONGBOX) {
+        weaknesses.push(Weakness::NoStrongBox);
+    }
     if let Some(chain_level) = v.chain_security_level {
         rule(chain_level == kd.attestation_security_level, "security level named by the chain")?;
     }
@@ -213,8 +215,12 @@ pub fn check(chain: &[Vec<u8>], challenge: &[u8], role: Role, policy: &Policy, r
     }
 
     let rot = hw.root_of_trust.as_ref().ok_or_else(|| Error::Policy("rootOfTrust in the hardware list".into()))?;
-    rule(rot.device_locked, "device locked")?;
-    rule(rot.verified_boot_state == BOOT_VERIFIED, "verified boot state Verified")?;
+    if !rot.device_locked {
+        weaknesses.push(Weakness::BootloaderUnlocked);
+    }
+    if rot.verified_boot_state != BOOT_VERIFIED {
+        weaknesses.push(Weakness::BootNotVerified);
+    }
     let boot_hash = rot.verified_boot_hash.clone().ok_or_else(|| Error::Policy("verifiedBootHash present".into()))?;
     rule(!rot.verified_boot_key.is_empty(), "verifiedBootKey present")?;
 
@@ -241,6 +247,7 @@ pub fn check(chain: &[Vec<u8>], challenge: &[u8], role: Role, policy: &Policy, r
         model: hw.model.clone(),
         device: hw.device.clone(),
         remotely_provisioned: v.provisioning == Provisioning::Remote,
+        weaknesses,
     })
 }
 
@@ -260,11 +267,36 @@ pub fn check_pair(
     Ok((tls, sig))
 }
 
-/// The daily check: a throwaway key from the same, still locked, still
-/// verified phone, with fresh patches.
-pub fn check_reattest(chain: &[Vec<u8>], challenge: &[u8], boot_key: &[u8], policy: &Policy, roots: &Roots, revoked: &Revoked, now_unix: i64) -> Result<Attested, Error> {
+pub fn weaknesses(tls: &Attested, sig: &Attested) -> Vec<Weakness> {
+    let mut w: Vec<Weakness> = tls.weaknesses.iter().chain(&sig.weaknesses).copied().collect();
+    w.sort();
+    w.dedup();
+    w
+}
+
+/// The daily check: a throwaway key from the same phone, with fresh patches,
+/// and nothing weaker than at pairing.
+#[allow(clippy::too_many_arguments)]
+pub fn check_reattest(
+    chain: &[Vec<u8>],
+    challenge: &[u8],
+    boot_key: &[u8],
+    paired_with: &[Weakness],
+    policy: &Policy,
+    roots: &Roots,
+    revoked: &Revoked,
+    now_unix: i64,
+) -> Result<Attested, Error> {
     let a = check(chain, challenge, Role::Reattest, policy, roots, revoked, now_unix)?;
     rule(a.verified_boot_key == boot_key, "same verifiedBootKey as at pairing")?;
+    for w in &a.weaknesses {
+        let new = match w {
+            Weakness::BootloaderUnlocked => "device locked",
+            Weakness::BootNotVerified => "verified boot state Verified",
+            Weakness::NoStrongBox => continue,
+        };
+        rule(paired_with.contains(w), new)?;
+    }
     Ok(a)
 }
 

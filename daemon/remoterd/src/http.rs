@@ -305,7 +305,7 @@ async fn attest(
     let Some(chain) = (req.chain.len() <= 8).then(|| req.chain.iter().map(|c| b64::decode(c)).collect::<Option<Vec<_>>>()).flatten() else {
         return error(&rid.0, ErrorCode::BadRequest, "chain encoding");
     };
-    let boot_key = app.devices().get(&peer.device).map(|d| d.record.verified_boot_key.clone()).unwrap_or_default();
+    let (boot_key, paired_with) = app.devices().get(&peer.device).map(|d| (d.record.verified_boot_key.clone(), d.record.weaknesses.clone())).unwrap_or_default();
     let boot_key: Vec<u8> = (0..boot_key.len() / 2).filter_map(|i| u8::from_str_radix(boot_key.get(2 * i..2 * i + 2)?, 16).ok()).collect();
     let outcome = {
         let mut st = lock(&app.attest);
@@ -314,7 +314,7 @@ async fn attest(
             (None, _) => Err("no open challenge for this device".to_owned()),
             (_, Err(e)) => Err(e),
             (Some(c), Ok((roots, revoked))) => {
-                remoter_attest::check_reattest(&chain, &c, &boot_key, &app.policy, roots, revoked, local::now_ms() / 1000).map(|_| ()).map_err(|e| e.to_string())
+                remoter_attest::check_reattest(&chain, &c, &boot_key, &paired_with, &app.policy, roots, revoked, local::now_ms() / 1000).map(|_| ()).map_err(|e| e.to_string())
             }
         }
     };

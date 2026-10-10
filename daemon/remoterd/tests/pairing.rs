@@ -12,7 +12,7 @@ use hyper_util::rt::{TokioExecutor, TokioIo};
 use rcgen::{KeyPair, PKCS_ECDSA_P256_SHA256};
 use remoter_attest::testkit::{ChainOpts, Spec};
 use remoter_auth::devices::{DeviceFile, DeviceRecord};
-use remoter_proto::admin::{AdminReply, AdminRequest, PairCandidate, PairStarted, PairStatus};
+use remoter_proto::admin::{AdminReply, AdminRequest, PairCandidate, PairStarted, PairStatus, Weakness};
 use remoter_proto::{b64, pair};
 use rustls::ClientConfig;
 use rustls::pki_types::ServerName;
@@ -108,6 +108,7 @@ fn add_device(h: &Harness, c: &PairCandidate, id: &str) {
         verified_boot_key: c.verified_boot_key.clone(),
         attestation: c.attestation.clone(),
         paired_at: 1,
+        weaknesses: c.weaknesses.clone(),
     });
     std::fs::write(h.dir.join("devices.json"), serde_json::to_vec(&f).expect("j")).expect("w");
 }
@@ -213,7 +214,7 @@ async fn a_wrong_typed_code_adds_nothing() {
 async fn attestation_failures_refuse_the_pairing() {
     for (why, tls, sig) in [
         ("wrong challenge", Spec::tls(b"other"), None),
-        ("sig in the TEE", Spec::tls(b""), Some(Spec { attestation_security_level: 1, keymint_security_level: 1, ..Spec::sig(b"") })),
+        ("sig in software", Spec::tls(b""), Some(Spec { attestation_security_level: 0, keymint_security_level: 0, ..Spec::sig(b"") })),
         ("two different phones", Spec::tls(b""), Some(Spec { boot_key: vec![0x77; 32], ..Spec::sig(b"") })),
     ] {
         let h = start().await;
@@ -252,6 +253,57 @@ async fn lock_off_goes_through_the_admin_socket() {
     assert!(!h.app.is_locked() && !h.app.settings.locked_flag.exists());
     let head = admin(&sock, &AdminRequest::AuditHead {}).await.expect("head");
     assert_eq!(head["head"].as_str().map(str::to_owned), remoterd::audit::disk_head(&h.dir.join("state/audit.jsonl")).ok());
+}
+
+#[tokio::test]
+async fn a_rooted_phone_pairs_with_a_warning() {
+    let h = start().await;
+    let sock = start_admin(&h, uid()).await;
+    let link = open_window(&sock, 60).await;
+    let k = keys();
+    let rooted = |s: Spec| Spec { device_locked: false, boot_state: 2, ..s };
+    let sig = Spec { attestation_security_level: 1, keymint_security_level: 1, ..rooted(Spec::sig(&link.challenge)) };
+    let (body, _, _) = phone_request(&h, &k, &link, "Rooted", &link.secret, rooted(Spec::tls(&link.challenge)), sig);
+    let phone = tokio::spawn({
+        let link = link.clone();
+        async move { post_pair(&link, &body).await }
+    });
+    let PairStatus::Received { candidate } = wait_status(&sock).await else { panic!("no attempt received") };
+    assert_eq!(candidate.weaknesses, vec![Weakness::NoStrongBox, Weakness::BootloaderUnlocked, Weakness::BootNotVerified]);
+    assert_eq!(candidate.boot_state, "not verified, unlocked");
+    assert_eq!((candidate.sig_level, candidate.tls_level), (1, 1));
+    add_device(&h, &candidate, NEW);
+    admin(&sock, &AdminRequest::PairConfirm { device_id: NEW.into() }).await.expect("confirm");
+    let (status, answer) = phone.await.expect("join").expect("post");
+    assert_eq!(status, 200, "{answer}");
+    let f: DeviceFile = serde_json::from_slice(&std::fs::read(h.dir.join("devices.json")).expect("r")).expect("p");
+    assert_eq!(f.devices.iter().find(|d| d.id == NEW).map(|d| d.weaknesses.clone()), Some(candidate.weaknesses));
+}
+
+#[tokio::test]
+async fn the_daily_check_refuses_a_phone_weaker_than_at_pairing() {
+    let h = start().await;
+    let set = |w: Vec<Weakness>| {
+        let mut f: DeviceFile = serde_json::from_slice(&std::fs::read(h.dir.join("devices.json")).expect("r")).expect("p");
+        f.devices[0].verified_boot_key = "a1".repeat(32);
+        f.devices[0].weaknesses = w;
+        std::fs::write(h.dir.join("devices.json"), serde_json::to_vec(&f).expect("j")).expect("w");
+        h.app.reload_devices().expect("reload");
+    };
+    let mut c = h.client(&h.a).await;
+    let mut attest = async |spec: fn(&[u8]) -> Spec| {
+        let ch = c.get("/v1/attest/challenge").await.json();
+        let challenge = b64::decode(ch["challenge"].as_str().expect("c")).expect("b64");
+        let chain = h.pki.chain(&spec(&challenge), &KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256).expect("k"), &ChainOpts::default());
+        let body = serde_json::to_vec(&serde_json::json!({ "chain": chain.iter().map(|x| b64::encode(x)).collect::<Vec<_>>() })).expect("j");
+        c.send("POST", "/v1/attest", &[], body).await.expect("attest").status == 200
+    };
+    let unlocked: fn(&[u8]) -> Spec = |ch| Spec { device_locked: false, ..Spec::reattest(ch) };
+    set(vec![]);
+    assert!(!attest(unlocked).await, "paired locked, unlocked since");
+    set(vec![Weakness::BootloaderUnlocked]);
+    assert!(attest(unlocked).await, "paired unlocked");
+    assert!(!attest(|ch| Spec { device_locked: false, boot_state: 2, ..Spec::reattest(ch) }).await, "and now the boot isn't verified either");
 }
 
 #[tokio::test]

@@ -11,23 +11,20 @@ import me.river.remoter.core.net.PairOutcome
 import me.river.remoter.core.net.PairRequest
 import me.river.remoter.core.net.Pairing
 import me.river.remoter.core.net.PairingClient
+import me.river.remoter.core.net.Weakness
 
 // leaf SPKIs come from each chain's own leaf, never a separate field that could disagree
 class KeystorePairer(private val keys: Keys, private val client: PairingClient) : Pairer {
     override fun pair(link: Pairing.Link, deviceName: String): Flow<PairEvent> = flow {
-        try {
-            keys.generatePair(link.challenge)
-        } catch (e: NoStrongBoxException) {
-            emit(PairEvent.NoStrongBox)
-            return@flow
-        }
+        keys.generatePair(link.challenge)
         val t = Pairing.transcript(link.serverFp, keys.leafSpki(TLS_ALIAS), keys.leafSpki(SIG_ALIAS), deviceName)
-        val boot = Attestation.verifiedBootKey(keys.chain(SIG_ALIAS).first())
-        emit(PairEvent.Code(Pairing.confirmationCode(link.secret, t), boot?.let { B64.hex(it).take(8).uppercase() } ?: "unknown"))
+        val rot = Attestation.rootOfTrust(keys.chain(SIG_ALIAS).first())
+        val weak = weaknesses(keys.level(SIG_ALIAS), rot)
+        emit(PairEvent.Code(Pairing.confirmationCode(link.secret, t), rot?.bootKey?.let { B64.hex(it).take(8).uppercase() } ?: "unknown", weak))
         val req = PairRequest(deviceName, keys.chainB64(TLS_ALIAS), keys.chainB64(SIG_ALIAS), B64.encode(Pairing.mac(link.secret, t)))
         when (val r = client.post(link, req)) {
             is PairOutcome.Ok -> emit(
-                PairEvent.Paired(r.response.hostname, r.response.deviceId, B64.encode(link.serverFp), keys.level(SIG_ALIAS), keys.level(TLS_ALIAS), link.port),
+                PairEvent.Paired(r.response.hostname, r.response.deviceId, B64.encode(link.serverFp), keys.level(SIG_ALIAS), keys.level(TLS_ALIAS), link.port, weak),
             )
             PairOutcome.KeyMismatch -> { keys.wipe(); emit(PairEvent.ServerKeyMismatch) }
             PairOutcome.Expired -> { keys.wipe(); emit(PairEvent.Expired) }
@@ -35,6 +32,13 @@ class KeystorePairer(private val keys: Keys, private val client: PairingClient) 
             PairOutcome.Unreachable -> { keys.wipe(); emit(PairEvent.Unreachable) }
         }
     }.flowOn(Dispatchers.IO)
+}
+
+// what the laptop reads from the chain too
+fun weaknesses(sig: SecurityLevel, rot: RootOfTrust?): List<Weakness> = buildList {
+    if (sig != SecurityLevel.StrongBox) add(Weakness.NoStrongBox)
+    if (rot == null || !rot.locked) add(Weakness.BootloaderUnlocked)
+    if (rot == null || !rot.verified) add(Weakness.BootNotVerified)
 }
 
 /** Daily re-attestation: keeps `fresh_until` ahead so mutations never hit `reattest_required`. */

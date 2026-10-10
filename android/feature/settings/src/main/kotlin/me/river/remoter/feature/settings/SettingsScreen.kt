@@ -49,6 +49,7 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import me.river.remoter.core.design.Appear
+import me.river.remoter.core.net.Weakness
 import me.river.remoter.core.design.Dur
 import me.river.remoter.core.design.FadeSwap
 import me.river.remoter.core.design.Glyphs
@@ -118,6 +119,7 @@ fun SettingsContent(
             Fact("Signing key", keyLevelLabel(laptop?.sigLevel), divider = false)
             Fact("Connection key", keyLevelLabel(laptop?.tlsLevel))
             Fact("Last checked", laptop?.lastAttestMs?.let { pastWhen(it, nowMs, zone) } ?: "Not yet")
+            laptop?.weaknesses?.takeIf { it.isNotEmpty() }?.let { Fact("Not secure", notSecureLabel(it)) }
         }
         Section("Look") {
             ThemePicker(p.theme) { v -> cb.onPrefs { it.copy(theme = v) } }
@@ -330,6 +332,14 @@ fun AuditContent(ui: AuditUi, onBack: () -> Unit, onMore: () -> Unit, host: Stri
         }
     }
 }
+
+internal fun notSecureLabel(w: List<Weakness>): String = w.joinToString(", ") {
+    when (it) {
+        Weakness.NoStrongBox -> "no security chip"
+        Weakness.BootloaderUnlocked -> "bootloader unlocked"
+        Weakness.BootNotVerified -> "unsigned software"
+    }
+}.replaceFirstChar { it.uppercase() }
 
 // the stored value is the enum name ("Tee"), which nobody reads that way
 internal fun keyLevelLabel(level: String?): String = when (level?.lowercase()) {

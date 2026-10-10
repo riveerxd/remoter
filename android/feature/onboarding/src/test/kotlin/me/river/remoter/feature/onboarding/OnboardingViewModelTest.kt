@@ -9,6 +9,7 @@ import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import me.river.remoter.core.crypto.PairEvent
 import me.river.remoter.core.net.Pairing
+import me.river.remoter.core.net.Weakness
 import me.river.remoter.core.testing.FakePairer
 import me.river.remoter.core.testing.FakeReachability
 import me.river.remoter.core.testing.FakeVpnNetworks
@@ -55,6 +56,20 @@ class OnboardingViewModelTest {
         advanceUntilIdle()
         assertEquals(OnboardingStep.Done, vm.step.value)
         assertNotNull(store.state.value!!.laptop)
+    }
+
+    @Test
+    fun weak_phone_pairs_and_keeps_the_warning() = runTest(main.dispatcher.scheduler) {
+        val clock = SchedulerClock(testScheduler)
+        val store = MemoryStore()
+        val weak = listOf(Weakness.BootloaderUnlocked, Weakness.BootNotVerified)
+        val vm = OnboardingViewModel(FakeVpnNetworks(), FakeReachability(), FakePairer(confirmMs = 1_000, weaknesses = weak), store, clock)
+        vm.submitLink(link(clock.nowMs() / 1000 + 300).toUri())
+        advanceTimeBy(700)
+        assertEquals(OnboardingStep.Confirm("481207", "A1F309CE", weak), vm.step.value)
+        advanceUntilIdle()
+        assertEquals(OnboardingStep.Done, vm.step.value)
+        assertEquals(weak, store.state.value!!.laptop!!.weaknesses)
     }
 
     @Test

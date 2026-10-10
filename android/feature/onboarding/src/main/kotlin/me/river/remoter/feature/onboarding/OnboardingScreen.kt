@@ -72,6 +72,8 @@ import me.river.remoter.core.design.EaseOut
 import me.river.remoter.core.design.Mark
 import me.river.remoter.core.design.Remoter
 import me.river.remoter.core.design.Shapes
+import me.river.remoter.core.net.Weakness
+import androidx.compose.foundation.border
 import me.river.remoter.core.design.Space
 import me.river.remoter.core.design.Touch
 import me.river.remoter.core.design.components.PrimaryButton
@@ -271,17 +273,41 @@ private fun Scan(s: OnboardingStep.Scan, camera: CameraAccess, cb: OnboardingCal
 private fun Confirm(s: OnboardingStep.Confirm) = Page("Type this on your laptop") {
     val c = Remoter.colors
     val t = Remoter.type
-    Spacer(Modifier.height(Space.s24))
-    Text(
-        s.code.chunked(3).joinToString(" "),
-        style = t.display.tnum(),
-        color = c.text,
-        modifier = Modifier.semantics { contentDescription = "Code ${s.code.toList().joinToString(" ")}" },
-    )
-    Text("Boot key ${s.bootKey.chunked(4).joinToString(" ")}", style = t.label.tnum(), color = c.textMuted)
-    Text("Check the laptop shows the same boot key before you type.", style = t.body, color = c.textMuted)
-    Spacer(Modifier.weight(1f))
+    // scrolls at large fonts, the status stays put
+    Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(Space.s16)) {
+        Spacer(Modifier.height(Space.s24))
+        Text(
+            s.code.chunked(3).joinToString(" "),
+            style = t.display.tnum(),
+            color = c.text,
+            modifier = Modifier.semantics { contentDescription = "Code ${s.code.toList().joinToString(" ")}" },
+        )
+        Text("Boot key ${s.bootKey.chunked(4).joinToString(" ")}", style = t.label.tnum(), color = c.textMuted)
+        Text("Check the laptop shows the same boot key before you type.", style = t.body, color = c.textMuted)
+        if (s.weaknesses.isNotEmpty()) NotSecure(s.weaknesses)
+    }
     StatusLabel("Waiting for the laptop…", StatusTone.Warn, pulsing = true)
+}
+
+@Composable
+private fun NotSecure(weaknesses: List<Weakness>) {
+    val c = Remoter.colors
+    val t = Remoter.type
+    Column(
+        Modifier.fillMaxWidth().clip(Shapes.card).background(c.surface).border(1.dp, c.warn.copy(alpha = 0.5f), Shapes.card).padding(Space.cardPadding)
+            .semantics(mergeDescendants = true) {},
+        verticalArrangement = Arrangement.spacedBy(Space.s8),
+    ) {
+        Text("This phone isn't fully secure", style = t.bodyStrong, color = c.warn)
+        weaknesses.forEach { Text(it.why(), style = t.body, color = c.text) }
+        Text("Pairing still works, and the laptop sees this too.", style = t.label, color = c.textMuted)
+    }
+}
+
+private fun Weakness.why() = when (this) {
+    Weakness.NoStrongBox -> "There's no security chip, so the signing key lives in the phone's regular secure hardware."
+    Weakness.BootloaderUnlocked -> "The bootloader is unlocked."
+    Weakness.BootNotVerified -> "It runs software its maker didn't sign."
 }
 
 @Composable
@@ -289,7 +315,6 @@ private fun Stop(why: HardStop, cb: OnboardingCallbacks) {
     val (title, body) = when (why) {
         HardStop.Expired -> "This code expired" to "Run sudo remoterctl pair again."
         HardStop.ServerKeyMismatch -> "The laptop's key doesn't match the code" to "Don't pair on this network."
-        HardStop.NoStrongBox -> "This phone's security chip isn't available" to "remoter can't pair safely without it."
     }
     Page(title) {
         Text(body, style = Remoter.type.body, color = Remoter.colors.textMuted)

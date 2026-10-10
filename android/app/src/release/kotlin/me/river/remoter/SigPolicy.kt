@@ -6,6 +6,6 @@ import me.river.remoter.core.crypto.PromptHost
 import me.river.remoter.core.crypto.SigAuthorizer
 
 object SigPolicy {
-    val sigSpec = KeySpecs::sig
+    val sigSpec: (ByteArray, Boolean) -> android.security.keystore.KeyGenParameterSpec = KeySpecs::sig
     fun authorizer(host: PromptHost): SigAuthorizer = BiometricAuthorizer(host)
 }

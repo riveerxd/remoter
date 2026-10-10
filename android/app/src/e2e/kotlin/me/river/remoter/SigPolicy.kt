@@ -14,11 +14,11 @@ import java.security.spec.ECGenParameterSpec
 object SigPolicy {
     const val MARKER = "remoter-e2e-relaxed-signing"
 
-    val sigSpec: (ByteArray) -> KeyGenParameterSpec = { challenge ->
+    val sigSpec: (ByteArray, Boolean) -> KeyGenParameterSpec = { challenge, strongBox ->
         KeyGenParameterSpec.Builder(SIG_ALIAS, KeyProperties.PURPOSE_SIGN)
             .setAlgorithmParameterSpec(ECGenParameterSpec("secp256r1"))
             .setDigests(KeyProperties.DIGEST_SHA256)
-            .setIsStrongBoxBacked(true)
+            .setIsStrongBoxBacked(strongBox)
             .setUnlockedDeviceRequired(true)
             .setAttestationChallenge(challenge)
             .build()

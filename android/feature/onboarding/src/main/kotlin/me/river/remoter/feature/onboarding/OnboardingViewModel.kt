@@ -22,9 +22,10 @@ import me.river.remoter.core.net.Pairing
 import me.river.remoter.core.net.Reachability
 import me.river.remoter.core.net.VpnLink
 import me.river.remoter.core.net.VpnNetworks
+import me.river.remoter.core.net.Weakness
 import javax.inject.Inject
 
-enum class HardStop { Expired, ServerKeyMismatch, NoStrongBox }
+enum class HardStop { Expired, ServerKeyMismatch }
 
 @kotlinx.serialization.Serializable
 enum class PairAgainReason { KeyInvalidated, Revoked, Unpaired }
@@ -34,7 +35,7 @@ sealed interface OnboardingStep {
     data class Connect(val tunnel: Boolean, val laptop: Boolean) : OnboardingStep
     data class Scan(val pasting: Boolean = false, val pasteInvalid: Boolean = false, val rejected: Boolean = false, val unreachable: Boolean = false) : OnboardingStep
     data object Pairing : OnboardingStep
-    data class Confirm(val code: String, val bootKey: String) : OnboardingStep
+    data class Confirm(val code: String, val bootKey: String, val weaknesses: List<Weakness> = emptyList()) : OnboardingStep
     data object Done : OnboardingStep
     data class Stop(val why: HardStop) : OnboardingStep
     data class PairAgain(val reason: PairAgainReason) : OnboardingStep
@@ -116,17 +117,16 @@ class OnboardingViewModel @Inject constructor(
         pairing = viewModelScope.launch {
             pairer.pair(link, android.os.Build.MODEL ?: "Phone").collect { e ->
                 when (e) {
-                    is PairEvent.Code -> _step.value = OnboardingStep.Confirm(e.code, e.bootKey)
+                    is PairEvent.Code -> _step.value = OnboardingStep.Confirm(e.code, e.bootKey, e.weaknesses)
                     is PairEvent.Paired -> {
                         store.update {
-                            it.copy(laptop = PairedLaptop(e.hostname, e.serverFp, e.deviceId, clock.nowMs(), e.sig.name, e.tls.name, clock.nowMs(), e.port))
+                            it.copy(laptop = PairedLaptop(e.hostname, e.serverFp, e.deviceId, clock.nowMs(), e.sig.name, e.tls.name, clock.nowMs(), e.port, e.weaknesses))
                         }
                         _step.value = OnboardingStep.Done
                         _paired.tryEmit(Unit)
                     }
                     PairEvent.Expired -> _step.value = OnboardingStep.Stop(HardStop.Expired)
                     PairEvent.ServerKeyMismatch -> _step.value = OnboardingStep.Stop(HardStop.ServerKeyMismatch)
-                    PairEvent.NoStrongBox -> _step.value = OnboardingStep.Stop(HardStop.NoStrongBox)
                     PairEvent.Rejected -> _step.value = OnboardingStep.Scan(rejected = true)
                     PairEvent.Unreachable -> _step.value = OnboardingStep.Scan(unreachable = true)
                 }

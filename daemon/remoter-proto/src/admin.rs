@@ -40,6 +40,26 @@ pub struct PairStarted {
     pub expires: i64,
 }
 
+/// Pairs anyway, with a warning.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Weakness {
+    NoStrongBox,
+    BootloaderUnlocked,
+    /// boot image not signed by the maker
+    BootNotVerified,
+}
+
+impl Weakness {
+    pub fn says(self) -> &'static str {
+        match self {
+            Weakness::NoStrongBox => "no security chip, the signing key is in the TEE",
+            Weakness::BootloaderUnlocked => "bootloader unlocked",
+            Weakness::BootNotVerified => "boot not verified",
+        }
+    }
+}
+
 /// What the laptop shows before you type the phone's code.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -50,6 +70,8 @@ pub struct PairCandidate {
     pub sig_level: i64,
     pub tls_level: i64,
     pub boot_state: String,
+    #[serde(default)]
+    pub weaknesses: Vec<Weakness>,
     /// First 8 hex characters of the attested verifiedBootKey, as the phone
     /// shows it.
     pub boot_key_prefix: String,

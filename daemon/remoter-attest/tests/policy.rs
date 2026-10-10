@@ -4,7 +4,7 @@
 
 use rcgen::{KeyPair, PKCS_ECDSA_P256_SHA256};
 use remoter_attest::testkit::{self, APP_DIGEST, ChainOpts, PACKAGE, Pki, Shape, Spec};
-use remoter_attest::{Error, Policy, Revoked, Role, Roots, UnlockedList, check, check_pair, check_reattest};
+use remoter_attest::{Error, Policy, Revoked, Role, Roots, UnlockedList, Weakness, check, check_pair, check_reattest, weaknesses};
 
 const C: &[u8] = b"pairing-challenge-0001";
 /// 2026-09-28.
@@ -62,7 +62,7 @@ fn every_rule_fails_on_its_own() {
     let sig = Spec::sig(C);
     let cases: Vec<(&str, Spec, Role, &str)> = vec![
         ("wrong challenge", Spec { challenge: b"other".to_vec(), ..sig.clone() }, Role::Sig, "attestationChallenge"),
-        ("TEE instead of StrongBox for sig", Spec { attestation_security_level: 1, keymint_security_level: 1, ..sig.clone() }, Role::Sig, "security level"),
+        ("sig in software", Spec { attestation_security_level: 0, keymint_security_level: 0, ..sig.clone() }, Role::Sig, "security level"),
         ("KeyMint in software", Spec { keymint_security_level: 0, ..Spec::tls(C) }, Role::Tls, "security level"),
         ("imported origin", Spec { origin: Some(2), ..sig.clone() }, Role::Sig, "origin"),
         ("origin missing", Spec { origin: None, ..sig.clone() }, Role::Sig, "origin"),
@@ -75,8 +75,6 @@ fn every_rule_fails_on_its_own() {
         ("auth timeout present", Spec { auth_timeout: Some(0), ..sig.clone() }, Role::Sig, "AUTH_TIMEOUT"),
         ("unlocked device not required", Spec { unlocked_in_hardware: false, ..sig.clone() }, Role::Sig, "UNLOCKED_DEVICE_REQUIRED"),
         ("only in the software list", Spec { unlocked_in_hardware: false, unlocked_in_software: true, ..sig.clone() }, Role::Sig, "UNLOCKED_DEVICE_REQUIRED"),
-        ("unlocked bootloader", Spec { device_locked: false, ..sig.clone() }, Role::Sig, "device locked"),
-        ("self signed boot", Spec { boot_state: 1, ..sig.clone() }, Role::Sig, "Verified"),
         ("no boot hash", Spec { boot_hash: None, ..sig.clone() }, Role::Sig, "verifiedBootHash"),
         ("stale OS patch", Spec { os_patch: Some(202512), ..sig.clone() }, Role::Sig, "osPatchLevel"),
         ("stale boot patch", Spec { boot_patch: Some(20251201), ..sig.clone() }, Role::Sig, "bootPatchLevel"),
@@ -91,6 +89,36 @@ fn every_rule_fails_on_its_own() {
         assert!(matches!(r, Err(Error::Policy(_))), "{why}: {r:?}");
         policy_fail(r, rule);
     }
+}
+
+#[test]
+fn weak_phones_pass_with_a_warning() {
+    let t = T::new("testroot0000");
+    let o = ChainOpts::default();
+    let sig = Spec::sig(C);
+    assert!(t.run(&sig, Role::Sig, &o).expect("baseline").weaknesses.is_empty());
+    let cases: Vec<(Spec, Role, Vec<Weakness>)> = vec![
+        (Spec { attestation_security_level: 1, keymint_security_level: 1, ..sig.clone() }, Role::Sig, vec![Weakness::NoStrongBox]),
+        (Spec { keymint_security_level: 1, ..sig.clone() }, Role::Sig, vec![Weakness::NoStrongBox]),
+        (Spec { device_locked: false, ..sig.clone() }, Role::Sig, vec![Weakness::BootloaderUnlocked]),
+        (Spec { boot_state: 1, ..sig.clone() }, Role::Sig, vec![Weakness::BootNotVerified]),
+        (Spec { device_locked: false, boot_state: 2, ..Spec::tls(C) }, Role::Tls, vec![Weakness::BootloaderUnlocked, Weakness::BootNotVerified]),
+        // a TEE tls key is normal, not a weakness
+        (Spec::tls(C), Role::Tls, vec![]),
+    ];
+    for (spec, role, want) in cases {
+        assert_eq!(t.run(&spec, role, &o).expect("passes").weaknesses, want, "{role:?}");
+    }
+}
+
+#[test]
+fn pair_collects_weaknesses_once() {
+    let t = T::new("testroot0000");
+    let o = ChainOpts::default();
+    let tls = t.pki.chain(&Spec { device_locked: false, ..Spec::tls(C) }, &key(), &o);
+    let sig = t.pki.chain(&Spec { device_locked: false, attestation_security_level: 1, keymint_security_level: 1, ..Spec::sig(C) }, &key(), &o);
+    let (a, b) = check_pair(&tls, &sig, C, &policy(), &t.roots, &Revoked::default(), NOW).expect("pair");
+    assert_eq!(weaknesses(&a, &b), vec![Weakness::NoStrongBox, Weakness::BootloaderUnlocked]);
 }
 
 #[test]
@@ -214,8 +242,14 @@ fn pair_needs_one_phone() {
 fn reattestation_needs_the_same_phone() {
     let t = T::new("testroot0000");
     let c = t.pki.chain(&Spec::reattest(C), &key(), &ChainOpts::default());
-    assert!(check_reattest(&c, C, &testkit::BOOT_KEY, &policy(), &t.roots, &Revoked::default(), NOW).is_ok());
-    policy_fail(check_reattest(&c, C, &[0x77; 32], &policy(), &t.roots, &Revoked::default(), NOW), "same verifiedBootKey");
+    let again = |c: &[Vec<u8>], key: &[u8], paired: &[Weakness]| check_reattest(c, C, key, paired, &policy(), &t.roots, &Revoked::default(), NOW);
+    assert!(again(&c, &testkit::BOOT_KEY, &[]).is_ok());
+    policy_fail(again(&c, &[0x77; 32], &[]), "same verifiedBootKey");
     let unlocked = t.pki.chain(&Spec { device_locked: false, ..Spec::reattest(C) }, &key(), &ChainOpts::default());
-    policy_fail(check_reattest(&unlocked, C, &testkit::BOOT_KEY, &policy(), &t.roots, &Revoked::default(), NOW), "device locked");
+    policy_fail(again(&unlocked, &testkit::BOOT_KEY, &[]), "device locked");
+    policy_fail(again(&unlocked, &testkit::BOOT_KEY, &[Weakness::NoStrongBox]), "device locked");
+    assert!(again(&unlocked, &testkit::BOOT_KEY, &[Weakness::BootloaderUnlocked]).is_ok());
+    let rooted = t.pki.chain(&Spec { device_locked: false, boot_state: 2, ..Spec::reattest(C) }, &key(), &ChainOpts::default());
+    policy_fail(again(&rooted, &testkit::BOOT_KEY, &[Weakness::BootloaderUnlocked]), "Verified");
+    assert!(again(&rooted, &testkit::BOOT_KEY, &[Weakness::BootloaderUnlocked, Weakness::BootNotVerified]).is_ok());
 }

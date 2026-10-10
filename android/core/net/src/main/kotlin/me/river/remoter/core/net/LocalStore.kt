@@ -22,6 +22,9 @@ data class Prefs(
 )
 
 @Serializable
+enum class Weakness { NoStrongBox, BootloaderUnlocked, BootNotVerified }
+
+@Serializable
 data class PairedLaptop(
     val hostname: String,
     val serverFp: String,
@@ -32,6 +35,7 @@ data class PairedLaptop(
     val lastAttestMs: Long?,
     /** From the pairing link: 8443 in production, 9443 for the staging instance the e2e suite uses. */
     val port: Int = 8443,
+    val weaknesses: List<Weakness> = emptyList(),
 )
 
 /** The last home screen, so a cold start shows real content instead of a skeleton. Never terminal output. */

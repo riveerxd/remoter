@@ -104,8 +104,12 @@ anything as you. That shaped most of the design.
 </div>
 
 - **Pairing** checks Android key attestation against Google's roots: the right
-  app, signed by the right cert, on a locked bootloader with a recent patch
-  level. It's checked again once a day.
+  app, signed by the right cert, with a recent patch level. It's checked again
+  once a day.
+- **A weaker phone still pairs, with a warning on both ends.** Without
+  StrongBox the key lives in the TEE, still one finger per signature. A rooted
+  phone pairs too, but then all of the above is only as good as that phone.
+  One that paired locked and turns up unlocked is refused.
 - **The network side** is one daemon with its own user, no home, no internet and
   a tight systemd sandbox. It speaks mTLS 1.3 with pinned keys, and only on the
   tunnel interface.
@@ -180,7 +184,8 @@ on it, and why nothing you type ever ends up on kitty's command line.
 
 You need a laptop running a systemd user session with Hyprland or i3 and kitty
 or Alacritty, a VPS you can ssh into with sudo (or a home router you can forward
-a port on, see below), and an Android 14+ phone with StrongBox.
+a port on, see below), and an Android 14+ phone. One with StrongBox and a
+locked bootloader is the safe choice; others pair with a warning.
 
 1. **The tunnel.** `infra/vps/setup.sh check <host>` looks at the VPS without
    changing anything. Then on the laptop:

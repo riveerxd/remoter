@@ -49,10 +49,12 @@ class KeystoreDeviceTest {
     }
 
     @Test
-    fun no_strongbox_no_downgrade() {
+    fun no_strongbox_falls_back_to_the_tee() {
         assumeFalse("this device has StrongBox", strongBox)
-        assertThrows(NoStrongBoxException::class.java) { Keys().generatePair(challenge) }
-        assertFalse(ks.containsAlias(TLS_ALIAS))
+        val keys = Keys()
+        keys.generatePair(challenge)
+        assertEquals(SecurityLevel.Tee, keys.level(SIG_ALIAS))
+        assertTrue(keys.keyInfo(SIG_ALIAS).isUserAuthenticationRequired)
     }
 
     @Test

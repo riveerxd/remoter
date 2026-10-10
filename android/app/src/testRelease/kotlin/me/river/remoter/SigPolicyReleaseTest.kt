@@ -14,13 +14,17 @@ import org.robolectric.RobolectricTestRunner
 class SigPolicyReleaseTest {
     @Test
     fun release_sig_key_has_every_flag() {
-        val s = SigPolicy.sigSpec(ByteArray(16))
-        assertTrue(s.isStrongBoxBacked)
-        assertTrue(s.isUserAuthenticationRequired)
-        assertEquals(0, s.userAuthenticationValidityDurationSeconds)
-        assertEquals(KeyProperties.AUTH_BIOMETRIC_STRONG, s.userAuthenticationType)
-        assertTrue(s.isInvalidatedByBiometricEnrollment)
-        assertTrue(s.isUnlockedDeviceRequired)
+        assertTrue(SigPolicy.sigSpec(ByteArray(16), true).isStrongBoxBacked)
+        // TEE fallback: same flags
+        for (strongBox in listOf(true, false)) {
+            val s = SigPolicy.sigSpec(ByteArray(16), strongBox)
+            assertEquals(strongBox, s.isStrongBoxBacked)
+            assertTrue(s.isUserAuthenticationRequired)
+            assertEquals(0, s.userAuthenticationValidityDurationSeconds)
+            assertEquals(KeyProperties.AUTH_BIOMETRIC_STRONG, s.userAuthenticationType)
+            assertTrue(s.isInvalidatedByBiometricEnrollment)
+            assertTrue(s.isUnlockedDeviceRequired)
+        }
     }
 
     @Test

@@ -67,6 +67,11 @@ fn write_devices(path: &Path, f: &DeviceFile) -> Result<(), String> {
     std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o644)).map_err(|e| e.to_string())
 }
 
+/// None for a clean phone.
+pub fn not_secure(w: &[remoter_proto::admin::Weakness]) -> Option<String> {
+    (!w.is_empty()).then(|| format!("not secure: {}", w.iter().map(|w| w.says()).collect::<Vec<_>>().join(", ")))
+}
+
 pub fn list_devices(path: &Path) -> Result<Vec<DeviceRecord>, String> {
     Ok(read_devices(path)?.devices)
 }
@@ -326,6 +331,13 @@ mod tests {
         let top = qr.lines().next().expect("a line");
         // The quiet zone is light, so on a dark terminal it must be drawn, not left blank.
         assert!(top.chars().all(|c| c == '\u{2588}'), "top row was {top:?}");
+    }
+
+    #[test]
+    fn not_secure_lines() {
+        use remoter_proto::admin::Weakness;
+        assert_eq!(not_secure(&[]), None);
+        assert_eq!(not_secure(&[Weakness::BootloaderUnlocked, Weakness::BootNotVerified]).as_deref(), Some("not secure: bootloader unlocked, boot not verified"));
     }
 
     fn record(id: &str) -> DeviceRecord {

@@ -6,6 +6,7 @@ use std::path::Path;
 
 use p256::ecdsa::VerifyingKey;
 use p256::pkcs8::DecodePublicKey;
+use remoter_proto::admin::Weakness;
 use remoter_proto::{b64, canonical};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -24,6 +25,9 @@ pub struct DeviceRecord {
     #[serde(default)]
     pub attestation: serde_json::Value,
     pub paired_at: i64,
+    /// the daily check holds the phone to these
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub weaknesses: Vec<Weakness>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]

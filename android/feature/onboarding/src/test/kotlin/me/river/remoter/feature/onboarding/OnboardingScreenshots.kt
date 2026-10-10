@@ -3,6 +3,7 @@ package me.river.remoter.feature.onboarding
 import androidx.compose.ui.test.junit4.createComposeRule
 import me.river.remoter.core.design.shots.Variant
 import me.river.remoter.core.design.shots.shot
+import me.river.remoter.core.net.Weakness
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -32,8 +33,8 @@ class OnboardingScreenshots(private val v: Variant) {
     @Test fun paste() = one("paste", OnboardingStep.Scan(pasting = true))
     @Test fun paste_invalid() = one("paste_invalid", OnboardingStep.Scan(pasting = true, pasteInvalid = true))
     @Test fun confirm() = one("confirm", OnboardingStep.Confirm("481207", "A1F309CE"))
+    @Test fun confirm_not_secure() = one("confirm_not_secure", OnboardingStep.Confirm("481207", "00000000", Weakness.entries))
     @Test fun stop_expired() = one("stop_expired", OnboardingStep.Stop(HardStop.Expired))
     @Test fun stop_mismatch() = one("stop_mismatch", OnboardingStep.Stop(HardStop.ServerKeyMismatch))
-    @Test fun stop_no_strongbox() = one("stop_no_strongbox", OnboardingStep.Stop(HardStop.NoStrongBox))
     @Test fun pair_again() = one("pair_again", OnboardingStep.PairAgain(PairAgainReason.KeyInvalidated))
 }

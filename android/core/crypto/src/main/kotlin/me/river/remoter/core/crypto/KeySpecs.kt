@@ -12,11 +12,11 @@ object KeySpecs {
     // TEE for now. still hardware
     const val TLS_IN_STRONGBOX = false
 
-    fun sig(challenge: ByteArray): KeyGenParameterSpec =
+    fun sig(challenge: ByteArray, strongBox: Boolean = true): KeyGenParameterSpec =
         KeyGenParameterSpec.Builder(SIG_ALIAS, KeyProperties.PURPOSE_SIGN)
             .setAlgorithmParameterSpec(ECGenParameterSpec("secp256r1"))
             .setDigests(KeyProperties.DIGEST_SHA256)
-            .setIsStrongBoxBacked(true)
+            .setIsStrongBoxBacked(strongBox)
             .setUserAuthenticationRequired(true)
             .setUserAuthenticationParameters(0, KeyProperties.AUTH_BIOMETRIC_STRONG)
             .setInvalidatedByBiometricEnrollment(true)

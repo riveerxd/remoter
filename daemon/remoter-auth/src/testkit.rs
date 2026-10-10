@@ -35,6 +35,7 @@ impl Phone {
             verified_boot_key: "a1f309ce".into(),
             attestation: serde_json::Value::Null,
             paired_at: 1,
+            weaknesses: vec![],
         }
     }
 

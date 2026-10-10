@@ -129,6 +129,11 @@ fn pair(c: &Ctx, name: &str) -> Result<(), String> {
         candidate.boot_state,
         candidate.boot_key_prefix.to_uppercase(),
     );
+    if let Some(note) = remoterctl::not_secure(&candidate.weaknesses) {
+        println!(
+            "This phone is {note}.\nIt still pairs. The daily check refuses it if it gets any weaker.\n"
+        );
+    }
     print!("Type the 6 digits the phone shows: ");
     let _ = std::io::stdout().flush();
     let mut typed = String::new();
@@ -148,6 +153,7 @@ fn pair(c: &Ctx, name: &str) -> Result<(), String> {
         verified_boot_key: candidate.verified_boot_key.clone(),
         attestation: candidate.attestation.clone(),
         paired_at: remoter_proto::local::now_ms(),
+        weaknesses: candidate.weaknesses.clone(),
     };
     remoterctl::finish_pairing(&c.rd.paths.devices, &mut |r| admin(c, r), record)?;
     println!("Paired {} as {id}.", candidate.name);
@@ -183,7 +189,8 @@ fn devices(c: &Ctx) -> Result<(), String> {
     }
     for d in list {
         let note = if theirs.contains(&d.id) || ours.contains(&d.id) { "  unpaired from the phone, run revoke to tidy" } else { "" };
-        println!("{}  {}  paired {}{note}", d.id, d.name, d.paired_at);
+        let weak = remoterctl::not_secure(&d.weaknesses).map(|w| format!("  {w}")).unwrap_or_default();
+        println!("{}  {}  paired {}{weak}{note}", d.id, d.name, d.paired_at);
     }
     Ok(())
 }

@@ -11,10 +11,7 @@ import java.security.KeyStore
 import java.security.PrivateKey
 import java.security.cert.X509Certificate
 
-/** Raised when `sig` can't live in StrongBox. Pairing stops with a clear message; nothing downgrades. */
-class NoStrongBoxException : Exception("StrongBox unavailable for the signing key")
-
-class Keys(private val sigSpec: (ByteArray) -> KeyGenParameterSpec = KeySpecs::sig) {
+class Keys(private val sigSpec: (ByteArray, Boolean) -> KeyGenParameterSpec = KeySpecs::sig) {
     private val ks: KeyStore = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
 
     private fun generate(spec: KeyGenParameterSpec) {
@@ -25,9 +22,10 @@ class Keys(private val sigSpec: (ByteArray) -> KeyGenParameterSpec = KeySpecs::s
     fun generatePair(challenge: ByteArray) {
         wipe()
         try {
-            generate(sigSpec(challenge))
+            generate(sigSpec(challenge, true))
         } catch (e: StrongBoxUnavailableException) {
-            throw NoStrongBoxException()
+            // same flags, just not in StrongBox
+            generate(sigSpec(challenge, false))
         }
         try {
             generate(KeySpecs.tls(challenge))

@@ -12,7 +12,7 @@ import org.robolectric.RobolectricTestRunner
 class SigPolicyE2eTest {
     @Test
     fun e2e_drops_only_the_finger() {
-        val s = SigPolicy.sigSpec(ByteArray(16))
+        val s = SigPolicy.sigSpec(ByteArray(16), true)
         assertFalse(s.isUserAuthenticationRequired)
         assertTrue("still StrongBox", s.isStrongBoxBacked)
         assertTrue("still unlock-bound", s.isUnlockedDeviceRequired)

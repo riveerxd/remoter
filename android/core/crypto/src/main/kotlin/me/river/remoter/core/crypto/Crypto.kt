@@ -1,6 +1,7 @@
 package me.river.remoter.core.crypto
 
 import me.river.remoter.core.net.Signed
+import me.river.remoter.core.net.Weakness
 import okhttp3.HttpUrl
 
 // built from the same request that gets signed
@@ -29,13 +30,20 @@ data class KeyLevels(val sig: SecurityLevel, val tls: SecurityLevel)
 
 sealed interface PairEvent {
     /** Type this on the laptop. [bootKey] is the first 8 hex of the attested boot key. */
-    data class Code(val code: String, val bootKey: String) : PairEvent
-    data class Paired(val hostname: String, val deviceId: String, val serverFp: String, val sig: SecurityLevel, val tls: SecurityLevel, val port: Int = 8443) : PairEvent
+    data class Code(val code: String, val bootKey: String, val weaknesses: List<Weakness> = emptyList()) : PairEvent
+    data class Paired(
+        val hostname: String,
+        val deviceId: String,
+        val serverFp: String,
+        val sig: SecurityLevel,
+        val tls: SecurityLevel,
+        val port: Int = 8443,
+        val weaknesses: List<Weakness> = emptyList(),
+    ) : PairEvent
 
     /** Hard stops: a full screen, no continue anyway. */
     data object Expired : PairEvent
     data object ServerKeyMismatch : PairEvent
-    data object NoStrongBox : PairEvent
 
     /** The laptop said no: wrong code typed, or the one attempt was used. */
     data object Rejected : PairEvent

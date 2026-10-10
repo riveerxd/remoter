@@ -607,6 +607,7 @@ impl Lab {
                 verified_boot_key: candidate.verified_boot_key.clone(),
                 attestation: candidate.attestation.clone(),
                 paired_at: now(),
+                weaknesses: candidate.weaknesses.clone(),
             },
         )
         .expect("device file");

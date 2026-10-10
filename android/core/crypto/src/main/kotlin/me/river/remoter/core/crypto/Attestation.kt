@@ -37,18 +37,23 @@ internal class Der(private val b: ByteArray, private var i: Int = 0, private val
     fun bytes(t: Tlv) = b.copyOfRange(t.start, t.start + t.len)
 }
 
+// verifiedBootState 0 is Verified
+class RootOfTrust(val bootKey: ByteArray, val locked: Boolean, val verifiedBootState: Int) {
+    val verified get() = verifiedBootState == 0
+}
+
 object Attestation {
     const val KEY_DESCRIPTION_OID = "1.3.6.1.4.1.11129.2.1.17"
     private const val ROOT_OF_TRUST_TAG = 704
 
-    fun verifiedBootKey(leaf: X509Certificate): ByteArray? {
+    fun rootOfTrust(leaf: X509Certificate): RootOfTrust? {
         val ext = leaf.getExtensionValue(KEY_DESCRIPTION_OID) ?: return null
         // getExtensionValue wraps the extension in an OCTET STRING; its contents are the KeyDescription.
         val d = Der(ext)
-        return verifiedBootKey(d.bytes(d.next()))
+        return rootOfTrust(d.bytes(d.next()))
     }
 
-    fun verifiedBootKey(keyDescription: ByteArray): ByteArray? {
+    fun rootOfTrust(keyDescription: ByteArray): RootOfTrust? {
         val top = Der(keyDescription)
         val seq = top.inside(top.next())
         // attestationVersion, attestationSecurityLevel, keyMintVersion, keyMintSecurityLevel,
@@ -60,9 +65,16 @@ object Attestation {
             if (t.cls == 2 && t.tag == ROOT_OF_TRUST_TAG) {
                 val wrap = hw.inside(t)
                 val rot = wrap.inside(wrap.next())
-                return rot.bytes(rot.next())
+                val key = rot.bytes(rot.next())
+                val locked = rot.bytes(rot.next()).singleOrNull() != 0.toByte()
+                val state = rot.bytes(rot.next()).singleOrNull()?.toInt() ?: return null
+                return RootOfTrust(key, locked, state)
             }
         }
         return null
     }
+
+    fun verifiedBootKey(leaf: X509Certificate): ByteArray? = rootOfTrust(leaf)?.bootKey
+
+    fun verifiedBootKey(keyDescription: ByteArray): ByteArray? = rootOfTrust(keyDescription)?.bootKey
 }
