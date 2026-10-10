@@ -949,7 +949,7 @@ dependencies = [
 
 [[package]]
 name = "remoter-agent"
-version = "1.2.0"
+version = "1.3.0"
 dependencies = [
  "getrandom 0.4.3",
  "libc",
@@ -964,7 +964,7 @@ dependencies = [
 
 [[package]]
 name = "remoter-attest"
-version = "1.2.0"
+version = "1.3.0"
 dependencies = [
  "p256",
  "rcgen",
@@ -978,7 +978,7 @@ dependencies = [
 
 [[package]]
 name = "remoter-auth"
-version = "1.2.0"
+version = "1.3.0"
 dependencies = [
  "libc",
  "p256",
@@ -990,7 +990,7 @@ dependencies = [
 
 [[package]]
 name = "remoter-e2e-host"
-version = "1.2.0"
+version = "1.3.0"
 dependencies = [
  "axum",
  "futures-util",
@@ -1013,7 +1013,7 @@ dependencies = [
 
 [[package]]
 name = "remoter-exec"
-version = "1.2.0"
+version = "1.3.0"
 dependencies = [
  "libc",
  "remoter-proto",
@@ -1023,7 +1023,7 @@ dependencies = [
 
 [[package]]
 name = "remoter-proto"
-version = "1.2.0"
+version = "1.3.0"
 dependencies = [
  "base64",
  "hmac",
@@ -1035,7 +1035,7 @@ dependencies = [
 
 [[package]]
 name = "remoterctl"
-version = "1.2.0"
+version = "1.3.0"
 dependencies = [
  "axum",
  "hyper",
@@ -1061,7 +1061,7 @@ dependencies = [
 
 [[package]]
 name = "remoterd"
-version = "1.2.0"
+version = "1.3.0"
 dependencies = [
  "axum",
  "base64",
