@@ -11,6 +11,7 @@ import me.river.remoter.core.net.ConnectionMonitor
 import me.river.remoter.core.net.LocalState
 import me.river.remoter.core.net.Link
 import me.river.remoter.core.net.PairedLaptop
+import me.river.remoter.core.net.RecentEntry
 import me.river.remoter.core.net.RecentResponse
 import me.river.remoter.core.net.RemoterApi
 import me.river.remoter.core.net.UnreachableException
@@ -45,13 +46,14 @@ class HomeViewModelTest {
         val fixture = FixtureBackend().also { it.unreachable = down }
 
         var failRecent = false
+        var recentOverride: RecentResponse? = null
         var sessionCalls = 0
 
         var liveFeed: Flow<LiveEvent>? = null
         var tunnel: String? = null
         val api = object : RemoterApi by fixture {
             override suspend fun health(): Health = fixture.health().copy(tunnel = tunnel)
-            override suspend fun recent(): RecentResponse = if (failRecent) throw UnreachableException() else fixture.recent()
+            override suspend fun recent(): RecentResponse = if (failRecent) throw UnreachableException() else recentOverride ?: fixture.recent()
             override suspend fun sessions(): SessionsResponse = fixture.sessions().also { sessionCalls++ }
             override fun live(): Flow<LiveEvent> = liveFeed ?: fixture.live()
         }
@@ -67,6 +69,17 @@ class HomeViewModelTest {
     private fun runRig(down: Boolean = false, snapshot: HomeSnapshot? = null, block: suspend TestScope.(Rig) -> Unit) = runTest(main.dispatcher.scheduler) {
         val r = Rig(this, down, snapshot)
         try { block(r) } finally { r.vm.viewModelScope.cancel() }
+    }
+
+    @Test
+    fun keeps_thirty_recent_folders() = runRig { r ->
+        val many = (0 until 40).map { RecentEntry("p$it", "p$it", false, it.toLong()) }
+        r.recentOverride = RecentResponse(many, null)
+        r.vm.refresh(manual = true)
+        advanceTimeBy(1_000)
+        runCurrent()
+        assertEquals(30, r.vm.ui.value.recent.size)
+        assertEquals(30, r.store.state.value?.snapshot?.recent?.size)
     }
 
     @Test

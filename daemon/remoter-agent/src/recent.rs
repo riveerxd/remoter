@@ -10,7 +10,7 @@ use crate::guard::{Home, parse_rel};
 use crate::sys;
 
 const KEEP_SPAWNS: usize = 50;
-const SHOW: usize = 20;
+const SHOW: usize = 30;
 const KEEP_STARTS: usize = 20;
 
 #[derive(Default, Serialize, Deserialize)]
@@ -113,6 +113,24 @@ mod tests {
             h.record_start(ms);
         }
         assert_eq!(History::open(root.join("state/recent.json")).recent(&home).typical_start_ms, Some(6000), "saved");
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn shows_thirty_folders() {
+        let root = std::env::temp_dir().join(format!("remoter-recent-many-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        for i in 0..40 {
+            std::fs::create_dir_all(root.join(format!("home/p{i}"))).expect("mk");
+        }
+        let home = Home::open(&root.join("home")).expect("home");
+        let h = History::open(root.join("state/recent.json"));
+        for i in 0..40 {
+            h.record_spawn(&format!("p{i}"), i);
+        }
+        let r = h.recent(&home);
+        assert_eq!(r.entries.len(), 30);
+        assert_eq!(r.entries[0].path, "p39");
         let _ = std::fs::remove_dir_all(&root);
     }
 }

@@ -159,7 +159,7 @@ class HomeViewModel @Inject constructor(
                 loadFailed = !it.loaded && recent == null,
                 // before the first load the folder list shows the error and its own Retry
                 refreshFailed = manual && failed && (it.loaded || recent != null),
-                recent = recent?.take(5)?.map(::item)?.toImmutableList() ?: it.recent,
+                recent = recent?.take(RecentShown)?.map(::item)?.toImmutableList() ?: it.recent,
                 suggestions = suggestions.toImmutableList(),
             )
         }
@@ -168,7 +168,7 @@ class HomeViewModel @Inject constructor(
             // straight from the monitor: on a phone this can run before _ui has caught up with the probe
             val direct = monitor.health.value?.direct ?: u.direct
             store.update { st ->
-                st.copy(snapshot = HomeSnapshot(u.hostname, recent.take(5), hub.sessions.value.orEmpty(), u.battery, u.onAc, clock.nowMs(), direct))
+                st.copy(snapshot = HomeSnapshot(u.hostname, recent.take(RecentShown), hub.sessions.value.orEmpty(), u.battery, u.onAc, clock.nowMs(), direct))
             }
         }
     }
@@ -231,3 +231,6 @@ class HomeViewModel @Inject constructor(
     // local only, the laptop reaps exited ones after an hour anyway
     fun clear(id: String) = _ui.update { it.copy(hidden = it.hidden + id) }
 }
+
+// the daemon sends 30 too, more than that and the sheet is all scrolling
+internal const val RecentShown = 30

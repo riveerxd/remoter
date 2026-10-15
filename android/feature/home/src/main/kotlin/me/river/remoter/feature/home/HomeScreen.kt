@@ -759,7 +759,7 @@ internal fun ColumnScope.NewSession(ui: HomeUi, cb: HomeCallbacks) {
         AnimatedItems(ui.pinned, key = { it.path }) { f -> HomeRow(f, pinned = true, cb, Modifier, ui) }
         FadeSwap(ui.loaded) { loaded -> Column(Modifier.fillMaxWidth()) {
             if (loaded) {
-                val recent = ui.recent.filter { r -> ui.pinned.none { it.path == r.path } }.take(5)
+                val recent = ui.recent.filter { r -> ui.pinned.none { it.path == r.path } }.take(RecentShown)
                 Appear(recent.isNotEmpty()) { SectionLabel("Recent") }
                 AnimatedItems(recent, key = { it.path }) { f -> HomeRow(f, pinned = false, cb, Modifier, ui) }
                 if (ui.pinned.isEmpty() && recent.isEmpty() && ui.suggestions.isNotEmpty()) {
