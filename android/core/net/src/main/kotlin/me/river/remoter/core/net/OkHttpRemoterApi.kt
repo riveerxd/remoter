@@ -21,6 +21,7 @@ import java.util.concurrent.TimeUnit
 import javax.net.ssl.X509ExtendedKeyManager
 
 private val JSON = "application/json".toMediaType()
+private const val ASK_TIMEOUT_S = 90L
 
 class OkHttpRemoterApi(
     private val network: () -> Network?,
@@ -97,6 +98,15 @@ class OkHttpRemoterApi(
     override suspend fun history(path: String, viewToken: String) =
         get(Paths.history(path), HistoryResponse.serializer(), mapOf(HDR_VIEW_TOKEN to viewToken))
     override suspend fun procs() = get(Paths.procs, ProcsResponse.serializer())
+    override suspend fun findPast(path: String, q: String, scope: PastScope, before: Long?) =
+        get(Paths.findPast(path, q, scope, before), FindResponse.serializer())
+
+    // the laptop runs a model for this one, ten seconds isn't enough
+    override suspend fun askPast(path: String, q: String, scope: PastScope): AskResponse {
+        val slow = client().first.newBuilder().readTimeout(ASK_TIMEOUT_S, TimeUnit.SECONDS).build()
+        return call({ l -> Request.Builder().url(base(l, Paths.askPast(path, q, scope))).build() }, AskResponse.serializer(), slow)!!
+    }
+
     override suspend fun audit(before: Long?) =
         get(Paths.url("audit", query = listOfNotNull(before?.let { "before" to it.toString() })), AuditPage.serializer())
 

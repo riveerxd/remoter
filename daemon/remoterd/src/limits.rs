@@ -26,6 +26,8 @@ pub enum Kind {
     Read,
     Mutation,
     Spawn,
+    /// each one runs a model on the laptop's account
+    Ask,
 }
 
 impl Kind {
@@ -34,6 +36,7 @@ impl Kind {
             Kind::Read => 60.0,
             Kind::Mutation => 10.0,
             Kind::Spawn => 3.0,
+            Kind::Ask => 6.0,
         }
     }
 }
@@ -63,7 +66,7 @@ mod tests {
     fn buckets_limit_and_refill() {
         let t0 = Instant::now();
         let mut l = Limits::default();
-        for (kind, n) in [(Kind::Read, 60), (Kind::Mutation, 10), (Kind::Spawn, 3)] {
+        for (kind, n) in [(Kind::Read, 60), (Kind::Mutation, 10), (Kind::Spawn, 3), (Kind::Ask, 6)] {
             for i in 0..n {
                 assert!(l.take("A", kind, t0).is_ok(), "{kind:?} {i}");
             }

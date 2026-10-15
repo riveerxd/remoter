@@ -208,6 +208,81 @@ pub struct HistoryResponse {
     pub truncated: bool,
 }
 
+/// Where a history search looks: the folder (and folders under it), or every
+/// conversation on the laptop.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PastScope {
+    #[default]
+    Project,
+    All,
+}
+
+impl PastScope {
+    pub fn parse(s: &str) -> Option<PastScope> {
+        match s {
+            "project" => Some(PastScope::Project),
+            "all" => Some(PastScope::All),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Speaker {
+    Me,
+    Claude,
+}
+
+/// One message of a past conversation, cut around what matched.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PastLine {
+    pub who: Speaker,
+    pub text: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PastHit {
+    /// The folder it ran in, canonical and relative to home. Resume starts there.
+    pub path: String,
+    pub conversation: Conversation,
+    /// Empty when browsing.
+    pub lines: Vec<PastLine>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct FindResponse {
+    /// Newest first when browsing, best match first otherwise.
+    pub hits: Vec<PastHit>,
+    /// How many conversations were in scope.
+    pub searched: u32,
+    /// Browsing: older ones exist, ask again with `before`. Searching: more matched than sent.
+    pub more: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PastAnswer {
+    pub hit: PastHit,
+    pub answer: String,
+    /// Word for word from the conversation, checked, or left out.
+    pub quote: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AskResponse {
+    pub searched: u32,
+    /// Nothing in scope fit the question.
+    pub found: Option<PastAnswer>,
+    /// The next closest by keywords.
+    pub also: Vec<PastHit>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SpawnResponse {

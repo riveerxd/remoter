@@ -13,6 +13,13 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import me.river.remoter.core.net.ApiException
+import me.river.remoter.core.net.AskResponse
+import me.river.remoter.core.net.FindResponse
+import me.river.remoter.core.net.PastAnswer
+import me.river.remoter.core.net.PastHit
+import me.river.remoter.core.net.PastLine
+import me.river.remoter.core.net.PastScope
+import me.river.remoter.core.net.Speaker
 import me.river.remoter.core.net.AuditPage
 import me.river.remoter.core.net.Conversation
 import me.river.remoter.core.net.ErrorBody
@@ -106,6 +113,7 @@ class FixtureBackend(
 
     /** False makes the laptop refuse every token for history, as an expired one would be. */
     var historyTokenValid = true
+    var historyTruncated = false
 
     /** Past conversations per folder. The demo gets a week of plausible ones, timed from [nowMs]. */
     var history: (path: String) -> List<Conversation> = { if (emptyHome) emptyList() else demoHistory() }
@@ -206,7 +214,7 @@ class FixtureBackend(
         historyCalls += path
         gate()
         if (!historyTokenValid) throw error(ErrorCode.ViewTokenRequired)
-        return get<HistoryResponse>("history").copy(path = path, conversations = history(path))
+        return get<HistoryResponse>("history").copy(path = path, conversations = history(path), truncated = historyTruncated)
     }
 
     private fun demoHistory(): List<Conversation> {
@@ -224,6 +232,105 @@ class FixtureBackend(
             past('c', "pairing qr flow", "the scan frame should snap to the code", 9 * d, "pairing"),
             past('d', "first sketch", null, 20 * d, null),
         )
+    }
+
+    data class FindCall(val path: String, val q: String, val scope: PastScope, val before: Long?)
+    data class AskCall(val path: String, val q: String, val scope: PastScope)
+    val findCalls = mutableListOf<FindCall>()
+    val askCalls = mutableListOf<AskCall>()
+    /** A model call takes seconds on the laptop. */
+    var askMs: Long = 1_500
+    var askFails = false
+
+    /** Every past conversation on the laptop: the folder's demo week, an older tail, two other projects. */
+    var pastHits: (path: String) -> List<PastHit> = { path -> if (emptyHome) emptyList() else demoPast(path) }
+
+    /** Project scope misses, everything finds the relay one in another project. */
+    var ask: (path: String, q: String, scope: PastScope) -> AskResponse = { path, q, scope ->
+        val pool = pastHits(path)
+        val inScope = pool.filter { scope == PastScope.All || it.path == path || it.path.startsWith("$path/") }
+        val relay = pool.firstOrNull { it.conversation.title == "relay keepalive tuning" }
+        if (scope == PastScope.All && relay != null) {
+            AskResponse(
+                inScope.size,
+                PastAnswer(relay, "You dropped the keepalive to 15 s and reused the TLS session, which took the round trip from about 90 ms to 38 ms.", "38 ms, keep this, write it down in the notes"),
+                matching(inScope, q).filter { it.conversation.id != relay.conversation.id }.take(2),
+            )
+        } else {
+            AskResponse(inScope.size, null, matching(inScope, q).take(2))
+        }
+    }
+
+    private fun matching(pool: List<PastHit>, q: String): List<PastHit> {
+        val terms = q.lowercase().split(' ', '?', ',', '.').filter { it.length >= 3 }
+        if (terms.isEmpty()) return emptyList()
+        return pool.mapNotNull { h ->
+            val lines = h.lines.filter { l -> terms.any { l.text.lowercase().contains(it) } }
+            val inTitle = terms.any { h.conversation.title.lowercase().contains(it) }
+            if (lines.isEmpty() && !inTitle) null else h.copy(lines = lines.ifEmpty { h.lines.take(1) }.take(3))
+        }
+    }
+
+    override suspend fun findPast(path: String, q: String, scope: PastScope, before: Long?): FindResponse {
+        findCalls += FindCall(path, q, scope, before)
+        gate()
+        val pool = pastHits(path).filter { scope == PastScope.All || it.path == path || it.path.startsWith("$path/") }
+            .sortedByDescending { it.conversation.updated }
+        if (q.isBlank()) {
+            val older = pool.filter { before == null || it.conversation.updated < before }
+            return FindResponse(older.take(PAST_PAGE).map { it.copy(lines = emptyList()) }, pool.size, older.size > PAST_PAGE)
+        }
+        val terms = q.lowercase().split(' ').filter { it.isNotBlank() }
+        val hits = pool.mapNotNull { h ->
+            val text = (listOf(h.conversation.title) + h.lines.map { it.text }).joinToString(" ").lowercase()
+            if (!terms.all { text.contains(it) }) return@mapNotNull null
+            h.copy(lines = h.lines.filter { l -> terms.any { l.text.lowercase().contains(it) } }.take(3))
+        }
+        return FindResponse(hits.take(PAST_PAGE), pool.size, hits.size > PAST_PAGE)
+    }
+
+    override suspend fun askPast(path: String, q: String, scope: PastScope): AskResponse {
+        askCalls += AskCall(path, q, scope)
+        delay(askMs)
+        gate()
+        if (askFails) throw error(ErrorCode.Internal)
+        return ask(path, q, scope)
+    }
+
+    private fun demoPast(path: String): List<PastHit> {
+        val now = nowMs()
+        val h = 3_600_000L
+        val d = 24 * h
+        fun me(t: String) = PastLine(Speaker.Me, t)
+        fun cl(t: String) = PastLine(Speaker.Claude, t)
+        val said = mapOf(
+            "fix the banner" to listOf(me("the banner still overlaps the sheet, can you check why it floats over the handle"), cl("the banner sits in the root box, so it draws above the sheet. moving it under the top bar")),
+            "remoter" to listOf(me("the dir search history stores too little items, make it at least 30"), cl("the daemon sent 20 and the app cut that to 5, both keep 30 now")),
+            "tidy the settings screen" to listOf(me("the danger zone still sits too close to the toggles"), cl("gave Unpair its own section with 24 dp above it")),
+            "release signing" to listOf(me("sign the release with the key in remoter-signing"), cl("signed, the cert hash matches the one in config.toml")),
+            "pairing qr flow" to listOf(me("the scan frame should snap to the code"), cl("the frame now animates to the code bounds once it's read")),
+            "first sketch" to listOf(me("a phone app that starts claude sessions on my laptop over wireguard")),
+        )
+        val project = demoHistory().map { c -> PastHit(path, c, said[c.title].orEmpty()) }
+        val tail = (0 until 34).map { i ->
+            val ago = 21 * d + i * 19 * h
+            val title = OLDER_TITLES[i % OLDER_TITLES.size] + if (i >= OLDER_TITLES.size) " again" else ""
+            val id = "%08x-5e1c-4b0a-9d2e-%012x".format(0x7a000000 + i, 0x4c0ffee0000L + i)
+            PastHit(path, Conversation(id, title, null, now - ago - h, now - ago, "main", open = false), listOf(me(title)))
+        }
+        val elsewhere = listOf(
+            PastHit(
+                "Projects/remoter-public",
+                Conversation("3d1f9a2e-7b4c-4e8a-9f10-2a6b8c4d5e01", "relay keepalive tuning", "38 ms, keep this, write it down in the notes", now - 5 * d - 2 * h, now - 5 * d, "main", open = false),
+                listOf(me("the relay round trip is still around 90 ms"), cl("dropping the keepalive to 15 s and reusing the TLS session took it to 38 ms"), me("38 ms, keep this, write it down in the notes")),
+            ),
+            PastHit(
+                "Projects/nightbell",
+                Conversation("9e2b7c41-0d3a-4f5e-8b6c-1a2d3e4f5a60", "frame script for screenshots", null, now - 3 * d - 4 * h, now - 3 * d, "main", open = false),
+                listOf(me("put the goldens in a phone frame for the readme")),
+            ),
+        )
+        return project + tail + elsewhere
     }
 
     override suspend fun audit(before: Long?): AuditPage = get("audit")
@@ -388,3 +495,10 @@ class FixtureBackend(
 
     fun summary(id: String): SessionSummary? = live[id]
 }
+
+private const val PAST_PAGE = 30
+private val OLDER_TITLES = listOf(
+    "wireguard keys on first run", "attestation chain check", "kitty window placement", "event stream reconnects",
+    "folder picker skeleton", "error copy pass", "sudo page on the tunnel", "worktree names", "session cap at eight",
+    "tmux launcher", "procs screen", "theme setting",
+)

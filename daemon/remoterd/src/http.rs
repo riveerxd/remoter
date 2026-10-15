@@ -14,7 +14,7 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::{delete, get, post};
 use axum::{Extension, Json, Router};
 use remoter_auth::{Admit, Cached, RawSigHeaders, Request as SigRequest};
-use remoter_proto::api::{AttestChallenge, AttestRequest, AttestResponse, ErrorBody, Health, LiveSessions, LockResponse, Resources, SessionSummary};
+use remoter_proto::api::{AttestChallenge, AttestRequest, AttestResponse, ErrorBody, Health, LiveSessions, LockResponse, PastScope, Resources, SessionSummary};
 use remoter_proto::canonical::{HDR_DEVICE, HDR_NONCE, HDR_SIGNATURE, HDR_TIMESTAMP};
 use remoter_proto::ipc::{AgentRequest, EventsReply, LiveReply, MutateReply, TailReply};
 use remoter_proto::{ErrorCode, b64, local};
@@ -27,6 +27,10 @@ use crate::state::{App, TailHub, lock};
 pub const BODY_LIMIT: usize = remoter_proto::api::BODY_LIMIT;
 const AGENT_READ: Duration = Duration::from_secs(10);
 const AGENT_MUTATE: Duration = Duration::from_secs(60);
+/// the first search over everything may still be building the index
+const AGENT_FIND: Duration = Duration::from_secs(30);
+/// a model reads the closest conversations, the agent gives it 60 s
+const AGENT_ASK: Duration = Duration::from_secs(75);
 const EVENTS_WAIT_MS: u32 = 20_000;
 const TAIL_EVERY: Duration = Duration::from_millis(500);
 const LIVE_WAIT_MS: u32 = 20_000;
@@ -52,6 +56,8 @@ pub fn router(app: Arc<App>) -> Router {
         .route("/v1/fs/search", get(fs_search))
         .route("/v1/fs/recent", get(fs_recent))
         .route("/v1/fs/history", get(fs_history))
+        .route("/v1/history/find", get(history_find))
+        .route("/v1/history/ask", get(history_ask))
         .route("/v1/fs/mkdir", post(signed))
         .route("/v1/sessions", get(sessions).post(signed))
         .route("/v1/sessions/{id}", get(session).delete(signed))
@@ -242,6 +248,59 @@ async fn fs_history(State(app): State<Arc<App>>, Extension(peer): Extension<Peer
     let q = query_pairs(uri.query());
     let path = b64::encode(param(&q, "path").unwrap_or(b""));
     forward(&app, &rid, AgentRequest::History { path }).await
+}
+
+fn past_query(rid: &Rid, uri: &OriginalUri) -> Result<(String, String, PastScope), Box<Response>> {
+    let q = query_pairs(uri.query());
+    let Ok(text) = String::from_utf8(param(&q, "q").unwrap_or(b"").to_vec()) else {
+        return Err(Box::new(error(&rid.0, ErrorCode::BadRequest, "query must be UTF-8")));
+    };
+    let scope = match param(&q, "scope") {
+        None => PastScope::Project,
+        Some(s) => match std::str::from_utf8(s).ok().and_then(PastScope::parse) {
+            Some(s) => s,
+            None => return Err(Box::new(error(&rid.0, ErrorCode::BadRequest, "scope is project or all"))),
+        },
+    };
+    Ok((b64::encode(param(&q, "path").unwrap_or(b"")), text, scope))
+}
+
+async fn history_find(State(app): State<Arc<App>>, Extension(peer): Extension<Peer>, Extension(rid): Extension<Rid>, uri: OriginalUri) -> Response {
+    if let Err(r) = gate(&app, &peer, &rid, Kind::Read) {
+        return *r;
+    }
+    let (path, q, scope) = match past_query(&rid, &uri) {
+        Ok(v) => v,
+        Err(r) => return *r,
+    };
+    let before = match param(&query_pairs(uri.query()), "before") {
+        None => None,
+        Some(b) => match std::str::from_utf8(b).ok().and_then(|b| b.parse::<i64>().ok()) {
+            Some(b) => Some(b),
+            None => return error(&rid.0, ErrorCode::BadRequest, "before is a time in ms"),
+        },
+    };
+    match app.agent.call(&AgentRequest::FindPast { path, q, scope, before }, AGENT_FIND).await {
+        Ok(v) => Json(v).into_response(),
+        Err(e) => call_error(&rid.0, e),
+    }
+}
+
+async fn history_ask(State(app): State<Arc<App>>, Extension(peer): Extension<Peer>, Extension(rid): Extension<Rid>, uri: OriginalUri) -> Response {
+    if let Err(r) = gate(&app, &peer, &rid, Kind::Ask) {
+        return *r;
+    }
+    let (path, q, scope) = match past_query(&rid, &uri) {
+        Ok(v) => v,
+        Err(r) => return *r,
+    };
+    if q.trim().is_empty() {
+        return error(&rid.0, ErrorCode::BadRequest, "ask needs a question");
+    }
+    match app.agent.call(&AgentRequest::AskPast { path, q, scope }, AGENT_ASK).await {
+        Ok(v) => Json(v).into_response(),
+        Err(e) => call_error(&rid.0, e),
+    }
 }
 
 async fn sessions(State(app): State<Arc<App>>, Extension(peer): Extension<Peer>, Extension(rid): Extension<Rid>) -> Response {

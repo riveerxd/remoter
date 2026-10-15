@@ -90,6 +90,8 @@ impl FakeAgent {
             AgentRequest::Recent {} => ok(serde_json::json!({ "entries": [], "typical_start_ms": null })),
             AgentRequest::Session { id } => ok(serde_json::json!({ "id": id, "tail": ["x"] })),
             AgentRequest::History { path } => ok(serde_json::json!({ "echo_path": path })),
+            AgentRequest::FindPast { path, q, scope, before } => ok(serde_json::json!({ "echo_path": path, "q": q, "scope": scope, "before": before })),
+            AgentRequest::AskPast { path, q, scope } => ok(serde_json::json!({ "echo_path": path, "q": q, "scope": scope })),
             AgentRequest::Tail { id } if id == "rc-quiet" => ok(serde_json::json!({ "lines": ["idle"], "at": 1 })),
             AgentRequest::Tail { .. } => {
                 let n = self.tails.fetch_add(1, Ordering::SeqCst);

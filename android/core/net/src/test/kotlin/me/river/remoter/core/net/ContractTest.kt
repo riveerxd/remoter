@@ -134,6 +134,9 @@ class ContractTest {
         roundTrip<SpawnRequest>(o["resume_request"]!!)
         roundTrip<SpawnRequest>(o["handoff_request"]!!)
         roundTrip<HistoryResponse>(o["history"]!!)
+        roundTrip<FindResponse>(o["find"]!!)
+        roundTrip<AskResponse>(o["ask"]!!)
+        roundTrip<AskResponse>(o["ask_none"]!!)
         roundTrip<SpawnResponse>(o["spawn"]!!)
         roundTrip<SessionsResponse>(o["sessions"]!!)
         roundTrip<LiveSessions>(o["live_sessions"]!!)
@@ -151,6 +154,7 @@ class ContractTest {
             "health", "health_older", "health_direct", "list", "search", "recent", "mkdir_request", "mkdir", "spawn_request", "spawn", "sessions",
             "session_detail", "view_token", "attest_challenge", "attest_response", "lock", "audit", "pair", "events",
             "live_sessions", "resume_request", "handoff_request", "history", "resources", "procs", "signal_request",
+            "find", "ask", "ask_none",
         )
         assertEquals("a fixture has no Kotlin model", known, o.keys)
         o["events"]!!.jsonArray.forEach {
@@ -211,6 +215,22 @@ class ContractTest {
         val events = o["events"]!!.jsonArray.mapNotNull { Event.parse(it.str("event"), it.jsonObject["data"].toString()) }
         assertTrue(events.any { it is Event.PhaseEvent && it.step == Phase.Handoff })
         assertTrue(events.any { it is Event.StateEvent && it.reason == StuckReason.HandoffFailed })
+    }
+
+    @Test
+    fun past_paths() {
+        assertEquals(
+            "/v1/history/find?path=Projects%2Fmy%20app&q=banner%20%26%20sheet&scope=project",
+            Canonical.target(Paths.findPast("Projects/my app", "banner & sheet", PastScope.Project)),
+        )
+        assertEquals(
+            "/v1/history/find?path=Projects%2Fremoter&q=&scope=all&before=1790531906000",
+            Canonical.target(Paths.findPast("Projects/remoter", "", PastScope.All, 1_790_531_906_000)),
+        )
+        assertEquals(
+            "/v1/history/ask?path=Projects%2Fremoter&q=where%20did%20we%3F&scope=project",
+            Canonical.target(Paths.askPast("Projects/remoter", "where did we?", PastScope.Project)),
+        )
     }
 
     @Test

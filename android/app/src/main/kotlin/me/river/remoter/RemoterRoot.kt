@@ -65,6 +65,9 @@ import me.river.remoter.feature.onboarding.PairAgainReason
 import me.river.remoter.core.design.openWireGuard
 import me.river.remoter.feature.session.ClaudeOpener
 import me.river.remoter.feature.session.ErrorActions
+import me.river.remoter.feature.session.PastNav
+import me.river.remoter.feature.session.PastScreen
+import me.river.remoter.feature.session.PastViewModel
 import me.river.remoter.feature.session.SessionDetailContent
 import me.river.remoter.feature.session.SessionDetailViewModel
 import me.river.remoter.feature.session.StartCallbacks
@@ -287,6 +290,21 @@ private fun Graph(start: NavKey, root: RootViewModel, entrance: Boolean, onEntra
                     entry<Processes>(metadata = fadeMeta) {
                         ProcessesScreen(hiltViewModel(), onBack = { back.popFrom(Processes) })
                     }
+                    entry<Past> { k ->
+                        PastScreen(
+                            hiltViewModel<PastViewModel, PastViewModel.Factory>(creationCallback = { it.create(k.path) }),
+                            PastNav(
+                                onBack = { back.popFrom(k) },
+                                onResume = { hit, handoff ->
+                                    back.popFrom(k)
+                                    // another project's git state isn't known here; only worktree offers need it
+                                    val git = hit.path == k.path && k.isGit
+                                    startVm.resumeNow(StartTarget(hit.path, folderName(hit.path), git), hit.conversation, handoff)
+                                },
+                                onOpenWireGuard = { openWireGuard(context) },
+                            ),
+                        )
+                    }
                     entry<Audit>(metadata = fadeMeta) {
                         val vm: AuditViewModel = hiltViewModel()
                         val ui by vm.ui.collectAsStateWithLifecycle()
@@ -313,7 +331,12 @@ private fun Graph(start: NavKey, root: RootViewModel, entrance: Boolean, onEntra
                 onHandoffInstead = startVm::handoffInstead,
                 onPickPast = startVm::selectResume,
                 onRetryPast = startVm::retryPast,
-                onMorePast = startVm::expandPast,
+                onAllPast = {
+                    startUi.target?.let { t ->
+                        startVm.close()
+                        back.add(Past(t.path, t.isGit))
+                    }
+                },
                 onPastChoice = startVm::setHandoff,
                 errors = errorActions,
             ),

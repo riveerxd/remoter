@@ -87,6 +87,16 @@ some update. Versions are what I saw it on.
   processes end up writing the same jsonl. remoter checks
   `~/.claude/sessions/<pid>.json` (pid alive and `procStart` matching
   `/proc/<pid>/stat`) and refuses with `conversation_open`.
+- Moving a project copies its folder under `projects/`, so the same uuid can
+  sit in two folders and keep growing in only one. Search keeps the newest.
+- Over 378 transcripts, 1.9 GB here, the talk without tool calls and tool
+  output came to 3.7 MB. That is what the search index holds, one text file
+  per transcript under `~/.local/state/remoter/talk`, topped up from where it
+  left off since transcripts only grow.
+- `claude -p` with something on stdin takes stdin as the prompt and drops the
+  `-p` argument without a word, so the instructions for the search go in
+  `--system-prompt` and the question with the excerpts goes on stdin.
+  `--tools ""` turns every tool off (2.1.300).
 
 ## kitty, Alacritty, Hyprland and i3
 

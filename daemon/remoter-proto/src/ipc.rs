@@ -5,7 +5,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::ErrorCode;
-use crate::api::{Event, SessionSummary};
+use crate::api::{Event, PastScope, SessionSummary};
 
 pub const MAX_FRAME: usize = 512 * 1024;
 /// The longest the agent holds an events request open.
@@ -37,6 +37,16 @@ pub enum AgentRequest {
     Session { id: String },
     /// A folder's past conversations.
     History { path: String },
+    /// Past conversations by keyword, or all of them newest first when `q` is empty.
+    FindPast {
+        path: String,
+        q: String,
+        scope: PastScope,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        before: Option<i64>,
+    },
+    /// A question about past conversations, answered by a model over the closest ones.
+    AskPast { path: String, q: String, scope: PastScope },
     /// The session's screen as it is now.
     Tail { id: String },
     Events { id: String, after: u64, wait_ms: u32 },

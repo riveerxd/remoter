@@ -35,6 +35,8 @@ class ConnectionMonitorTest {
         override suspend fun sessions() = TODO()
         override suspend fun session(id: String, viewToken: String) = TODO()
         override suspend fun history(path: String, viewToken: String) = TODO()
+        override suspend fun findPast(path: String, q: String, scope: PastScope, before: Long?) = TODO()
+        override suspend fun askPast(path: String, q: String, scope: PastScope) = TODO()
         override suspend fun audit(before: Long?) = TODO()
         override suspend fun lock() = TODO()
         override suspend fun mkdir(signed: Signed) = TODO()

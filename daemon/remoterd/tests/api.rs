@@ -185,6 +185,34 @@ async fn history_needs_only_mtls() {
 }
 
 #[tokio::test]
+async fn past_find_forwards() {
+    let h = start().await;
+    let mut c = h.client(&h.a).await;
+    let r = c.get("/v1/history/find?path=Projects%2Fremoter&q=banner%20overlap&scope=all&before=1790531906000").await;
+    assert_eq!(r.status, 200);
+    let j = r.json();
+    assert_eq!(remoter_proto::b64::decode(j["echo_path"].as_str().unwrap_or_default()).as_deref(), Some(&b"Projects/remoter"[..]));
+    assert_eq!((j["q"].as_str(), j["scope"].as_str(), j["before"].as_i64()), (Some("banner overlap"), Some("all"), Some(1_790_531_906_000)));
+    let plain = c.get("/v1/history/find?path=Projects%2Fremoter").await.json();
+    assert_eq!((plain["q"].as_str(), plain["scope"].as_str(), plain["before"].is_null()), (Some(""), Some("project"), true));
+    assert_eq!(c.get("/v1/history/find?path=x&scope=everything").await.code(), "bad_request");
+    assert_eq!(c.get("/v1/history/find?path=x&before=yesterday").await.code(), "bad_request");
+}
+
+#[tokio::test]
+async fn past_ask_has_its_own_limit() {
+    let h = start().await;
+    let mut c = h.client(&h.a).await;
+    // refused, but it still took one of the six
+    assert_eq!(c.get("/v1/history/ask?path=x&q=%20").await.code(), "bad_request", "no question, no model");
+    for i in 0..5 {
+        assert_eq!(c.get("/v1/history/ask?path=Projects%2Fremoter&q=where%20is%20it").await.status, 200, "ask {i}");
+    }
+    assert_eq!(c.get("/v1/history/ask?path=Projects%2Fremoter&q=again").await.code(), "rate_limited");
+    assert_eq!(c.get("/v1/history/find?path=Projects%2Fremoter").await.status, 200, "finds aren't held back by it");
+}
+
+#[tokio::test]
 async fn audit_lists_this_devices_actions() {
     let h = start().await;
     let mut c = h.client(&h.a).await;

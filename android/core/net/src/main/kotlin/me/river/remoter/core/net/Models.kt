@@ -139,6 +139,37 @@ data class Conversation(
 data class HistoryResponse(val path: String, val conversations: List<Conversation>, val truncated: Boolean)
 
 @Serializable
+enum class PastScope {
+    @SerialName("project") Project,
+    @SerialName("all") All,
+    ;
+
+    val wire get() = if (this == Project) "project" else "all"
+}
+
+@Serializable
+enum class Speaker {
+    @SerialName("me") Me,
+    @SerialName("claude") Claude,
+}
+
+@Serializable
+data class PastLine(val who: Speaker, val text: String)
+
+/** [path] is the folder it ran in, relative to home. A resume starts there. */
+@Serializable
+data class PastHit(val path: String, val conversation: Conversation, val lines: List<PastLine>)
+
+@Serializable
+data class FindResponse(val hits: List<PastHit>, val searched: Int, val more: Boolean)
+
+@Serializable
+data class PastAnswer(val hit: PastHit, val answer: String, val quote: String?)
+
+@Serializable
+data class AskResponse(val searched: Int, val found: PastAnswer?, val also: List<PastHit>)
+
+@Serializable
 data class SpawnResponse(
     val id: String,
     @SerialName("view_token") val viewToken: String,

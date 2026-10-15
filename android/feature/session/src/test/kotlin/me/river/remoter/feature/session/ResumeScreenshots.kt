@@ -22,20 +22,19 @@ private val rows = persistentListOf(
     PastRow(Conversation("b0b4910a-dc2c-41b3-81c1-b8c9fd626592", "release signing", null, 0, 0, "main", open = false), "28 Sep"),
 )
 
-private fun ui(past: PastState, resume: Conversation? = null, expanded: Boolean = false, handoff: Boolean = false) = StartUi(
+private fun ui(past: PastState, resume: Conversation? = null, handoff: Boolean = false) = StartUi(
     open = true,
     target = StartTarget("Projects/remoter", "remoter", isGit = true),
     form = StartForm(name = if (resume != null) resume.title else "remoter", resume = resume, handoff = handoff),
     hostname = "r1v3r",
     typicalStartS = 6,
     past = past,
-    pastExpanded = expanded,
 )
 
 internal val resumeStates: List<Pair<String, StartUi>> = listOf(
     "list" to ui(PastState.Loaded(rows)),
     "picked" to ui(PastState.Loaded(rows), resume = banner),
-    "expanded" to ui(PastState.Loaded(rows), expanded = true),
+    "more" to ui(PastState.Loaded(rows, truncated = true)),
     "failed" to ui(PastState.Failed),
     "open_refused" to ui(PastState.Loaded(rows), resume = banner).copy(state = StartState.NotAccepted(AppError.ConversationOpen, null)),
     "handoff_picked" to ui(PastState.Loaded(rows), resume = banner, handoff = true),
@@ -69,7 +68,7 @@ class ResumeScreenshots(private val v: Variant) {
 
     @Test fun list() = one("list")
     @Test fun picked() = one("picked")
-    @Test fun expanded() = one("expanded")
+    @Test fun more() = one("more")
     @Test fun failed() = one("failed")
     @Test fun open_refused() = one("open_refused")
     @Test fun handoff_picked() = one("handoff_picked")

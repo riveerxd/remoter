@@ -45,6 +45,7 @@ class ResumeUiTest {
     private val hub = SessionsHub(api, signer, clock)
     private val store = MemoryStore(LocalState(laptop = PairedLaptop("r1v3r", "fp", "dev", 0, "StrongBox", "TEE", null)))
     private val vm = StartViewModel(api, signer, clock, ConnectionMonitor(api, FakeVpnNetworks(), clock), store, hub)
+    private var allPast = 0
 
     private fun conv(i: Int, title: String, open: Boolean = false) =
         Conversation("c82d8b5c-edd4-453e-8d59-4748ff32${5000 + i}", title, "prompt $i", now - 3_600_000L * (i + 2), now - 3_600_000L * (i + 1), "main", open)
@@ -64,7 +65,7 @@ class ResumeUiTest {
                             ui,
                             StartCallbacks(
                                 onMode = vm::setMode, onStart = vm::start, onRetry = vm::retry, onClose = vm::close,
-                                onPickPast = vm::selectResume, onRetryPast = vm::retryPast, onMorePast = vm::expandPast,
+                                onPickPast = vm::selectResume, onRetryPast = vm::retryPast, onAllPast = { allPast++ },
                             ),
                         )
                     }
@@ -75,15 +76,12 @@ class ResumeUiTest {
     }
 
     @Test
-    fun two_then_show_all() {
+    fun two_then_all() {
         show()
         compose.onNodeWithText("Previous sessions").assertIsDisplayed()
         compose.onNodeWithText("release signing").assertDoesNotExist()
-        compose.onNodeWithText("Show all 5 sessions").performScrollTo().performClick()
-        compose.waitForIdle()
-        compose.onNodeWithText("pairing qr").assertExists()
-        compose.onNodeWithText("first sketch").assertExists()
-        compose.onNodeWithText("Show all 5 sessions").assertDoesNotExist()
+        compose.onNodeWithText("All sessions and search").performScrollTo().performClick()
+        assertEquals(1, allPast)
     }
 
     @Test

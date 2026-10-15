@@ -343,3 +343,52 @@ fn real_untrusted_folder() {
     let _ = std::fs::remove_dir_all(&runtime);
     let _ = std::fs::remove_dir(&folder);
 }
+
+/// Against your own transcripts and the real claude. Prints timings, keeps the index in
+/// target/tmp so a second run shows the warm numbers.
+#[test]
+#[ignore]
+fn real_past_search() {
+    use remoter_proto::api::PastScope;
+    let home = std::path::PathBuf::from(std::env::var("HOME").expect("home"));
+    let t = std::sync::Arc::new(remoter_agent::transcripts::Transcripts::new(home.join(".claude")));
+    let idx = std::path::PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("real-past/talk");
+    let deny = [".ssh", ".gnupg", ".claude", ".config", ".local", ".password-store"].map(String::from).to_vec();
+    let past = remoter_agent::past::Past::new(t, idx, home.clone(), deny, home.join(".local/bin/claude"));
+    let root = home.join("Projects/remoter-public").display().to_string();
+    let open = std::collections::HashSet::new();
+    let s = std::time::Instant::now();
+    past.warm();
+    eprintln!("warm: {:?}", s.elapsed());
+    let s = std::time::Instant::now();
+    let r = past.find(&root, "", PastScope::All, None, &open);
+    eprintln!("browse all: {:?}, {} of {}", s.elapsed(), r.hits.len(), r.searched);
+    let s = std::time::Instant::now();
+    past.find(&root, "sudo page", PastScope::All, None, &open);
+    eprintln!("find all 'sudo page' once: {:?}", s.elapsed());
+    let s = std::time::Instant::now();
+    let r = past.find(&root, "sudo page", PastScope::All, None, &open);
+    eprintln!("find all 'sudo page' again: {:?}, {} hits", s.elapsed(), r.hits.len());
+    for h in r.hits.iter().take(3) {
+        eprintln!("  {} | {} | {:?}", h.path, h.conversation.title, h.lines.first().map(|l| &l.text));
+    }
+    if std::env::var_os("SKIP_ASK").is_some() {
+        return;
+    }
+    for (q, scope) in [("where did we decide the pairing warning wording for weaker phones", PastScope::Project), ("the session where the vt100 wrap marks got lost on resize", PastScope::All)] {
+        let s = std::time::Instant::now();
+        let a = past.ask(&root, q, scope, &open, &remoter_agent::past::day(remoter_proto::local::now_ms()));
+        eprintln!("ask {scope:?} '{q}': {:?}", s.elapsed());
+        match a {
+            Ok(a) => {
+                eprintln!("  searched {}", a.searched);
+                if let Some(f) = a.found {
+                    eprintln!("  -> {} | {} | {} | quote {:?}", f.hit.path, f.hit.conversation.title, f.answer, f.quote);
+                } else {
+                    eprintln!("  -> nothing");
+                }
+            }
+            Err(e) => eprintln!("  error {e:?}"),
+        }
+    }
+}

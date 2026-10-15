@@ -127,6 +127,9 @@ fun SettingsContent(
         Section("App") {
             Toggle("Show hidden folders", p.showHidden) { v -> cb.onPrefs { it.copy(showHidden = v) } }
             Toggle("Haptics", p.haptics) { v -> cb.onPrefs { it.copy(haptics = v) } }
+            Toggle("Ask Claude in session search", p.askClaude, note = "Haiku on $host reads your closest sessions to answer. Off, search only matches words.") { v ->
+                cb.onPrefs { it.copy(askClaude = v) }
+            }
         }
         Row(
             Modifier.fillMaxWidth().heightIn(min = Touch.row).clickable(role = Role.Button, onClick = cb.onAudit).clip(Shapes.card).background(c.surface).padding(Space.cardPadding),
@@ -263,13 +266,16 @@ private fun ThemePicker(current: ThemePref, set: (ThemePref) -> Unit) {
 }
 
 @Composable
-private fun Toggle(label: String, on: Boolean, set: (Boolean) -> Unit) {
+private fun Toggle(label: String, on: Boolean, note: String? = null, set: (Boolean) -> Unit) {
     val c = Remoter.colors
     Row(
         Modifier.fillMaxWidth().heightIn(min = Touch.min).toggleable(on, role = Role.Switch, onValueChange = set),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(label, style = Remoter.type.body, color = c.text, modifier = Modifier.weight(1f))
+        Column(Modifier.weight(1f).padding(end = Space.s16)) {
+            Text(label, style = Remoter.type.body, color = c.text)
+            note?.let { Text(it, style = Remoter.type.label, color = c.textMuted) }
+        }
         // own switch: Material's grey thumb on a white track was under 3:1 in light mode
         RemoterSwitch(on)
     }

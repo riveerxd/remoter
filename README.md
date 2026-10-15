@@ -11,7 +11,7 @@
   <img src="https://img.shields.io/badge/Rust-2024-B7410E?style=flat-square&logo=rust&logoColor=white" alt="Rust 2024" />
   <img src="https://img.shields.io/badge/WireGuard-88171A?style=flat-square&logo=wireguard&logoColor=white" alt="WireGuard" />
   <img src="https://img.shields.io/badge/minSdk-34-3a3f4b?style=flat-square" alt="minSdk 34" />
-  <img src="https://img.shields.io/badge/tests-329%20Rust%20+%20868%20JVM-2FD98A?style=flat-square" alt="Tests" />
+  <img src="https://img.shields.io/badge/tests-382%20Rust%20+%20945%20JVM-2FD98A?style=flat-square" alt="Tests" />
   <a href="LICENSE"><img src="https://img.shields.io/badge/licence-MIT-3a3f4b?style=flat-square" alt="MIT" /></a>
 </p>
 
@@ -59,7 +59,7 @@ browses its folders, and starting a session takes one tap and one finger.
 | **Start a session** | In the folder itself, or in its own git worktree so parallel sessions don't trip over each other. Name it, touch the sensor, done. |
 | **Watch it come up** | Starting, Ready, Stuck or Exited, read from Claude Code's own debug log instead of guessed from the screen. You also get the last lines of the terminal. |
 | **Open in Claude** | Ready sessions get a button straight into the Claude app. |
-| **Resume** | A folder's past conversations are listed with their title and last prompt. Bring one back as it was, or start fresh from a summary of it. |
+| **Resume** | A folder's past conversations are listed with their title and last prompt. Search them by keyword, or ask in plain words and Haiku on the laptop finds the one you mean, in this folder first and then everywhere else. Bring one back as it was, or start fresh from a summary of it. |
 | **End it** | One finger, and the window on the laptop closes with it. |
 | **Keep an eye on it** | CPU, memory and disk on the home screen. Tap them for the process list, sorted by CPU or memory, and quit or kill anything of yours. Processes from a session carry its name. |
 
@@ -279,7 +279,7 @@ Release builds are signed with `android/tools/make-release-key.sh` and
 starting at `v1.0.0`; main between them carries a `-dev` version.
 
 <details>
-<summary><b>Tests: 329 Rust + 868 JVM</b></summary>
+<summary><b>Tests: 382 Rust + 945 JVM</b></summary>
 
 <br/>
 
@@ -288,7 +288,7 @@ replayed signatures, skewed clocks, someone on the LAN routing the tunnel addres
 at the laptop, a folder swapped out while a session starts. `e2e-host` runs the real
 daemons against a fake `claude` and a software phone.
 
-The app side covers the view models, the UI, accessibility and 457 Roborazzi
+The app side covers the view models, the UI, accessibility and 501 Roborazzi
 screenshots in light and dark, at 100% and 200% font size.
 
 - Some tests create unix sockets under `daemon/target/tmp`. In a deeply nested

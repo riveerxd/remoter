@@ -13,3 +13,4 @@ import me.river.remoter.feature.onboarding.PairAgainReason
 @Serializable data object Settings : NavKey
 @Serializable data object Audit : NavKey
 @Serializable data object Processes : NavKey
+@Serializable data class Past(val path: String, val isGit: Boolean) : NavKey

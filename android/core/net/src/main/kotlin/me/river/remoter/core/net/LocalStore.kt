@@ -19,6 +19,8 @@ data class Prefs(
     val lockTimeout: LockTimeout = LockTimeout.OneMinute,
     val terminalSp: Float = 12f,
     val theme: ThemePref = ThemePref.System,
+    // asking runs a model on the laptop's claude account, so it can be switched off
+    val askClaude: Boolean = true,
 )
 
 @Serializable

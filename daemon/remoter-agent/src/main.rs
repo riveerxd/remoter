@@ -8,6 +8,7 @@ use remoter_agent::config::{AgentConfig, OpenIn};
 use remoter_agent::guard::Home;
 use remoter_agent::launcher::{Launcher, TmuxLauncher, WindowLauncher};
 use remoter_agent::notify::{Notifier, NotifySend};
+use remoter_agent::past::Past;
 use remoter_agent::recent::History;
 use remoter_agent::server::{AgentCtx, serve};
 use remoter_agent::sessions::{Sessions, SessionsConfig};
@@ -92,7 +93,7 @@ fn run(config_path: &Path) -> Result<(), String> {
             ready_timeout: Duration::from_secs(cfg.ready_timeout_s),
             exited_ttl: Duration::from_secs(3600),
             history: Some(history.clone()),
-            transcripts: Some(transcripts),
+            transcripts: Some(transcripts.clone()),
         },
         open_home()?,
         Trust::new(claude_json.clone()),
@@ -100,6 +101,8 @@ fn run(config_path: &Path) -> Result<(), String> {
     )
     .map_err(|e| e.to_string())?;
     let notifier: Box<dyn Notifier> = Box::new(NotifySend { bin: cfg.notify_bin.clone() });
+    let past = Arc::new(Past::new(transcripts, cfg.agent_state().join("talk"), cfg.home.clone(), cfg.cwd_deny.clone(), cfg.claude_bin.clone()));
+    warm_past(past.clone());
     let ctx = Arc::new(AgentCtx {
         home: open_home()?,
         trust: Trust::new(claude_json),
@@ -119,10 +122,28 @@ fn run(config_path: &Path) -> Result<(), String> {
         agent_state: cfg.agent_state(),
         autolock: Mutex::default(),
         procs: remoter_agent::procs::Procs::system(),
+        past: Some(past),
     });
     watch_lock(cfg.locked_flag(), cfg.agent_state(), NotifySend { bin: cfg.notify_bin.clone() });
     let listener = bind_socket(&cfg.socket)?;
     serve(listener, ctx).map_err(|e| e.to_string())
+}
+
+/// Once after start, then hourly so the next search over everything has little to catch up on.
+/// Niced, it's a working laptop.
+fn warm_past(past: Arc<Past>) {
+    std::thread::spawn(move || {
+        // SAFETY: plain syscalls on this thread's own id.
+        unsafe {
+            let tid = libc::syscall(libc::SYS_gettid) as libc::id_t;
+            libc::setpriority(libc::PRIO_PROCESS, tid, 19);
+        }
+        std::thread::sleep(Duration::from_secs(20));
+        loop {
+            past.warm();
+            std::thread::sleep(Duration::from_secs(3600));
+        }
+    });
 }
 
 /// remoterd has no desktop to notify on, so we watch its flag (and copy it

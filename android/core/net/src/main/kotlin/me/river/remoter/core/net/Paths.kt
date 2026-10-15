@@ -19,6 +19,12 @@ object Paths {
     val live get() = url("live")
     val viewToken get() = url("view-token")
     fun history(path: String) = url("fs", "history", query = listOf("path" to path))
+    fun findPast(path: String, q: String, scope: PastScope, before: Long? = null) = url(
+        "history", "find",
+        query = listOfNotNull("path" to path, "q" to q, "scope" to scope.wire, before?.let { "before" to it.toString() }),
+    )
+    fun askPast(path: String, q: String, scope: PastScope) =
+        url("history", "ask", query = listOf("path" to path, "q" to q, "scope" to scope.wire))
     val deviceSelf get() = url("devices", "self")
     val procs get() = url("procs")
     fun signal(pid: Int) = url("procs", pid.toString(), "signal")

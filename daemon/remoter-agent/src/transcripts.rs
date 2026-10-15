@@ -50,11 +50,21 @@ pub struct Parsed {
     pub branch: Option<String>,
 }
 
-struct Candidate {
-    path: PathBuf,
-    id: String,
+pub struct Candidate {
+    pub path: PathBuf,
+    pub id: String,
     stamp: Stamp,
-    updated: i64,
+    pub updated: i64,
+}
+
+impl Candidate {
+    pub fn size(&self) -> u64 {
+        self.stamp.size
+    }
+
+    pub fn ino(&self) -> u64 {
+        self.stamp.ino
+    }
 }
 
 impl Transcripts {
@@ -127,6 +137,21 @@ impl Transcripts {
         out
     }
 
+    /// Every transcript under `projects/` whose folder name starts with `prefix`, unparsed.
+    /// A prefix catches subfolders too, and siblings that only share the start of the name,
+    /// so callers still check the parsed cwd.
+    pub fn scan(&self, prefix: &str) -> Vec<Candidate> {
+        let Ok(rd) = std::fs::read_dir(self.claude_dir.join("projects")) else { return Vec::new() };
+        let mut out = Vec::new();
+        for e in rd.filter_map(Result::ok) {
+            if !e.file_name().to_str().is_some_and(|n| n.starts_with(prefix)) {
+                continue;
+            }
+            out.extend(self.in_dir(&e.path(), None));
+        }
+        out
+    }
+
     fn candidates(&self, abs: &str, only: Option<&str>) -> Vec<Candidate> {
         let projects = self.claude_dir.join("projects");
         let name = project_dir_name(abs);
@@ -143,30 +168,32 @@ impl Transcripts {
                 })
                 .unwrap_or_default()
         };
+        dirs.iter().flat_map(|d| self.in_dir(d, only)).collect()
+    }
+
+    fn in_dir(&self, dir: &Path, only: Option<&str>) -> Vec<Candidate> {
+        let names: Vec<String> = match only {
+            Some(id) => vec![format!("{id}.jsonl")],
+            None => std::fs::read_dir(dir)
+                .map(|rd| rd.filter_map(|e| e.ok()?.file_name().into_string().ok()).collect())
+                .unwrap_or_default(),
+        };
         let mut out = Vec::new();
-        for dir in dirs {
-            let names: Vec<String> = match only {
-                Some(id) => vec![format!("{id}.jsonl")],
-                None => std::fs::read_dir(&dir)
-                    .map(|rd| rd.filter_map(|e| e.ok()?.file_name().into_string().ok()).collect())
-                    .unwrap_or_default(),
-            };
-            for n in names {
-                let Some(id) = n.strip_suffix(".jsonl").filter(|s| is_uuid(s)) else { continue };
-                let path = dir.join(&n);
-                let Ok(m) = std::fs::symlink_metadata(&path) else { continue };
-                if !m.is_file() {
-                    continue;
-                }
-                let stamp = Stamp { size: m.size(), mtime_ns: m.mtime() as i128 * 1_000_000_000 + m.mtime_nsec() as i128, ino: m.ino() };
-                let updated = m.mtime() * 1000 + m.mtime_nsec() / 1_000_000;
-                out.push(Candidate { path, id: id.to_owned(), stamp, updated });
+        for n in names {
+            let Some(id) = n.strip_suffix(".jsonl").filter(|s| is_uuid(s)) else { continue };
+            let path = dir.join(&n);
+            let Ok(m) = std::fs::symlink_metadata(&path) else { continue };
+            if !m.is_file() {
+                continue;
             }
+            let stamp = Stamp { size: m.size(), mtime_ns: m.mtime() as i128 * 1_000_000_000 + m.mtime_nsec() as i128, ino: m.ino() };
+            let updated = m.mtime() * 1000 + m.mtime_nsec() / 1_000_000;
+            out.push(Candidate { path, id: id.to_owned(), stamp, updated });
         }
         out
     }
 
-    fn parsed(&self, c: &Candidate) -> Option<Parsed> {
+    pub fn parsed(&self, c: &Candidate) -> Option<Parsed> {
         let mut cache = self.cache.lock().unwrap_or_else(|p| p.into_inner());
         if let Some((stamp, p)) = cache.get(&c.path)
             && *stamp == c.stamp
@@ -182,7 +209,7 @@ impl Transcripts {
     }
 }
 
-fn conversation(c: &Candidate, p: Parsed, open: &HashSet<String>) -> Conversation {
+pub fn conversation(c: &Candidate, p: Parsed, open: &HashSet<String>) -> Conversation {
     Conversation {
         open: open.contains(&c.id),
         id: c.id.clone(),
@@ -333,7 +360,7 @@ pub fn condense(path: &Path) -> Option<String> {
     Some(out)
 }
 
-fn message_text(v: &Value) -> Option<String> {
+pub fn message_text(v: &Value) -> Option<String> {
     if !is_turn(v) {
         return None;
     }

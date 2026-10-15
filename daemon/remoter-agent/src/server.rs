@@ -46,6 +46,7 @@ pub struct AgentCtx {
     pub agent_state: PathBuf,
     pub autolock: Mutex<remoter_auth::autolock::AutoLock>,
     pub procs: Procs,
+    pub past: Option<Arc<crate::past::Past>>,
 }
 
 pub const AGENT_LOCK_FILE: &str = "locked";
@@ -175,6 +176,8 @@ impl AgentCtx {
             AgentRequest::Sessions {} => ok(SessionsResponse { sessions: self.sessions.list(), cap: self.max_sessions }),
             AgentRequest::Session { id } => reply(self.detail(&id)),
             AgentRequest::History { path } => reply(self.history(&path)),
+            AgentRequest::FindPast { path, q, scope, before } => reply(self.find_past(&path, &q, scope, before)),
+            AgentRequest::AskPast { path, q, scope } => reply(self.ask_past(&path, &q, scope)),
             AgentRequest::Tail { id } => reply(self.tail(&id)),
             AgentRequest::Events { id, after, wait_ms } => reply(self.events(&id, after, wait_ms)),
             AgentRequest::Live { after, wait_ms } => ok(self.live(after, wait_ms)),
@@ -219,6 +222,24 @@ impl AgentCtx {
 
     fn history(&self, path: &str) -> Result<remoter_proto::api::HistoryResponse, AgentError> {
         self.sessions.history(&Self::rel(path)?)
+    }
+
+    /// The folder must open through the path guard even for scope all, it's where the search started.
+    fn past_root(&self, path: &str) -> Result<(&crate::past::Past, String), AgentError> {
+        let past = self.past.as_deref().ok_or_else(|| AgentError::new(ErrorCode::BadRequest, "past sessions aren't set up on this laptop"))?;
+        let opened = self.home.open_dir(&Self::rel(path)?)?;
+        Ok((past, self.home.path().join(opened.canonical.as_string()).display().to_string()))
+    }
+
+    fn find_past(&self, path: &str, q: &str, scope: remoter_proto::api::PastScope, before: Option<i64>) -> Result<remoter_proto::api::FindResponse, AgentError> {
+        let (past, root) = self.past_root(path)?;
+        Ok(past.find(&root, q, scope, before, &self.sessions.open_conversations()))
+    }
+
+    fn ask_past(&self, path: &str, q: &str, scope: remoter_proto::api::PastScope) -> Result<remoter_proto::api::AskResponse, AgentError> {
+        let (past, root) = self.past_root(path)?;
+        let today = crate::past::day(local::now_ms());
+        past.ask(&root, q, scope, &self.sessions.open_conversations(), &today)
     }
 
     fn detail(&self, id: &str) -> Result<SessionDetail, AgentError> {

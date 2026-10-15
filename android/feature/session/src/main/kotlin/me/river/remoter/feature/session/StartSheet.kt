@@ -133,7 +133,8 @@ data class StartCallbacks(
     val onUseWorktree: () -> Unit = {},
     val onPickPast: (Conversation) -> Unit = {},
     val onRetryPast: () -> Unit = {},
-    val onMorePast: () -> Unit = {},
+    // the full list and search live on their own screen
+    val onAllPast: () -> Unit = {},
     // true is a handoff
     val onPastChoice: (Boolean) -> Unit = {},
     val onHandoffInstead: () -> Unit = {},
@@ -335,7 +336,7 @@ private fun Earlier(ui: StartUi, cb: StartCallbacks) {
                 Text("Previous sessions", style = t.bodyStrong, color = c.text, modifier = Modifier.weight(1f, fill = false))
                 if (past is PastState.Loaded) {
                     Spacer(Modifier.width(Space.s8))
-                    Text("${past.rows.size}", style = t.label.tnum(), color = c.textMuted)
+                    Text(if (past.truncated) "${past.rows.size}+" else "${past.rows.size}", style = t.label.tnum(), color = c.textMuted)
                 }
             }
             // stays after a pick: removing it pulled the picked row up under the finger
@@ -349,22 +350,25 @@ private fun Earlier(ui: StartUi, cb: StartCallbacks) {
                 QuietButton("Retry", cb.onRetryPast)
             }
             is PastState.Loaded -> {
-                val rows = if (ui.pastExpanded) past.rows else past.rows.take(PAST_SHOWN)
+                // a pick made on the full list stays in view here
+                val picked = ui.form.resume
+                val shown = past.rows.take(PAST_SHOWN).let { top ->
+                    if (picked != null && top.none { it.conversation.id == picked.id }) {
+                        top + (past.rows.firstOrNull { it.conversation.id == picked.id } ?: PastRow(picked, ui.form.resumeWhen))
+                    } else {
+                        top
+                    }
+                }
                 PastGroup {
-                    past.rows.forEachIndexed { i, r ->
-                        Appear(i < PAST_SHOWN || ui.pastExpanded) {
-                            Column {
-                                if (i > 0) Box(Modifier.fillMaxWidth().padding(start = 72.dp).height(1.dp).background(c.line))
-                                val picked = ui.form.resume?.id == r.conversation.id
-                                PastItem(r, picked, picked && ui.form.handoff, ui.hostname, cb.onPastChoice) { cb.onPickPast(r.conversation) }
-                            }
+                    shown.forEachIndexed { i, r ->
+                        Column {
+                            if (i > 0) Box(Modifier.fillMaxWidth().padding(start = 72.dp).height(1.dp).background(c.line))
+                            val on = ui.form.resume?.id == r.conversation.id
+                            PastItem(r, on, on && ui.form.handoff, ui.hostname, cb.onPastChoice) { cb.onPickPast(r.conversation) }
                         }
                     }
                 }
-                val more = past.rows.size - rows.size
-                Appear(more > 0, Modifier.align(Alignment.CenterHorizontally)) {
-                    QuietButton("Show all ${past.rows.size} sessions", cb.onMorePast)
-                }
+                QuietButton("All sessions and search", cb.onAllPast, Modifier.align(Alignment.CenterHorizontally))
             }
             PastState.Loading -> {}
         }

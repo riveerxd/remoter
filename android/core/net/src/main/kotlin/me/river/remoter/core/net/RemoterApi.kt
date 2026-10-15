@@ -27,6 +27,10 @@ interface RemoterApi {
     suspend fun session(id: String, viewToken: String): SessionDetail
     /** Past conversations in a folder. Needs the general view token: old prompts are as private as terminal output. */
     suspend fun history(path: String, viewToken: String): HistoryResponse
+    /** Empty [q] browses newest first, [before] pages back. */
+    suspend fun findPast(path: String, q: String, scope: PastScope, before: Long? = null): FindResponse
+    /** A model reads the closest conversations, so this takes seconds. */
+    suspend fun askPast(path: String, q: String, scope: PastScope): AskResponse
     suspend fun audit(before: Long?): AuditPage
     suspend fun lock(): LockResponse
     suspend fun procs(): ProcsResponse

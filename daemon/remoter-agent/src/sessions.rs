@@ -288,6 +288,14 @@ impl Sessions {
         Ok(HistoryResponse { path, conversations, truncated })
     }
 
+    /// Conversations a claude has open now, ours or one started by hand.
+    pub fn open_conversations(&self) -> HashSet<String> {
+        match &self.inner.cfg.transcripts {
+            Some(t) => self.inner.open_conversations(t),
+            None => HashSet::new(),
+        }
+    }
+
     pub fn counts(&self) -> HashMap<String, u32> {
         let mut m = HashMap::new();
         for s in self.list() {

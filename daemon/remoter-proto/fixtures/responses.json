@@ -1,4 +1,35 @@
 {
+  "ask": {
+    "also": [],
+    "found": {
+      "answer": "You dropped the keepalive to 15 s, which took the round trip to 38 ms.",
+      "hit": {
+        "conversation": {
+          "branch": null,
+          "id": "1170e57c-4a8e-4fb2-9437-21f0fdc2cef3",
+          "last_prompt": null,
+          "open": true,
+          "started": 1790438306000,
+          "title": "relay keepalive tuning",
+          "updated": 1790611000000
+        },
+        "lines": [
+          {
+            "text": "38 ms, keep this",
+            "who": "me"
+          }
+        ],
+        "path": "Projects/remoter-public"
+      },
+      "quote": "38 ms, keep this"
+    },
+    "searched": 378
+  },
+  "ask_none": {
+    "also": [],
+    "found": null,
+    "searched": 30
+  },
   "attest_challenge": {
     "challenge": "AAECAwQFBgcICQoLDA0ODw",
     "expires": 1790611406000
@@ -60,6 +91,34 @@
       "event": "tail"
     }
   ],
+  "find": {
+    "hits": [
+      {
+        "conversation": {
+          "branch": "main",
+          "id": "c82d8b5c-edd4-453e-8d59-4748ff325c03",
+          "last_prompt": "the banner still overlaps the sheet, can you check",
+          "open": false,
+          "started": 1790524706000,
+          "title": "fix the banner",
+          "updated": 1790531906000
+        },
+        "lines": [
+          {
+            "text": "the banner still overlaps the sheet, can you check why it floats over the handle",
+            "who": "me"
+          },
+          {
+            "text": "the banner sits in the root box, so it draws above the sheet",
+            "who": "claude"
+          }
+        ],
+        "path": "Projects/remoter"
+      }
+    ],
+    "more": false,
+    "searched": 30
+  },
   "handoff_request": {
     "handoff": "c82d8b5c-edd4-453e-8d59-4748ff325c03",
     "mode": "same-dir",

@@ -197,14 +197,41 @@ class ResumeViewModelTest {
     }
 
     @Test
-    fun show_more_lists_them_all() = runRig(List(5) { i -> banner.copy(id = "c82d8b5c-edd4-453e-8d59-4748ff32${5000 + i}", title = "t$i") }) { r ->
+    fun resume_now_starts_it() = runRig { r ->
         r.unlocked()
+        r.vm.resumeNow(target, banner, handoff = false)
+        runCurrent()
+        assertEquals(banner.id, r.body(0).resume)
+        assertNull(r.body(0).handoff)
+    }
+
+    @Test
+    fun resume_now_hands_off_open() = runRig { r ->
+        r.unlocked()
+        r.vm.resumeNow(target, banner.copy(open = true), handoff = false)
+        runCurrent()
+        assertNull("open can't resume", r.body(0).resume)
+        assertEquals(banner.id, r.body(0).handoff)
+    }
+
+    @Test
+    fun picked_keeps_its_time() = runRig { r ->
+        r.unlocked()
+        r.vm.zone = java.time.ZoneOffset.UTC
+        val old = banner.copy(id = "0b4910a1-dc2c-41b3-81c1-b8c9fd626592", updated = r.clock.nowMs() - 3 * 86_400_000L)
+        r.vm.open(target)
+        r.vm.selectResume(old)
+        assertEquals(pastWhen(old.updated, r.clock.nowMs(), java.time.ZoneOffset.UTC), r.ui.form.resumeWhen)
+        r.vm.selectResume(old)
+        assertEquals("cleared with the pick", "", r.ui.form.resumeWhen)
+    }
+
+    @Test
+    fun truncated_shows() = runRig { r ->
+        r.unlocked()
+        r.api.historyTruncated = true
         r.vm.open(target)
         runCurrent()
-        assertEquals(false, r.ui.pastExpanded)
-        r.vm.expandPast()
-        assertEquals(true, r.ui.pastExpanded)
-        r.vm.open(target)
-        assertEquals("folded", false, r.ui.pastExpanded)
+        assertEquals(true, (r.ui.past as PastState.Loaded).truncated)
     }
 }

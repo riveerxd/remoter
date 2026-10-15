@@ -46,6 +46,8 @@ data class StartForm(
     val mode: SpawnMode = SpawnMode.SameDir,
     // resumed as is (same dir), or with handoff just the source of a fresh one
     val resume: Conversation? = null,
+    // its time label, for when it was picked off the full list and isn't in the sheet's rows
+    val resumeWhen: String = "",
     // always true for a conversation that's open on the laptop
     val handoff: Boolean = false,
     val name: String = "",
@@ -61,7 +63,7 @@ data class PastRow(val conversation: Conversation, val whenLabel: String)
 // nothing drawn while Loading so a fast answer doesn't flicker
 sealed interface PastState {
     data object Loading : PastState
-    data class Loaded(val rows: ImmutableList<PastRow>) : PastState
+    data class Loaded(val rows: ImmutableList<PastRow>, val truncated: Boolean = false) : PastState
     data object Failed : PastState
 }
 
@@ -79,7 +81,6 @@ data class StartUi(
     val ending: Boolean = false,
     val endError: AppError? = null,
     val past: PastState = PastState.Loading,
-    val pastExpanded: Boolean = false,
     val direct: Boolean = false,
 )
 
@@ -151,8 +152,9 @@ class StartViewModel @Inject constructor(
         pastJob = viewModelScope.launch {
             val next = try {
                 val now = clock.nowMs()
-                val rows = api.history(path, token).conversations.map { PastRow(it, pastWhen(it.updated, now, zone)) }
-                PastState.Loaded(rows.toImmutableList())
+                val h = api.history(path, token)
+                val rows = h.conversations.map { PastRow(it, pastWhen(it.updated, now, zone)) }
+                PastState.Loaded(rows.toImmutableList(), h.truncated)
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Exception) {
@@ -167,8 +169,6 @@ class StartViewModel @Inject constructor(
         if (_ui.value.past != PastState.Failed) return
         loadPast(target.path, hub.viewToken() ?: "")
     }
-
-    fun expandPast() = _ui.update { it.copy(pastExpanded = true) }
 
     // an open conversation can only be a handoff source: resuming it would run two claudes on one
     // transcript, a handoff only reads it
@@ -189,6 +189,7 @@ class StartViewModel @Inject constructor(
                 retryLeftS = null,
                 form = it.form.copy(
                     resume = if (clear) null else c,
+                    resumeWhen = if (clear) "" else pastWhen(c.updated, clock.nowMs(), zone),
                     handoff = !clear && c.open,
                     mode = SpawnMode.SameDir,
                     name = if (clear) Names.sessionNameFromFolder(target.folder) else Names.sessionNameFromTitle(c.title),
@@ -196,6 +197,17 @@ class StartViewModel @Inject constructor(
                 ),
             )
         }
+    }
+
+    // from the full list: the same start as picking it in the sheet and tapping Start.
+    // a start already under way keeps the sheet and this does nothing
+    fun resumeNow(target: StartTarget, c: Conversation, handoff: Boolean) {
+        open(target)
+        val ui = _ui.value
+        if (ui.target != target || ui.state !is StartState.Idle) return
+        selectResume(c)
+        if (handoff || c.open) setHandoff(true)
+        start()
     }
 
     // drag, back or Keep in background. cancels nothing

@@ -102,6 +102,14 @@ impl World {
         // signed requests are refused for a window after start, so by default
         // pretend the agent has been up for a while
         let started = local::now_ms();
+        let transcripts = Arc::new(remoter_agent::transcripts::Transcripts::new(root.join("dot-claude")));
+        let past = Arc::new(remoter_agent::past::Past::new(
+            transcripts.clone(),
+            root.join("agent-state/talk"),
+            home.clone(),
+            vec![".ssh".into()],
+            claude_bin.clone(),
+        ));
         let sessions = Sessions::new(
             SessionsConfig {
                 cwd_deny: vec![".ssh".into()],
@@ -113,7 +121,7 @@ impl World {
                 ready_timeout: Duration::from_secs(20),
                 exited_ttl: Duration::from_secs(3600),
                 history: None,
-                transcripts: Some(Arc::new(remoter_agent::transcripts::Transcripts::new(root.join("dot-claude")))),
+                transcripts: Some(transcripts),
             },
             Home::open(&home).expect("home"),
             Trust::new(root.join("claude.json")),
@@ -138,6 +146,7 @@ impl World {
             agent_state: root.join("agent-state"),
             autolock: Mutex::default(),
             procs: remoter_agent::procs::Procs::system(),
+            past: Some(past),
         });
         let socket = root.join("agent.sock");
         let l = UnixListener::bind(&socket).expect("bind");
@@ -633,4 +642,184 @@ fn flood_in_its_own_process() {
     drop(flood);
     std::thread::sleep(Duration::from_millis(300));
     assert!(matches!(w.call(&AgentRequest::Status {}), AgentReply::Ok(_)), "still answering");
+}
+
+fn transcript(w: &World, conv: &str, cwd: &str, lines: &[serde_json::Value]) {
+    let dir = w.root.join("dot-claude/projects").join(remoter_agent::transcripts::project_dir_name(cwd));
+    std::fs::create_dir_all(&dir).expect("mk");
+    let body: String = lines.iter().map(|l| format!("{l}\n")).collect();
+    std::fs::write(dir.join(format!("{conv}.jsonl")), body).expect("transcript");
+}
+
+fn said(cwd: &str, who: &str, text: &str) -> serde_json::Value {
+    let content = if who == "user" { serde_json::json!(text) } else { serde_json::json!([{"type":"text","text":text}]) };
+    serde_json::json!({"type":who,"cwd":cwd,"entrypoint":"cli","message":{"role":who,"content":content}})
+}
+
+fn conv_id(n: u32) -> String {
+    format!("{n:08x}-edd4-453e-8d59-4748ff325c03")
+}
+
+fn find(w: &World, path: &str, q: &str, scope: remoter_proto::api::PastScope, before: Option<i64>) -> remoter_proto::api::FindResponse {
+    match w.call(&AgentRequest::FindPast { path: b64::encode(path.as_bytes()), q: q.into(), scope, before }) {
+        AgentReply::Ok(v) => serde_json::from_value(v).expect("find"),
+        AgentReply::Err(f) => panic!("find refused: {f:?}"),
+    }
+}
+
+#[test]
+fn past_scopes() {
+    use remoter_proto::api::PastScope;
+    let w = World::start(uid());
+    let at = |p: &str| {
+        std::fs::create_dir_all(w.home.join(p)).expect("mk");
+        w.home.join(p).display().to_string()
+    };
+    let (here, sub, sibling, secret) = (at("Projects/remoter"), at("Projects/remoter/app"), at("Projects/remoter-public"), at(".ssh"));
+    transcript(&w, &conv_id(1), &here, &[said(&here, "user", "fix the banner")]);
+    transcript(&w, &conv_id(2), &sub, &[said(&sub, "user", "app icon")]);
+    transcript(&w, &conv_id(3), &sibling, &[said(&sibling, "user", "relay keepalive")]);
+    transcript(&w, &conv_id(4), &secret, &[said(&secret, "user", "keys")]);
+    let gone = w.home.join("Projects/deleted").display().to_string();
+    transcript(&w, &conv_id(5), &gone, &[said(&gone, "user", "old stuff")]);
+
+    let mine = find(&w, "Projects/remoter", "", PastScope::Project, None);
+    let mut paths: Vec<_> = mine.hits.iter().map(|h| h.path.as_str()).collect();
+    paths.sort_unstable();
+    assert_eq!(paths, vec!["Projects/remoter", "Projects/remoter/app"], "subfolders yes, a sibling sharing the prefix no");
+    assert_eq!(mine.searched, 2);
+    let all = find(&w, "Projects/remoter", "", PastScope::All, None);
+    let mut paths: Vec<_> = all.hits.iter().map(|h| h.path.as_str()).collect();
+    paths.sort_unstable();
+    assert_eq!(paths, vec!["Projects/remoter", "Projects/remoter-public", "Projects/remoter/app"], "never denied folders or ones that are gone");
+    match w.call(&AgentRequest::FindPast { path: b64::encode(b"../etc"), q: String::new(), scope: PastScope::All, before: None }) {
+        AgentReply::Err(f) => assert_eq!(f.code, ErrorCode::PathOutsideHome),
+        AgentReply::Ok(_) => panic!("the path guard still holds for scope all"),
+    }
+}
+
+#[test]
+fn past_pages() {
+    use remoter_proto::api::PastScope;
+    let w = World::start(uid());
+    let here = w.home.join("Projects/remoter").display().to_string();
+    for n in 0..33 {
+        transcript(&w, &conv_id(n), &here, &[said(&here, "user", &format!("task {n}"))]);
+        let f = w.root.join("dot-claude/projects").join(remoter_agent::transcripts::project_dir_name(&here)).join(format!("{}.jsonl", conv_id(n)));
+        let t = std::fs::File::options().write(true).open(f).expect("open");
+        t.set_modified(std::time::UNIX_EPOCH + Duration::from_secs(1_790_000_000 + n as u64)).expect("mtime");
+    }
+    let first = find(&w, "Projects/remoter", "", PastScope::Project, None);
+    assert_eq!((first.hits.len(), first.more, first.searched), (30, true, 33));
+    assert_eq!(first.hits[0].conversation.title, "task 32", "newest first");
+    let last = first.hits.last().map(|h| h.conversation.updated);
+    let rest = find(&w, "Projects/remoter", "", PastScope::Project, last);
+    assert_eq!(rest.hits.iter().map(|h| h.conversation.title.as_str()).collect::<Vec<_>>(), vec!["task 2", "task 1", "task 0"]);
+    assert!(!rest.more);
+}
+
+#[test]
+fn past_keywords() {
+    use remoter_proto::api::{PastScope, Speaker};
+    let w = World::start(uid());
+    let here = w.home.join("Projects/remoter").display().to_string();
+    let tool = serde_json::json!({"type":"user","cwd":here,"message":{"content":[{"type":"tool_result","content":"banner overlap in a log"}]}});
+    transcript(&w, &conv_id(1), &here, &[said(&here, "user", "the banner still overlaps the sheet"), said(&here, "assistant", "the Banner sits in the root box")]);
+    transcript(&w, &conv_id(2), &here, &[said(&here, "user", "dark theme"), tool]);
+    transcript(&w, &conv_id(3), &here, &[said(&here, "user", "banner copy only")]);
+
+    let r = find(&w, "Projects/remoter", "BANNER overlap", PastScope::Project, None);
+    assert_eq!(r.hits.iter().map(|h| h.conversation.id.clone()).collect::<Vec<_>>(), vec![conv_id(1)], "every word, and only in the talk");
+    assert_eq!(r.hits[0].lines[0].who, Speaker::Me);
+    assert_eq!(r.hits[0].lines[0].text, "the banner still overlaps the sheet");
+
+    // claude keeps writing, the index tops up
+    let dir = w.root.join("dot-claude/projects").join(remoter_agent::transcripts::project_dir_name(&here));
+    let mut f = std::fs::OpenOptions::new().append(true).open(dir.join(format!("{}.jsonl", conv_id(2)))).expect("open");
+    writeln!(f, "{}", said(&here, "user", "now the banner overlaps in dark")).expect("append");
+    // half a line, still being written
+    write!(f, "{{\"type\":\"user\",\"message\":{{\"content\":\"banner overlap pending").expect("append");
+    drop(f);
+    let r = find(&w, "Projects/remoter", "banner overlap", PastScope::Project, None);
+    let mut ids: Vec<_> = r.hits.iter().map(|h| h.conversation.id.clone()).collect();
+    ids.sort();
+    assert_eq!(ids, vec![conv_id(1), conv_id(2)]);
+    let two = r.hits.iter().find(|h| h.conversation.id == conv_id(2)).expect("hit");
+    assert_eq!(two.lines.len(), 1, "the cut line isn't read yet");
+}
+
+#[test]
+fn past_ask() {
+    use remoter_proto::api::{AskResponse, PastScope};
+    let script = "#!/bin/sh\ncat > \"$0.input\"\ncat \"$0.reply\"\n";
+    let (w, _) = World::start_with(uid(), Box::new(NoLaunch), Some(script), 30_000);
+    let here = w.home.join("Projects/remoter").display().to_string();
+    let there = w.home.join("Projects/remoter-public");
+    std::fs::create_dir_all(&there).expect("mk");
+    let there = there.display().to_string();
+    transcript(&w, &conv_id(1), &here, &[said(&here, "user", "fix the banner")]);
+    transcript(&w, &conv_id(2), &there, &[said(&there, "user", "relay keepalive"), said(&there, "assistant", "dropping the keepalive got the round trip to 38 ms")]);
+    let reply = w.root.join("fake-claude.reply");
+    let ask = |scope: PastScope| match w.call(&AgentRequest::AskPast { path: b64::encode(b"Projects/remoter"), q: "the relay round trip under 40 ms".into(), scope }) {
+        AgentReply::Ok(v) => serde_json::from_value::<AskResponse>(v).expect("ask"),
+        AgentReply::Err(f) => panic!("ask refused: {f:?}"),
+    };
+
+    std::fs::write(&reply, r#"{"pick": 0, "answer": "", "quote": ""}"#).expect("w");
+    let r = ask(PastScope::Project);
+    assert_eq!((r.searched, r.found.is_none()), (1, true));
+    let sent = std::fs::read_to_string(w.root.join("fake-claude.input")).expect("input");
+    assert!(sent.contains("Question: the relay round trip under 40 ms") && sent.contains("fix the banner") && !sent.contains("keepalive"), "{sent}");
+
+    std::fs::write(&reply, "```json\n{\"pick\": 1, \"answer\": \"You got it to 38 ms by dropping the keepalive.\", \"quote\": \"round trip to 38 ms\"}\n```").expect("w");
+    let r = ask(PastScope::All);
+    let found = r.found.expect("found");
+    assert_eq!(found.hit.path, "Projects/remoter-public");
+    assert_eq!(found.hit.conversation.id, conv_id(2));
+    assert_eq!(found.quote.as_deref(), Some("round trip to 38 ms"));
+    assert_eq!(found.answer, "You got it to 38 ms by dropping the keepalive.");
+    let sent = std::fs::read_to_string(w.root.join("fake-claude.input")).expect("input");
+    assert!(sent.starts_with("Today is ") && sent.contains("[1] \"relay keepalive\" in ~/Projects/remoter-public"), "keyword hits come first: {sent}");
+
+    std::fs::write(&reply, r#"{"pick": 1, "answer": "You did it.", "quote": "something nobody said"}"#).expect("w");
+    assert_eq!(ask(PastScope::All).found.expect("found").quote, None, "a made up quote is dropped");
+    std::fs::write(&reply, "I can't help with that").expect("w");
+    match w.call(&AgentRequest::AskPast { path: b64::encode(b"Projects/remoter"), q: "x y z".into(), scope: PastScope::All }) {
+        AgentReply::Err(f) => assert_eq!(f.code, ErrorCode::Internal),
+        AgentReply::Ok(v) => panic!("garbage became an answer: {v}"),
+    }
+}
+
+#[test]
+fn past_ranking() {
+    use remoter_proto::api::PastScope;
+    let w = World::start(uid());
+    let here = w.home.join("Projects/remoter").display().to_string();
+    let mut long: Vec<serde_json::Value> = (0..15).map(|i| said(&here, "user", &format!("banner step {i}"))).collect();
+    long.extend((0..15).map(|i| said(&here, "assistant", &format!("overlap check {i}"))));
+    transcript(&w, &conv_id(1), &here, &long);
+    transcript(&w, &conv_id(2), &here, &[said(&here, "user", "the banner overlap is back")]);
+    let r = find(&w, "Projects/remoter", "banner overlap", PastScope::Project, None);
+    assert_eq!(r.hits.iter().map(|h| h.conversation.id.clone()).collect::<Vec<_>>(), vec![conv_id(2), conv_id(1)], "the phrase beats a long scatter");
+}
+
+#[test]
+fn past_copied_project() {
+    use remoter_proto::api::PastScope;
+    let w = World::start(uid());
+    let here = w.home.join("Projects/remoter").display().to_string();
+    transcript(&w, &conv_id(1), &here, &[said(&here, "user", "fix the banner"), said(&here, "assistant", "the old copy")]);
+    // the same conversation again under a moved project's folder, grown since
+    let moved = w.root.join("dot-claude/projects").join(remoter_agent::transcripts::project_dir_name(&format!("{here}-public")));
+    std::fs::create_dir_all(&moved).expect("mk");
+    let lines = [said(&here, "user", "fix the banner"), said(&here, "assistant", "the old copy"), said(&here, "user", "and the sheet handle")];
+    let copy = moved.join(format!("{}.jsonl", conv_id(1)));
+    std::fs::write(&copy, lines.iter().map(|l| format!("{l}\n")).collect::<String>()).expect("w");
+    let f = std::fs::File::options().write(true).open(&copy).expect("open");
+    f.set_modified(std::time::SystemTime::now() + Duration::from_secs(60)).expect("mtime");
+    let r = find(&w, "Projects/remoter", "", PastScope::All, None);
+    assert_eq!(r.hits.len(), 1, "one conversation, listed once");
+    for q in ["old copy", "sheet handle", "old copy"] {
+        assert_eq!(find(&w, "Projects/remoter", q, PastScope::All, None).hits.len(), 1, "{q}: the newest copy is the one searched");
+    }
 }

@@ -361,6 +361,34 @@ fn responses_fixture() {
                 ],
                 truncated: false,
             },
+            "find": FindResponse {
+                hits: vec![
+                    PastHit {
+                        path: "Projects/remoter".into(),
+                        conversation: Conversation { id: "c82d8b5c-edd4-453e-8d59-4748ff325c03".into(), title: "fix the banner".into(), last_prompt: Some("the banner still overlaps the sheet, can you check".into()), started: 1_790_524_706_000, updated: 1_790_531_906_000, branch: Some("main".into()), open: false },
+                        lines: vec![
+                            PastLine { who: Speaker::Me, text: "the banner still overlaps the sheet, can you check why it floats over the handle".into() },
+                            PastLine { who: Speaker::Claude, text: "the banner sits in the root box, so it draws above the sheet".into() },
+                        ],
+                    },
+                ],
+                searched: 30,
+                more: false,
+            },
+            "ask": AskResponse {
+                searched: 378,
+                found: Some(PastAnswer {
+                    hit: PastHit {
+                        path: "Projects/remoter-public".into(),
+                        conversation: Conversation { id: "1170e57c-4a8e-4fb2-9437-21f0fdc2cef3".into(), title: "relay keepalive tuning".into(), last_prompt: None, started: 1_790_438_306_000, updated: 1_790_611_000_000, branch: None, open: true },
+                        lines: vec![PastLine { who: Speaker::Me, text: "38 ms, keep this".into() }],
+                    },
+                    answer: "You dropped the keepalive to 15 s, which took the round trip to 38 ms.".into(),
+                    quote: Some("38 ms, keep this".into()),
+                }),
+                also: Vec::new(),
+            },
+            "ask_none": AskResponse { searched: 30, found: None, also: Vec::new() },
             "spawn": SpawnResponse { id: "rc-01k6b7y3m4n5p6q7r8s9t0v1w2".into(), view_token: "dmlldy10b2tlbi1maXh0dXJlLW9ubHktMzItYnl0ZXM".into(), view_token_expires: 1_790_612_006_000 },
             "sessions": SessionsResponse { sessions: sessions.clone(), cap: 8 },
             "live_sessions": LiveSessions { sessions: sessions.clone() },
