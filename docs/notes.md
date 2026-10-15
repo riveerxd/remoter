@@ -41,6 +41,10 @@ some update. Versions are what I saw it on.
   `<repo>/.claude/worktrees/<name>`, so that path is trusted up front too.
   Without its own entry, `--worktree` in a folder trusted only through a parent
   prints `Workspace trust not yet accepted` (2.1.286).
+- A worktree only gets what the folder's own repo tracks. A folder whose repo
+  holds a few loose files while the code sits in separate repos inside it
+  would get a worktree with no code, and claude in worktree mode refuses git
+  commands aimed outside it. The agent refuses that start with `nested_repos`.
 - Running claude processes rewrite `~/.claude.json` from memory, so the agent
   reads the entry back after writing it and retries if it got lost.
 - If the dialog shows anyway, the agent sees those lines on screen, stops that

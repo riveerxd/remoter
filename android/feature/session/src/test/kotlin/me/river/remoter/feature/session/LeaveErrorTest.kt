@@ -35,6 +35,7 @@ class LeaveErrorTest {
         AppError.FolderBusy(emptyList()),
         AppError.Untrusted,
         AppError.ConversationOpen,
+        AppError.NestedRepos,
         AppError.Locked,
         AppError.SessionCap(emptyList()),
     )

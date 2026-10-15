@@ -181,6 +181,14 @@
   },
   {
     "body": {
+      "code": "nested_repos",
+      "message": "nested_repos (fixture)",
+      "request_id": "01K6B7Y3M4N5P6Q7R8S9T0V1X1"
+    },
+    "status": 409
+  },
+  {
+    "body": {
       "code": "process_denied",
       "message": "process_denied (fixture)",
       "request_id": "01K6B7Y3M4N5P6Q7R8S9T0V1X1"

@@ -185,7 +185,7 @@ internal fun layoutOf(s: StartState): String = when (s) {
     is StartState.Starting, is StartState.Ready, is StartState.Stuck, is StartState.Exited -> "run"
 }
 
-private fun AppError.isRefusal() = this == AppError.Locked || this is AppError.Security || this is AppError.SessionCap || this is AppError.FolderBusy || this == AppError.ConversationOpen ||
+private fun AppError.isRefusal() = this == AppError.Locked || this is AppError.Security || this is AppError.SessionCap || this is AppError.FolderBusy || this == AppError.ConversationOpen || this == AppError.NestedRepos ||
     this == AppError.FingerprintLockedOut || this == AppError.ReattestFailed || this == AppError.DeviceUnknown || this == AppError.KeyInvalidated
 
 private fun AppError.isNetwork() = this == AppError.Unreachable || this == AppError.AgentDown || this == AppError.VpnOff || this == AppError.LaptopDown

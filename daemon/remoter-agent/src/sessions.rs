@@ -2,7 +2,9 @@
 //! dir and all state is derived from those, so an agent restart loses nothing.
 
 use std::collections::{HashMap, HashSet};
+use std::os::fd::{AsRawFd, OwnedFd};
 use std::os::unix::fs::{DirBuilderExt, MetadataExt};
+use std::os::unix::process::CommandExt;
 use std::path::{Component, Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -177,6 +179,11 @@ impl Sessions {
         }
         if req.mode == SpawnMode::Worktree && sys::statat(&opened.fd, b".git", false).is_err() {
             return Err(err(ErrorCode::BadRequest, "worktree needs a git repo"));
+        }
+        if req.mode == SpawnMode::Worktree
+            && let Some(repos) = code_left_out(&inner.cfg.git_bin, &opened.fd)
+        {
+            return Err(err(ErrorCode::NestedRepos, format!("a worktree here would leave out {}", repos.join(", "))));
         }
         // claude would catch this too, but only after opening a window to exit 1 in
         if req.mode == SpawnMode::SameDir
@@ -1016,6 +1023,56 @@ pub fn trust_dialog(screen: &str) -> bool {
     let squeeze = |l: &str| l.chars().filter(|c| !c.is_whitespace() && *c != '❯').collect::<String>();
     let lines: HashSet<String> = screen.lines().map(squeeze).collect();
     DIALOG_LINES.iter().all(|l| lines.contains(&squeeze(l)))
+}
+
+/// The repos inside `dir` a worktree of it leaves out, when its own repo tracks
+/// no folders, so loose files are all a worktree would get. `None` otherwise,
+/// and whenever git can't say.
+fn code_left_out(git_bin: &Path, dir: &OwnedFd) -> Option<Vec<String>> {
+    let fd = dir.as_raw_fd();
+    let mut found = Vec::new();
+    let mut budget = 4000;
+    nested_repos(Path::new(&format!("/proc/self/fd/{fd}")), "", 3, &mut budget, &mut found);
+    if found.is_empty() {
+        return None;
+    }
+    let mut cmd = Command::new(git_bin);
+    cmd.args(["ls-tree", "-d", "--name-only", "HEAD"])
+        .env_remove("GIT_DIR")
+        .env_remove("GIT_WORK_TREE")
+        .env_remove("GIT_INDEX_FILE")
+        .stdin(Stdio::null());
+    // SAFETY: fchdir is async signal safe, and fd stays open until wait.
+    unsafe {
+        cmd.pre_exec(move || if libc::fchdir(fd) == 0 { Ok(()) } else { Err(std::io::Error::last_os_error()) });
+    }
+    let out = cmd.output().ok()?;
+    (out.status.success() && out.stdout.iter().all(u8::is_ascii_whitespace)).then(|| {
+        found.sort();
+        found
+    })
+}
+
+// a submodule's .git is a file and git tracks it, so only .git folders count
+fn nested_repos(dir: &Path, rel: &str, depth: u32, budget: &mut u32, found: &mut Vec<String>) {
+    let Ok(rd) = std::fs::read_dir(dir) else { return };
+    for e in rd.flatten() {
+        if *budget == 0 {
+            return;
+        }
+        *budget -= 1;
+        let name = e.file_name();
+        let Some(name) = name.to_str() else { continue };
+        if name.starts_with('.') || name == "node_modules" || name == "target" || !e.file_type().is_ok_and(|t| t.is_dir()) {
+            continue;
+        }
+        let child = if rel.is_empty() { name.to_owned() } else { format!("{rel}/{name}") };
+        if std::fs::symlink_metadata(e.path().join(".git")).is_ok_and(|m| m.is_dir()) {
+            found.push(child);
+        } else if depth > 1 {
+            nested_repos(&e.path(), &child, depth - 1, budget, found);
+        }
+    }
 }
 
 fn read_worktree(dir: &Path, spec: &Spec) -> Option<WorktreeFile> {

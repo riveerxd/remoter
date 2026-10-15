@@ -50,6 +50,10 @@ fun AppError.copy(host: String): ErrorCopy = when (this) {
         "Claude takes one per folder. Open that one, or start this one in its own worktree.",
     )
     AppError.ConversationOpen -> ErrorCopy(ErrorLook.Limits, "That conversation is open on $host right now", "Hand it off to a fresh session instead, or close it there and try again.")
+    AppError.NestedRepos -> ErrorCopy(
+        ErrorLook.Limits, "A worktree here would be empty",
+        "The code in this folder lives in git repos of its own, and a worktree only gets this folder's repo. Open the session already running here, or start in one of those repos.",
+    )
     is AppError.SessionCap -> ErrorCopy(ErrorLook.Limits, "$host is already running as many sessions as it allows", "End one below to start this one.")
     is AppError.ClockSkew -> ErrorCopy(
         ErrorLook.Limits, "Your phone's clock is ${abs(offsetMs) / 1000} s off",

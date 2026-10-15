@@ -301,6 +301,7 @@ enum class ErrorCode {
     @SerialName("session_cap") SessionCap,
     @SerialName("folder_busy") FolderBusy,
     @SerialName("conversation_open") ConversationOpen,
+    @SerialName("nested_repos") NestedRepos,
     @SerialName("process_denied") ProcessDenied,
     @SerialName("view_token_required") ViewTokenRequired,
     @SerialName("spawn_failed") SpawnFailed,

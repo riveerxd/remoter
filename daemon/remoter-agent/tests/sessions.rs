@@ -1235,6 +1235,29 @@ impl Launcher for FailLaunch {
     }
 }
 
+// the repo holds a readme, the code sits in repos of its own inside it
+#[test]
+fn worktree_of_umbrella_repo_refused() {
+    let w = World::new();
+    let repo = make_repo(&w);
+    std::fs::create_dir_all(repo.join("app")).expect("mkdir");
+    git(&repo.join("app"), &["init", "-q"]);
+    let wt = SpawnRequest { mode: SpawnMode::Worktree, ..req("Projects/wtrepo", "wt") };
+    assert_eq!(refused(&w, w.cfg("ready"), wt.clone()), ErrorCode::NestedRepos);
+    assert_eq!(trust_entry(&w, &repo), serde_json::Value::Null);
+
+    let s = w.sessions(w.cfg("ready"), Box::new(FailLaunch));
+    let e = s.spawn(&req("Projects/wtrepo", "same dir"), None).expect_err("the launcher fails");
+    assert_eq!(e.code, ErrorCode::SpawnFailed, "a plain start is fine");
+
+    std::fs::create_dir_all(repo.join("src")).expect("mkdir");
+    std::fs::write(repo.join("src/main.rs"), "fn main() {}\n").expect("write");
+    git(&repo, &["add", "src"]);
+    git(&repo, &["commit", "-q", "-m", "code"]);
+    let e = s.spawn(&wt, None).expect_err("the launcher fails");
+    assert_eq!(e.code, ErrorCode::SpawnFailed, "tracks a folder of its own, so the worktree has code");
+}
+
 #[test]
 fn spawn_writes_trust_before_launch() {
     let w = World::new();

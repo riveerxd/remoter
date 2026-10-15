@@ -86,6 +86,20 @@ class StartEdgeCasesTest {
     }
 
     @Test
+    fun worktree_refused_for_nested_repos() = runRig { r ->
+        r.vm.open(target)
+        advanceUntilIdle()
+        r.api.failWith = ErrorCode.FolderBusy
+        r.vm.start()
+        runCurrent()
+        r.api.failWith = ErrorCode.NestedRepos
+        r.vm.startInWorktree()
+        runCurrent()
+        assertEquals(AppError.NestedRepos, (r.state as StartState.NotAccepted).error)
+        assertEquals(SpawnMode.Worktree, r.vm.ui.value.form.mode)
+    }
+
+    @Test
     fun open_conversation_hands_off() = runRig { r ->
         val conv = me.river.remoter.core.net.Conversation("c82d8b5c-edd4-453e-8d59-4748ff325c03", "fix the banner", null, 0, 0, null, open = false)
         r.vm.open(target)

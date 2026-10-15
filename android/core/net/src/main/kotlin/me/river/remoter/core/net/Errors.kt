@@ -17,6 +17,8 @@ sealed interface AppError {
     data class FolderBusy(val sessions: List<SessionSummary>) : AppError
     /** The conversation to resume is open in a claude on the laptop right now. */
     data object ConversationOpen : AppError
+    /** A worktree of the folder would be empty: its code is in repos of their own inside it. */
+    data object NestedRepos : AppError
     data class ClockSkew(val offsetMs: Long) : AppError
     data object Untrusted : AppError
     data object NotFound : AppError
@@ -39,6 +41,7 @@ fun ErrorBody.toAppError(nowMs: Long): AppError = when (code) {
     ErrorCode.SessionCap -> AppError.SessionCap(sessions.orEmpty())
     ErrorCode.FolderBusy -> AppError.FolderBusy(sessions.orEmpty())
     ErrorCode.ConversationOpen -> AppError.ConversationOpen
+    ErrorCode.NestedRepos -> AppError.NestedRepos
     ErrorCode.AgentDown -> AppError.AgentDown
     // Handled silently by re-attesting; only a failed re-attestation reaches the user.
     ErrorCode.ReattestRequired -> AppError.ReattestFailed

@@ -26,6 +26,9 @@ pub enum ErrorCode {
     /// The conversation asked to resume is open in a claude right now. claude would let a second
     /// one take it over, and both would write the same transcript.
     ConversationOpen,
+    /// A worktree would hold none of the code: the repo tracks no folders and
+    /// the code lives in git repos of its own inside it, which a worktree leaves out.
+    NestedRepos,
     /// Not your process, or one remoter itself needs.
     ProcessDenied,
     ViewTokenRequired,
@@ -39,7 +42,7 @@ pub enum ErrorCode {
 }
 
 impl ErrorCode {
-    pub const ALL: [ErrorCode; 27] = [
+    pub const ALL: [ErrorCode; 28] = [
         ErrorCode::PathOutsideHome,
         ErrorCode::PathDenied,
         ErrorCode::PathUnsupported,
@@ -58,6 +61,7 @@ impl ErrorCode {
         ErrorCode::SessionCap,
         ErrorCode::FolderBusy,
         ErrorCode::ConversationOpen,
+        ErrorCode::NestedRepos,
         ErrorCode::ProcessDenied,
         ErrorCode::ViewTokenRequired,
         ErrorCode::SpawnFailed,
@@ -81,7 +85,7 @@ impl ErrorCode {
             ReattestRequired | ViewTokenRequired => 403,
             ClockSkew => 400,
             RateLimited => 429,
-            SessionCap | FolderBusy | ConversationOpen => 409,
+            SessionCap | FolderBusy | ConversationOpen | NestedRepos => 409,
             PairExpired | PairRejected => 403,
             SpawnFailed | Internal => 500,
             DesktopDown | AgentDown => 503,
@@ -109,6 +113,7 @@ impl ErrorCode {
             SessionCap => "session_cap",
             FolderBusy => "folder_busy",
             ConversationOpen => "conversation_open",
+            NestedRepos => "nested_repos",
             ProcessDenied => "process_denied",
             ViewTokenRequired => "view_token_required",
             SpawnFailed => "spawn_failed",
